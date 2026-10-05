@@ -3,8 +3,9 @@ import { resolve } from 'path';
 import * as admin from 'firebase-admin';
 
 /**
- * Firebase Admin is used only to verify Firebase ID tokens for
- * `POST /auth/firebase` (Google / Apple). It is not used for data access.
+ * Firebase Admin verifies Firebase ID tokens for `POST /auth/firebase`
+ * and sends FCM when `PUSH_DRIVER=fcm`. It is not used for data access.
+ * `PUSH_DRIVER=log` (the dev default) never calls this.
  *
  * Local `POST /auth/dev-login` and every Postgres read/write work without a
  * service account. Credentials are resolved only when a real Firebase login

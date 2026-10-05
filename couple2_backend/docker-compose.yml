@@ -19,8 +19,10 @@ services:
       NODE_ENV: development
       JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me-32b}
       PORT: 3000
-      # Optional. Only POST /auth/firebase needs a Firebase service account.
+      # Optional. Only POST /auth/firebase and PUSH_DRIVER=fcm need a service account.
       FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
+      # log (default) prints pushes. fcm sends them when credentials exist.
+      PUSH_DRIVER: ${PUSH_DRIVER:-log}
     ports:
       - "3000:3000"
     volumes:

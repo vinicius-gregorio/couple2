@@ -56,8 +56,8 @@ export class ListsController {
 
   @Patch('items/:id')
   @UseGuards(SharedListItemGuard)
-  toggleItem(@Param('id') id: string) {
-    return this.listsService.toggleItem(id);
+  toggleItem(@Param('id') id: string, @GetUser() user: UserWithPartner) {
+    return this.listsService.toggleItem(id, user.id);
   }
 
   @Delete('items/:id')
