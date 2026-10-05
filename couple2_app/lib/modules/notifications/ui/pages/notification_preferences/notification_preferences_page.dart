@@ -122,7 +122,7 @@ class _NotificationPreferencesPageState
                       onChanged: (value) => _patch({'mood': value}),
                     ),
                     SwitchListTile(
-                      title: const Text('Nudges'),
+                      title: const Text('Carinhos'),
                       value: prefs.nudges,
                       onChanged: (value) => _patch({'nudges': value}),
                     ),

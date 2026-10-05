@@ -10,6 +10,7 @@ import '../../modules/couple/routing/routing.dart';
 import '../../modules/daily_question/routing/routing.dart';
 import '../../modules/feed/routing/routing.dart';
 import '../../modules/lists/routing/routing.dart';
+import '../../modules/mood/routing/routing.dart';
 import '../../modules/notifications/routing/routing.dart';
 import '../ui/pages/home/home_page.dart';
 import 'routes.dart';
@@ -36,6 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ...feedRoutes,
       ...notificationRoutes,
       ...dailyQuestionRoutes,
+      ...moodRoutes,
     ],
   );
 });
