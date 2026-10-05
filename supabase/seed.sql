@@ -1,0 +1,2 @@
+-- Application tables are created by Prisma migrations in couple2_backend.
+-- This file exists so `supabase db reset` has the seed path from config.toml.

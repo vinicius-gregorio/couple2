@@ -9,8 +9,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy Prisma schema and generate client
+# Copy Prisma schema and generate client.
+# Generate does not connect, but Prisma 7 reads DATABASE_URL from prisma.config.ts.
+COPY prisma.config.ts ./
 COPY prisma ./prisma
+ENV DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
 RUN npx prisma generate
 
 # Copy source code and build
@@ -35,12 +38,13 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
+COPY scripts ./scripts
 
 # Expose application port
 EXPOSE 3000
 
 # Run migrations and start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run prod"]
+CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run prod"]
 
 # ============================================
 # Development Stage
@@ -54,9 +58,11 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy Prisma schema
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 
-# Generate Prisma client
+# Generate Prisma client (no live database required)
+ENV DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
 RUN npx prisma generate
 
 # Copy source code
@@ -64,5 +70,5 @@ COPY . .
 
 EXPOSE 3000
 
-# Run migrations and start in watch mode
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run dev"]
+# Wait for local Supabase Postgres, migrate, then start in watch mode
+CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run dev"]
