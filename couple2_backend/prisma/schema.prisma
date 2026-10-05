@@ -56,6 +56,10 @@ model User {
   deviceTokens           DeviceToken[]
   notificationPreference NotificationPreference?
 
+  moodCheckins   MoodCheckin[]
+  nudgesSent     Nudge[]       @relation("NudgesSent")
+  nudgesReceived Nudge[]       @relation("NudgesReceived")
+
   @@map("users")
 }
 
@@ -111,6 +115,8 @@ model Couple {
   lists           PartnerList[]
   activityEvents  ActivityEvent[]
   coupleQuestions CoupleQuestion[]
+  moodCheckins    MoodCheckin[]
+  nudges          Nudge[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -294,4 +300,51 @@ model QuestionAnswer {
 
   @@unique([coupleQuestionId, userId])
   @@map("question_answers")
+}
+
+enum MoodLevel {
+  GREAT
+  GOOD
+  OK
+  LOW
+  BAD
+}
+
+enum NudgeKind {
+  THINKING_OF_YOU
+  HUG
+  KISS
+  MISS_YOU
+}
+
+model MoodCheckin {
+  id        String    @id @default(uuid())
+  coupleId  String
+  couple    Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood      MoodLevel
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([coupleId, userId, createdAt(sort: Desc)])
+  @@map("mood_checkins")
+}
+
+model Nudge {
+  id         String    @id @default(uuid())
+  coupleId   String
+  couple     Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User      @relation("NudgesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User      @relation("NudgesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+  kind       NudgeKind
+  message    String?
+  seenAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([receiverId, createdAt(sort: Desc)])
+  @@index([senderId, createdAt])
+  @@map("nudges")
 }

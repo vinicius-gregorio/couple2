@@ -21,4 +21,32 @@ describe('buildPushCopy questions', () => {
     expect(copy.title.toLowerCase()).toContain('desbloqueada');
     expect(copy.body.toLowerCase()).toContain('desbloqueada');
   });
+
+  it('comforts on a hard day and never quotes the note', () => {
+    const copy = buildPushCopy({
+      type: ActivityType.MOOD_SHARED,
+      actorName: 'Bia',
+      payload: { mood: 'LOW', note: 'segredo doloroso' },
+    });
+    expect(copy.body).toBe('Bia não está num dia muito bom 💛');
+    expect(copy.body).not.toContain('segredo');
+  });
+
+  it('collapses a burst of nudges and keeps a single one specific', () => {
+    const one = buildPushCopy({
+      type: ActivityType.NUDGE_SENT,
+      actorName: 'Bia',
+      payload: { kind: 'HUG', recentCount: 1, message: 'aqui' },
+    });
+    expect(one.body).toContain('Bia mandou um abraço');
+    expect(one.body).toContain('aqui');
+
+    const burst = buildPushCopy({
+      type: ActivityType.NUDGE_SENT,
+      actorName: 'Bia',
+      payload: { kind: 'HUG', recentCount: 4, message: 'aqui' },
+    });
+    expect(burst.body).toBe('Bia mandou 4 carinhos');
+    expect(burst.body).not.toContain('aqui');
+  });
 });

@@ -11,6 +11,7 @@ import { ListsModule } from './lists/lists.module';
 import { CoupleModule } from './couple/couple.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { QuestionsModule } from './questions/questions.module';
+import { MoodModule } from './mood/mood.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { QuestionsModule } from './questions/questions.module';
     CoupleModule,
     NotificationsModule,
     QuestionsModule,
+    MoodModule,
   ],
   controllers: [AppController],
   providers: [AppService],

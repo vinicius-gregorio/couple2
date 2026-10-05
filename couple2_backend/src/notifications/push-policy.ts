@@ -89,6 +89,9 @@ export function shouldDeliverPush(input: PushDecisionInput): boolean {
 /** At most one list push per recipient inside this window. The rest stay in the feed. */
 export const LIST_PUSH_WINDOW_MS = 5 * 60 * 1000;
 
+/** At most one LOW/BAD mood push per recipient inside this window. */
+export const MOOD_PUSH_WINDOW_MS = 6 * 60 * 60 * 1000;
+
 export const LIST_ACTIVITY_TYPES: ActivityType[] = [
   ActivityType.LIST_CREATED,
   ActivityType.LIST_ITEM_ADDED,
