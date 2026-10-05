@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local dev (no Docker). Swap back to "postgresql" for prod.
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  picture   String?
+  googleId    String?  @unique
+  appleId     String?  @unique
+  firebaseUid String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Pairing code for connecting with partner
+  pairingCode          String?   @unique
+  pairingCodeExpiresAt DateTime?
+
+  // Self-referencing relation for partner/couple
+  partnerId String? @unique
+  partner   User?   @relation("CouplePartner", fields: [partnerId], references: [id])
+  partnerOf User?   @relation("CouplePartner")
+
+  // Pairing requests made by this user
+  pairingRequestsSent PairingRequest[] @relation("RequesterRelation")
+
+  // Lists created by this user
+  lists PartnerList[]
+
+  @@map("users")
+}
+
+
+model PairingRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  targetCode  String
+  createdAt   DateTime @default(now())
+
+  // Relation to the user who made the request
+  requester User @relation("RequesterRelation", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  // Unique constraint: one user can only have one pending request per target code
+  @@unique([requesterId, targetCode])
+  @@map("pairing_requests")
+}
+
+enum ListType {
+  SHOPPING_CART
+  MOVIES
+  MILESTONES
+  TRAVEL
+}
+
+model PartnerList {
+  id        String     @id @default(uuid())
+  type      ListType
+  name      String
+  ownerId   String
+  owner     User       @relation(fields: [ownerId], references: [id])
+  items     ListItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("partner_lists")
+}
+
+model ListItem {
+  id          String      @id @default(uuid())
+  listId      String
+  list        PartnerList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  content     String
+  metadata    Json?
+  isCompleted Boolean     @default(false)
+  addedById   String
+  createdAt   DateTime    @default(now())
+
+  @@map("list_items")
+}
