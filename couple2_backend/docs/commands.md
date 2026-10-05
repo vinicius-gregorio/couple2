@@ -5,5 +5,11 @@ SSH CONFIG:
 
 
 
-Docker compose dev:
-docker compose -f docker-compose.dev.yml up -d
+Local Supabase Postgres (repo root):
+supabase start
+
+API against that database:
+cd couple2_backend && cp .env.example .env && npx prisma migrate deploy && npm run dev
+
+API container (after supabase start):
+cd couple2_backend && docker compose up --build

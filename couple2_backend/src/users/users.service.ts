@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import { CreateUserDto } from './dto/create-user.dto';
 
@@ -77,11 +78,13 @@ export class UsersService {
         });
         return user;
       } catch (error: unknown) {
-        // Check if it's a unique constraint violation (code already exists)
-        if (
-          error instanceof Error &&
-          error.message.includes('Unique constraint')
-        ) {
+        // Pairing codes are unique; retry when Postgres rejects a collision.
+        const uniqueViolation =
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002') ||
+          (error instanceof Error &&
+            error.message.includes('Unique constraint'));
+        if (uniqueViolation) {
           attempts++;
           continue;
         }

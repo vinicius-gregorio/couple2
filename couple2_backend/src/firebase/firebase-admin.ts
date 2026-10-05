@@ -3,10 +3,12 @@ import { resolve } from 'path';
 import * as admin from 'firebase-admin';
 
 /**
- * Centralized Firebase Admin initialization, shared by the Firestore data layer
- * (PrismaService) and the auth token verifier (FirebaseAuthStrategy).
+ * Firebase Admin is used only to verify Firebase ID tokens for
+ * `POST /auth/firebase` (Google / Apple). It is not used for data access.
  *
- * Credentials are resolved in this order:
+ * Local `POST /auth/dev-login` and every Postgres read/write work without a
+ * service account. Credentials are resolved only when a real Firebase login
+ * is attempted, in this order:
  *   1. FIREBASE_SERVICE_ACCOUNT      — inline service-account JSON (raw or base64)
  *   2. FIREBASE_SERVICE_ACCOUNT_PATH — path to a service-account JSON file
  *   3. ./serviceAccount.json         — default gitignored file in the backend root
@@ -23,11 +25,6 @@ export function ensureFirebase(): void {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
-}
-
-export function getFirestore(): FirebaseFirestore.Firestore {
-  ensureFirebase();
-  return admin.firestore();
 }
 
 function loadServiceAccount(): admin.ServiceAccount {
@@ -47,8 +44,8 @@ function loadServiceAccount(): admin.ServiceAccount {
   }
 
   throw new Error(
-    'Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT (inline JSON ' +
-      'or base64), or FIREBASE_SERVICE_ACCOUNT_PATH, or place serviceAccount.json ' +
-      'in the backend root.',
+    'Firebase credentials not found. They are required only for POST /auth/firebase. ' +
+      'Set FIREBASE_SERVICE_ACCOUNT (inline JSON or base64), or FIREBASE_SERVICE_ACCOUNT_PATH, ' +
+      'or place serviceAccount.json in the backend root. Local dev-login does not need them.',
   );
 }

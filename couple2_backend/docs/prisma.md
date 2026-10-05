@@ -175,12 +175,10 @@ export class UsersService {
 Required in `.env`:
 
 ```bash
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
 ```
 
-**Host values:**
-- `db` - when running inside Docker (docker-compose networking)
-- `localhost` - when running app locally outside Docker
+That URL is the Postgres published by `supabase start` (repo root). The API container uses `host.docker.internal` instead of `127.0.0.1`; `docker-compose.yml` sets it.
 
 ## CLI Commands
 
@@ -464,12 +462,12 @@ const result = await this.prisma.$queryRaw`SELECT * FROM users WHERE email = ${e
 The Dockerfile runs migrations before starting the app:
 
 ```dockerfile
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run prod"]
+CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run prod"]
 ```
 
-For development with hot reload, migrations run on container start:
+For development with hot reload, the container waits for Supabase Postgres, then migrates:
 ```dockerfile
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run dev"]
+CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run dev"]
 ```
 
 ## Troubleshooting
@@ -481,8 +479,9 @@ Run `npx prisma generate` to regenerate the client.
 Ensure `.env` file exists and contains `DATABASE_URL`.
 
 ### Connection refused
-- Check if PostgreSQL container is running: `docker-compose ps`
-- Verify DATABASE_URL host matches your environment (db vs localhost)
+- From the repo root, check `supabase status` (Postgres should be on port 54322)
+- Host API: `DATABASE_URL` host is `127.0.0.1`
+- API container: `DATABASE_URL` host is `host.docker.internal` (set by docker-compose.yml)
 
 ### Migration conflicts
 If migrations get out of sync:

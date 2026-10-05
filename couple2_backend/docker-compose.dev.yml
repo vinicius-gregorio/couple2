@@ -1,23 +1,21 @@
-# Docker Compose for local development
-# Only runs the database, app runs locally with npm run dev
-services:
-  db:
-    image: postgres:16-alpine
-    container_name: couple2_db_dev
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data_dev:
+# This file used to start a standalone Postgres 16 container. That database
+# did not match the Prisma datasource (the schema had drifted to SQLite), so
+# the API could not boot against the intended database.
+#
+# Local Postgres now comes from the official Supabase stack. From the repo
+# root:
+#
+#   supabase start
+#
+# Then run the API on the host (couple2_backend):
+#
+#   cp .env.example .env
+#   npx prisma migrate deploy
+#   npm run dev
+#
+# Or run the API in Docker, still against that Supabase Postgres:
+#
+#   docker compose up --build
+#
+# There is intentionally no database service in this file.
+services: {}

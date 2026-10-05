@@ -20,13 +20,8 @@ cp .env.example .env
 ### 1.2 Edit .env with your values
 
 ```bash
-# PostgreSQL Configuration
-POSTGRES_USER=couple_user
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_DB=couple_db
-
-# Database URL (use 'localhost' for local dev, 'db' for docker-compose)
-DATABASE_URL=postgresql://couple_user:your_secure_password_here@localhost:5432/couple_db?schema=public
+# Local Supabase Postgres (`supabase start` from the repo root)
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
 
 # JWT Secret (generate a random 32+ char string)
 JWT_SECRET=your-super-secret-jwt-key-at-least-32-chars
@@ -43,11 +38,11 @@ APPLE_CLIENT_ID=com.yourcompany.yourapp
 ## 2. Start the Database
 
 ```bash
-# Start only the PostgreSQL container
-docker-compose up -d db
+# From the repository root — official local Supabase stack (Docker)
+supabase start
 
-# Verify it's running
-docker-compose ps
+# Postgres is published on 127.0.0.1:54322
+supabase status
 ```
 
 ---
@@ -295,8 +290,8 @@ npm run test
 ## 9. Troubleshooting
 
 ### "Connection refused" error
-- Check if Docker is running: `docker-compose ps`
-- Check DATABASE_URL uses correct host (`localhost` vs `db`)
+- Check local Supabase: `supabase status` from the repo root
+- Host API uses `127.0.0.1:54322`; the compose API uses `host.docker.internal:54322`
 
 ### "Invalid token" error
 - Verify GOOGLE_CLIENT_ID matches the one used to generate the token

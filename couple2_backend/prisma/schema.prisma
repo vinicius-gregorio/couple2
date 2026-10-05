@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  // SQLite for local dev (no Docker). Swap back to "postgresql" for prod.
-  provider = "sqlite"
+  // Local Postgres from `supabase start` (see prisma.config.ts DATABASE_URL).
+  provider = "postgresql"
 }
 
 model User {
