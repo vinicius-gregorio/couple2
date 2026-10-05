@@ -50,3 +50,27 @@ describe('buildPushCopy questions', () => {
     expect(burst.body).not.toContain('aqui');
   });
 });
+
+describe('buildPushCopy date plans', () => {
+  it('uses the couple-timezone label and leaves the note out of the push', () => {
+    const proposed = buildPushCopy({
+      type: ActivityType.DATE_PLAN_PROPOSED,
+      actorName: 'Bia',
+      payload: {
+        title: 'Japonês',
+        whenLabel: 'sexta-feira, 20:00',
+        responseNote: 'não conta',
+      },
+    });
+    expect(proposed.body).toBe('Bia propôs "Japonês" para sexta-feira, 20:00');
+    expect(proposed.body).not.toContain('não conta');
+
+    const countered = buildPushCopy({
+      type: ActivityType.DATE_PLAN_COUNTERED,
+      actorName: 'Bia',
+      payload: { title: 'Japonês', whenLabel: 'sábado, 19:00' },
+    });
+    expect(countered.body).toContain('sugeriu "Japonês"');
+    expect(countered.body).toContain('sábado, 19:00');
+  });
+});
