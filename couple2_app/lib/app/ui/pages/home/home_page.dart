@@ -11,6 +11,8 @@ import '../../../../modules/daily_question/data/daily_question_providers.dart';
 import '../../../../modules/daily_question/ui/widgets/today_question_card.dart';
 import '../../../../modules/feed/data/feed_providers.dart';
 import '../../../../modules/mood/data/mood_providers.dart';
+import '../../../../modules/date_plans/data/date_plans_providers.dart';
+import '../../../../modules/date_plans/ui/widgets/next_date_card.dart';
 import '../../../../modules/mood/ui/widgets/mood_home_card.dart';
 import '../../../../modules/feed/routing/routes.dart';
 import '../../../../modules/feed/ui/widgets/feed_preview.dart';
@@ -75,6 +77,7 @@ class HomePage extends ConsumerWidget {
               ref.invalidate(feedPreviewProvider);
               ref.invalidate(todayQuestionProvider);
               ref.invalidate(currentMoodProvider);
+              ref.invalidate(nextDateProvider);
               await ref.read(coupleProvider.future);
             },
             child: ListView(
@@ -126,6 +129,8 @@ class HomePage extends ConsumerWidget {
                 if (session.coupleId != null) ...[
                   const SizedBox(height: 16),
                   const MoodHomeCard(),
+                  const SizedBox(height: 16),
+                  const NextDateCard(),
                   const SizedBox(height: 16),
                   const TodayQuestionCard(),
                   const SizedBox(height: 16),

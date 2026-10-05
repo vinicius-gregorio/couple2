@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../date_plans/domain/date_plan_copy.dart';
+import '../../../../date_plans/routing/routes.dart';
 import '../../../domain/domain.dart';
 import '../../../../../../design_system/design_system.dart';
 import '../lists/lists_viewmodel.dart';
@@ -115,6 +118,21 @@ class _ItemTile extends ConsumerWidget {
               : null,
         ),
         subtitle: _buildSubtitle(item, listType),
+        trailing: listTypeSupportsDatePlan(listType)
+            ? TextButton(
+                onPressed: () {
+                  final query = Uri(
+                    path: DatePlanRoutes.create,
+                    queryParameters: {
+                      'sourceListItemId': item.id,
+                      'title': item.content,
+                    },
+                  ).toString();
+                  context.push(query);
+                },
+                child: const Text('Planejar date'),
+              )
+            : null,
       ),
     );
   }
