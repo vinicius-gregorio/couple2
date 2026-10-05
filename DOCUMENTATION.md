@@ -47,6 +47,10 @@ NestJS REST API that handles social authentication, user management, and the pai
 | `pg` | ^8.23.1 | Postgres connection pool |
 | `passport-jwt` | 4.0.1 | JWT Passport strategy |
 | `rxjs` | 7.8.2 | Reactive extensions (NestJS internals) |
+| `class-validator` | ^0.15.1 | DTO validation (`ValidationPipe` global) |
+| `class-transformer` | ^0.5.1 | DTO transform used by `ValidationPipe` |
+| `date-fns` | ^3.6.0 | Calendar-day math for `daysTogether` |
+| `date-fns-tz` | ^3.2.0 | "Today" in the couple IANA timezone |
 
 **Development**
 
@@ -64,14 +68,17 @@ NestJS REST API that handles social authentication, user management, and the pai
 
 ```
 src/
-├── main.ts                   # Bootstrap, starts server on PORT (default 3000)
+├── main.ts                   # Bootstrap, ValidationPipe, starts server on PORT (default 3000)
+├── configure-app.ts          # Global ValidationPipe + CORS
 ├── app.module.ts             # Root module
 ├── auth/                     # Auth module (login, JWT, guards, decorators)
 │   ├── strategies/           # firebase.strategy (ID token verify), jwt.strategy
 │   ├── guards/               # JwtAuthGuard, PairingGuard
 │   └── decorators/           # @GetUser(), @GetPartner()
-├── users/                    # User CRUD and pairing code generation
-├── pairing/                  # Pairing logic (double handshake)
+├── users/                    # User profile (`PATCH /users/me`) and pairing codes
+├── pairing/                  # Pairing logic (double handshake + Couple row)
+├── couple/                   # Couple record, important dates, CoupleGuard
+├── lists/                    # Shared lists scoped by coupleId
 ├── firebase/                 # Optional Firebase Admin init (ID token verify only)
 └── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
@@ -95,10 +102,16 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 | `firebaseUid` | string? | Firebase Auth UID (primary identity now) |
 | `pairingCode` | string? | 6-char code, expires in 30 days |
 | `pairingCodeExpiresAt` | timestamp? | Expiry |
-| `partnerId` | string? | UUID of paired user |
+| `partnerId` | string? | UUID of paired user. Written in the same transaction as `coupleId` |
+| `coupleId` | string? | Active couple. Null after unpair |
+| `birthDate` | date? | Calendar birthday (`YYYY-MM-DD`) |
 | `createdAt` / `updatedAt` | timestamp | Set by the database / Prisma |
 
-**`partner_lists`** / **`list_items`** — shared lists and their items (`ownerId`, `type`, `name`; items carry `listId`, `content`, `metadata` JSON, `isCompleted`, `addedById`). Deleting a list cascades to its items.
+**`couples`** — one row per pairing. `userAId` is the smaller user id. `status` is `ACTIVE` or `ENDED`. `anniversaryDate` is the relationship start (calendar date, optional). `timezone` is one IANA zone for the couple (default `America/Sao_Paulo`). Partial unique indexes allow only one `ACTIVE` row per user. Re-pairing the same people creates a new row.
+
+**`couple_dates`** — custom dates (`title` ≤ 60, calendar `date`, `recurrence` `YEARLY` or `NONE`). Birthdays and the relationship anniversary are not stored here. Deleting a couple cascades to these rows.
+
+**`partner_lists`** / **`list_items`** — shared lists and their items (`ownerId`, `type`, `name`, `coupleId`; items carry `listId`, `content`, `metadata` JSON, `isCompleted`, `addedById`). `coupleId` stays nullable so lists created before a pairing can be attached on the next one. Lists of an ended couple keep that `coupleId` and are not readable by either former partner or by a new partner. Deleting a list cascades to its items.
 
 **`pairing_requests`** — tracks the double handshake state
 
@@ -117,7 +130,7 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 |---|---|---|---|
 | POST | `/auth/firebase` | — | Login with a Firebase ID token (Google or Apple) → returns app JWT |
 | POST | `/auth/dev-login` | — | Dev-only login by email (no Firebase service account) |
-| GET | `/auth/me` | JWT | Get current user + partner info |
+| GET | `/auth/me` | JWT | Current user (includes `coupleId` and `birthDate`) + partner info |
 
 **Pairing**
 
@@ -126,13 +139,39 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 | POST | `/pairing/pair` | JWT | Initiate or complete pairing |
 | GET | `/pairing/status` | JWT | Get current pairing status |
 | DELETE | `/pairing/request` | JWT | Cancel pending pairing request |
-| DELETE | `/pairing/unpair` | JWT | Dissolve current partnership |
+| DELETE | `/pairing/unpair` | JWT + paired | End the couple (`ENDED`, `endedAt`) and clear both `partnerId` and `coupleId` |
+
+**Couple**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/couple` | JWT + active couple | Couple profile, `daysTogether`, partner, upcoming dates (next 60 days) |
+| PATCH | `/couple` | JWT + active couple | `{ anniversaryDate?, timezone? }`. Either partner. `timezone` must be IANA |
+| GET | `/couple/dates` | JWT + active couple | Custom couple dates |
+| POST | `/couple/dates` | JWT + active couple | Create a custom date (`title` ≤ 60, `date`, `recurrence?`) |
+| PATCH | `/couple/dates/:id` | JWT + active couple | Update a date in this couple. Other couples get 404 |
+| DELETE | `/couple/dates/:id` | JWT + active couple | Delete a date in this couple. Other couples get 404 |
+| PATCH | `/users/me` | JWT | `{ birthDate? }`. Future dates and unknown fields return 400 |
+
+**Lists** (scoped by the active `coupleId`; `CoupleGuard` replaces `PairingGuard`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/lists` | JWT + active couple | Lists of the current couple only |
+| POST | `/lists` | JWT + active couple | Create a list on the current couple |
+| GET | `/lists/:id` | JWT + active couple | 404 when the list is missing or belongs to another couple |
+| POST | `/lists/:id/items` | JWT + active couple | Add an item. 404 outside the couple |
+| PATCH | `/lists/items/:id` | JWT + active couple | Toggle an item. 404 outside the couple (no IDOR) |
+| DELETE | `/lists/items/:id` | JWT + active couple | Delete an item. 404 outside the couple |
+| DELETE | `/lists/:id` | JWT + active couple | Delete a list in this couple |
 
 ### Pairing Flow
 
 1. User A calls `POST /pairing/pair` with User B's code → creates a `PENDING` request.
-2. User B calls `POST /pairing/pair` with User A's code → finds the pending request, sets `partnerId` on both users, and clears the requests.
-3. Both are now paired.
+2. User B calls `POST /pairing/pair` with User A's code → in one transaction, creates an `ACTIVE` couple, sets `partnerId` and `coupleId` on both users, attaches lists that still have `coupleId` NULL, and clears the requests. A failure inside the transaction leaves neither `partnerId` nor the couple row.
+3. `DELETE /pairing/unpair` sets that couple to `ENDED` with `endedAt` and clears `coupleId` on both users. Lists stay on the ended couple and are not visible to either person or to a later partner. There is no 30-day archive. Re-pairing creates a new couple.
+
+`daysTogether` counts calendar days from `anniversaryDate` (or the `pairedAt` day in the couple timezone, when the anniversary is unset) through today in that timezone, including the first day. Upcoming dates cover the next 60 days: the yearly anniversary, both birthdays, and custom couple dates. A Feb 29 birthday is shown as Feb 28 in a non-leap year.
 
 ### Environment Variables
 
@@ -222,6 +261,7 @@ Flutter app for iOS, Android, Web, macOS, Windows, and Linux. Handles Firebase A
 | `google_fonts` | ^6.2.1 | Typography |
 | `flutter_svg` | ^2.2.3 | SVG rendering |
 | `intl` | ^0.20.2 | Internationalization |
+| `flutter_timezone` | 4.1.1 | Device IANA timezone (default for the couple) |
 
 **Development**
 
@@ -246,7 +286,8 @@ lib/
 │       ├── router.dart              # GoRouter + auth redirects
 │       └── routes.dart              # Route path constants
 ├── modules/
-│   └── auth/                        # Auth feature module
+│   ├── auth/                        # Auth feature module
+│   └── couple/                      # Couple record + important dates
 │       ├── ui/pages/auth/           # Login screen + ViewModel
 │       ├── ui/widgets/              # Google + Apple sign-in buttons
 │       ├── domain/entities/         # User entity
@@ -262,7 +303,8 @@ lib/
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
 - **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`.
+- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`.
+- **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).
 - **Firebase Auth** — sign-in runs through `firebase_auth`. Web uses `signInWithPopup`; mobile Google uses a `google_sign_in` credential exchanged into Firebase; Apple uses the Firebase Apple provider.
 

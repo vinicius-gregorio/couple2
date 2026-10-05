@@ -6,6 +6,9 @@ import {
 } from '@nestjs/common';
 import type { UserWithPartner } from '../strategies/jwt.strategy';
 
+export const PAIRING_REQUIRED_MESSAGE =
+  'This feature requires you to be paired with a partner';
+
 interface RequestWithUser {
   user?: UserWithPartner;
 }
@@ -32,9 +35,7 @@ export class PairingGuard implements CanActivate {
     }
 
     if (!user.partnerId) {
-      throw new ForbiddenException(
-        'This feature requires you to be paired with a partner',
-      );
+      throw new ForbiddenException(PAIRING_REQUIRED_MESSAGE);
     }
 
     return true;

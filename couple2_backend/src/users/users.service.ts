@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { calendarDateToUtc, toDateOnlyString } from '../common/calendar-date';
 import { PrismaService } from '../prisma';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
 
 const PAIRING_CODE_TTL_DAYS = 30;
 const PAIRING_CODE_LENGTH = 6;
@@ -136,6 +138,35 @@ export class UsersService {
 
     // Generate new pairing code
     return this.generatePairingCodeForUser(userId);
+  }
+
+  async updateMe(userId: string, dto: UpdateMeDto) {
+    const data: Prisma.UserUpdateInput = {};
+    if (dto.birthDate !== undefined) {
+      data.birthDate = dto.birthDate ? calendarDateToUtc(dto.birthDate) : null;
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        picture: true,
+        birthDate: true,
+        coupleId: true,
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      coupleId: user.coupleId,
+      birthDate: toDateOnlyString(user.birthDate),
+    };
   }
 
   /**

@@ -45,6 +45,18 @@ class ListsPage extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
+    if (state.needsPairing) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: AppText(
+            'Você precisa estar pareado para ver as listas. O fluxo de pareamento (P0) ainda não está neste app.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     if (state.errorMessage != null) {
       return Center(child: AppText('Error: ${state.errorMessage}'));
     }

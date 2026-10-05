@@ -3,7 +3,6 @@ import {
   CanActivate,
   ExecutionContext,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
 import type { UserWithPartner } from '../../auth/strategies/jwt.strategy';
@@ -26,13 +25,10 @@ export class SharedListGuard implements CanActivate {
       where: { id: listId },
     });
 
-    if (!list) throw new NotFoundException('List not found');
-
-    const isOwner = list.ownerId === user.id;
-    const isPartner = list.ownerId === user.partnerId;
-
-    if (!isOwner && !isPartner) {
-      throw new ForbiddenException('You do not have access to this list');
+    // 404 for missing lists and for lists that belong to another couple,
+    // including an ENDED couple this user used to share.
+    if (!list || !user.coupleId || list.coupleId !== user.coupleId) {
+      throw new NotFoundException('List not found');
     }
 
     return true;

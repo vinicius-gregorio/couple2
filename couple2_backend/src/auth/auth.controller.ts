@@ -6,29 +6,33 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { FirebaseLoginDto, AuthResponseDto } from './dto';
 import { JwtAuthGuard } from './guards';
 import { GetUser } from './decorators';
 import type { UserWithPartner } from './strategies/jwt.strategy';
+import { toDateOnlyString } from '../common/calendar-date';
 
 class DevLoginDto {
+  @IsEmail()
   email: string;
+
+  @IsOptional()
+  @IsString()
   name?: string;
 }
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) { }
+  constructor(private authService: AuthService) {}
 
   /**
    * POST /auth/firebase
    * Login with a Firebase ID token (Google or Apple, both via Firebase Auth).
    */
   @Post('firebase')
-  async firebaseLogin(
-    @Body() dto: FirebaseLoginDto,
-  ): Promise<AuthResponseDto> {
+  async firebaseLogin(@Body() dto: FirebaseLoginDto): Promise<AuthResponseDto> {
     return this.authService.firebaseLogin(dto.idToken);
   }
 
@@ -64,6 +68,8 @@ export class AuthController {
         name: user.name,
         picture: user.picture,
         createdAt: user.createdAt,
+        coupleId: user.coupleId,
+        birthDate: toDateOnlyString(user.birthDate),
       },
       pairing: {
         isPaired,
@@ -71,18 +77,18 @@ export class AuthController {
         ...(isPaired
           ? {}
           : {
-            pairingCode: user.pairingCode,
-            pairingCodeExpiresAt: user.pairingCodeExpiresAt,
-          }),
+              pairingCode: user.pairingCode,
+              pairingCodeExpiresAt: user.pairingCodeExpiresAt,
+            }),
       },
       // Only include partner info if user is paired
       partner: isPaired
         ? {
-          id: user.partner!.id,
-          name: user.partner!.name,
-          email: user.partner!.email,
-          picture: user.partner!.picture,
-        }
+            id: user.partner!.id,
+            name: user.partner!.name,
+            email: user.partner!.email,
+            picture: user.partner!.picture,
+          }
         : null,
     };
   }
