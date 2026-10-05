@@ -110,6 +110,7 @@ model Couple {
   dates           CoupleDate[]
   lists           PartnerList[]
   activityEvents  ActivityEvent[]
+  coupleQuestions CoupleQuestion[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -170,6 +171,14 @@ enum DevicePlatform {
   IOS
   ANDROID
   WEB
+}
+
+enum QuestionCategory {
+  FUN
+  DEEP
+  MEMORIES
+  FUTURE
+  DAILY_LIFE
 }
 
 enum ActivityType {
@@ -236,4 +245,53 @@ model NotificationPreference {
   updatedAt      DateTime @updatedAt
 
   @@map("notification_preferences")
+}
+
+model Question {
+  id              String           @id @default(uuid())
+  slug            String           @unique
+  text            String
+  locale          String           @default("pt-BR")
+  category        QuestionCategory
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  coupleQuestions CoupleQuestion[]
+
+  @@map("questions")
+}
+
+model CoupleQuestion {
+  id         String           @id @default(uuid())
+  coupleId   String
+  couple     Couple           @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question         @relation(fields: [questionId], references: [id])
+  date       DateTime         @db.Date
+  unlockedAt DateTime?
+  /// Set when the 10:00 local job has claimed today's push. Keeps a second
+  /// run in the same hour from sending dailyQuestion again.
+  dailyNotifiedAt DateTime?
+  answers    QuestionAnswer[]
+  createdAt  DateTime         @default(now())
+
+  @@unique([coupleId, date])
+  /// Not unique on purpose. The spec's @@unique([coupleId, questionId]) blocks
+  /// acceptance criterion 6: once every active question has been used, today's
+  /// row reuses the least-recent one. QuestionsService still refuses repeats
+  /// until that bank is empty.
+  @@index([coupleId, questionId])
+  @@map("couple_questions")
+}
+
+model QuestionAnswer {
+  id               String         @id @default(uuid())
+  coupleQuestionId String
+  coupleQuestion   CoupleQuestion @relation(fields: [coupleQuestionId], references: [id], onDelete: Cascade)
+  userId           String
+  text             String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([coupleQuestionId, userId])
+  @@map("question_answers")
 }

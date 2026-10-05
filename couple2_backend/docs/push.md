@@ -26,4 +26,6 @@ Quiet hours use the couple timezone. `quietStartMin=1380` and `quietEndMin=420` 
 
 The hourly scheduler sends `COUPLE_DATE_UPCOMING` at 09:00 local time for dates that are 7, 1, or 0 days away (anniversary, both birthdays, custom couple dates). The same occurrence is not inserted twice.
 
+The same hourly scheduler creates today's question at 10:00 local time and sends one push with `data.type=DAILY_QUESTION` and `data.route=/question` ("A pergunta de hoje chegou"). It respects `dailyQuestion`, the master push switch, and quiet hours. No feed row is written for that arrival. `QUESTION_ANSWERED` pushes "respondeu. Responda para ver." `QUESTION_UNLOCKED` pushes "Desbloqueada!" to the partner who answered first. Neither push includes the answer text.
+
 Gift-idea / private list types (`GIFT_IDEAS`, `GIFTS`, `GIFT`, `PRIVATE`) do not create events. Web push is not sent.

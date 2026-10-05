@@ -10,6 +10,7 @@ import { PairingModule } from './pairing';
 import { ListsModule } from './lists/lists.module';
 import { CoupleModule } from './couple/couple.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { QuestionsModule } from './questions/questions.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ListsModule,
     CoupleModule,
     NotificationsModule,
+    QuestionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

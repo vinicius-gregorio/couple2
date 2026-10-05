@@ -38,6 +38,16 @@ export function buildPushCopy(input: {
         title: 'Data importante',
         body: `${title} ${whenLabel(inDays)}`,
       };
+    case ActivityType.QUESTION_ANSWERED:
+      return {
+        title: 'Pergunta do dia',
+        body: `${actor} respondeu. Responda para ver.`,
+      };
+    case ActivityType.QUESTION_UNLOCKED:
+      return {
+        title: 'Pergunta desbloqueada',
+        body: `Desbloqueada! Veja a resposta de ${actor}.`,
+      };
     default:
       return {
         title: 'Couple',

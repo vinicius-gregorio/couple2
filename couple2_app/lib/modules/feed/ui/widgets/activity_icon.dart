@@ -12,6 +12,10 @@ IconData activityIcon(String type) {
       return Icons.cake_outlined;
     case 'COUPLE_UPDATED':
       return Icons.favorite_outline;
+    case 'QUESTION_ANSWERED':
+      return Icons.question_answer_outlined;
+    case 'QUESTION_UNLOCKED':
+      return Icons.lock_open;
     default:
       return Icons.notifications_none;
   }

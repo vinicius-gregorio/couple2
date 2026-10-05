@@ -10,6 +10,7 @@ import {
   DEFAULT_PUSH_PREFERENCES,
   LIST_ACTIVITY_TYPES,
   LIST_PUSH_WINDOW_MS,
+  PushCategory,
   PushPreferenceFlags,
   categoryEnabled,
   pushCategoryFor,
@@ -173,57 +174,20 @@ export class ActivityService {
     });
 
     for (const recipientId of recipients) {
-      const prefs = await this.preferencesFor(recipientId);
-      const quiet = isQuietNow(
-        now,
-        couple.timezone,
-        prefs.quietStartMin,
-        prefs.quietEndMin,
-      );
       const spamBlocked = push.listId
         ? await this.recentListPush(couple.id, push.listId, recipientId, now)
         : false;
-
-      if (
-        !shouldDeliverPush({
-          pushEnabled: prefs.pushEnabled,
-          categoryEnabled: categoryEnabled(prefs, category),
-          quiet,
-          spamBlocked,
-        })
-      ) {
-        continue;
-      }
-
-      const tokens = await this.prisma.deviceToken.findMany({
-        where: {
-          userId: recipientId,
-          platform: { in: [DevicePlatform.IOS, DevicePlatform.ANDROID] },
-        },
-      });
-      if (tokens.length === 0) continue;
-
-      const results = await this.pushSender.send({
-        tokens: tokens.map((row) => row.token),
-        notification: copy,
+      const sent = await this.sendToRecipient({
+        recipientId,
+        couple,
+        now,
+        category,
+        copy,
         data: { type: input.type, route: push.route },
         collapseKey: `${input.entity.type}:${input.entity.id}`,
+        spamBlocked,
       });
-
-      const invalid = results
-        .filter(
-          (result) => !result.success && isInvalidTokenError(result.errorCode),
-        )
-        .map((result) => result.token);
-      if (invalid.length > 0) {
-        await this.prisma.deviceToken.deleteMany({
-          where: { token: { in: invalid } },
-        });
-      }
-
-      if (results.some((result) => result.success)) {
-        pushed.push(recipientId);
-      }
+      if (sent) pushed.push(recipientId);
     }
 
     if (pushed.length > 0) {
@@ -237,6 +201,118 @@ export class ActivityService {
         },
       });
     }
+  }
+
+  /**
+   * 10:00 local "a pergunta chegou" push. No feed row: the arrival is not an
+   * activity type. Respects dailyQuestion, the master switch, and quiet hours.
+   * A couple with no iOS/Android token gets nothing here (the question row
+   * already exists).
+   */
+  async pushDailyQuestion(input: {
+    coupleId: string;
+    coupleQuestionId: string;
+  }): Promise<void> {
+    const couple = await this.prisma.couple.findUnique({
+      where: { id: input.coupleId },
+      select: {
+        id: true,
+        timezone: true,
+        userAId: true,
+        userBId: true,
+        status: true,
+      },
+    });
+    if (!couple || couple.status !== 'ACTIVE') {
+      this.logger.warn(
+        `Skip daily question push for inactive couple ${input.coupleId}`,
+      );
+      return;
+    }
+
+    const now = this.clock.now();
+    const recipients = [couple.userAId, couple.userBId].filter(
+      (id, index, all) => all.indexOf(id) === index,
+    );
+    for (const recipientId of recipients) {
+      try {
+        await this.sendToRecipient({
+          recipientId,
+          couple,
+          now,
+          category: 'dailyQuestion',
+          copy: {
+            title: 'Pergunta do dia',
+            body: 'A pergunta de hoje chegou',
+          },
+          data: { type: 'DAILY_QUESTION', route: '/question' },
+          collapseKey: `CoupleQuestion:${input.coupleQuestionId}`,
+          spamBlocked: false,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Daily question push failed for ${recipientId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+  }
+
+  private async sendToRecipient(input: {
+    recipientId: string;
+    couple: { id: string; timezone: string };
+    now: Date;
+    category: PushCategory;
+    copy: { title: string; body: string };
+    data: { type: string; route: string };
+    collapseKey: string;
+    spamBlocked: boolean;
+  }): Promise<boolean> {
+    const prefs = await this.preferencesFor(input.recipientId);
+    const quiet = isQuietNow(
+      input.now,
+      input.couple.timezone,
+      prefs.quietStartMin,
+      prefs.quietEndMin,
+    );
+    if (
+      !shouldDeliverPush({
+        pushEnabled: prefs.pushEnabled,
+        categoryEnabled: categoryEnabled(prefs, input.category),
+        quiet,
+        spamBlocked: input.spamBlocked,
+      })
+    ) {
+      return false;
+    }
+
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: {
+        userId: input.recipientId,
+        platform: { in: [DevicePlatform.IOS, DevicePlatform.ANDROID] },
+      },
+    });
+    if (tokens.length === 0) return false;
+
+    const results = await this.pushSender.send({
+      tokens: tokens.map((row) => row.token),
+      notification: input.copy,
+      data: input.data,
+      collapseKey: input.collapseKey,
+    });
+
+    const invalid = results
+      .filter(
+        (result) => !result.success && isInvalidTokenError(result.errorCode),
+      )
+      .map((result) => result.token);
+    if (invalid.length > 0) {
+      await this.prisma.deviceToken.deleteMany({
+        where: { token: { in: invalid } },
+      });
+    }
+
+    return results.some((result) => result.success);
   }
 
   private async recentListPush(

@@ -2,6 +2,9 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 export const REMINDER_LOCAL_HOUR = 9;
 
+/** Local hour when today's question is created and the dailyQuestion push goes out. */
+export const DAILY_QUESTION_LOCAL_HOUR = 10;
+
 export function isLocalHour(
   now: Date,
   timeZone: string,
