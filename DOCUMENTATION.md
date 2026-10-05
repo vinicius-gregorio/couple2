@@ -15,7 +15,7 @@ The project is split into two parts:
 
 ### Overview
 
-NestJS REST API that handles social authentication, user management, and the pairing system. Runs on Node.js with **Cloud Firestore** as the database (via the Firebase Admin SDK).
+NestJS REST API that handles social authentication, user management, and the pairing system. Runs on Node.js with **PostgreSQL** from the official local Supabase stack (`supabase start`). Prisma is the only data access layer.
 
 ### Tech Stack
 
@@ -24,11 +24,11 @@ NestJS REST API that handles social authentication, user management, and the pai
 | Framework | NestJS 11 |
 | Language | TypeScript 5.7 |
 | Runtime | Node.js 22 |
-| Database | Cloud Firestore (Firebase) |
-| Data access | Firebase Admin SDK (`firebase-admin`) |
-| Auth | App-issued JWT (Passport) + Firebase ID token verification |
+| Database | PostgreSQL 17 via local Supabase (`supabase start`) |
+| Data access | Prisma 7 (`@prisma/client` + `@prisma/adapter-pg`) |
+| Auth | App-issued JWT (Passport). Firebase ID token verification is optional |
 
-> **Note on the data layer:** the database was migrated from PostgreSQL/Prisma to Firestore. To keep the migration contained, `@prisma/client` is still installed **for its generated model types only** (`User`, `PartnerList`, …); no Prisma queries run at runtime. `PrismaService` (`src/prisma/prisma.service.ts`) is now a Firestore-backed shim that keeps the same delegate API the domain services already call, so no service/controller code changed.
+> **Data layer:** Prisma talks to the Postgres database that `supabase start` runs in Docker. There is no cloud Supabase project and no Firestore. `firebase-admin` is used only when `POST /auth/firebase` verifies a real Google or Apple ID token. `POST /auth/dev-login` and every list/pairing query run without a Firebase service account.
 
 ### Dependencies
 
@@ -41,8 +41,10 @@ NestJS REST API that handles social authentication, user management, and the pai
 | `@nestjs/platform-express` | 11.0.1 | Express HTTP adapter |
 | `@nestjs/jwt` | 11.0.2 | App JWT generation and validation |
 | `@nestjs/passport` | 11.0.5 | Passport.js integration |
-| `firebase-admin` | latest | Firestore access + Firebase ID token verification |
-| `@prisma/client` | 7.2.0 | Generated model **types only** (no runtime queries) |
+| `firebase-admin` | 13.10.0 | Optional Firebase ID token verification (`/auth/firebase` only) |
+| `@prisma/client` | 7.2.0 | Postgres queries and model types |
+| `@prisma/adapter-pg` | 7.2.0 | Prisma 7 driver adapter for `pg` |
+| `pg` | ^8.23.1 | Postgres connection pool |
 | `passport-jwt` | 4.0.1 | JWT Passport strategy |
 | `rxjs` | 7.8.2 | Reactive extensions (NestJS internals) |
 
@@ -50,7 +52,7 @@ NestJS REST API that handles social authentication, user management, and the pai
 
 | Package | Version | Purpose |
 |---|---|---|
-| `prisma` | 7.2.0 | Kept only to regenerate model types from `schema.prisma` |
+| `prisma` | 7.2.0 | Client generation and SQL migrations |
 | `typescript` | 5.7.3 | TypeScript compiler |
 | `ts-node` | 10.9.2 | TypeScript execution |
 | `jest` | 30.0.0 | Test runner |
@@ -70,20 +72,21 @@ src/
 │   └── decorators/           # @GetUser(), @GetPartner()
 ├── users/                    # User CRUD and pairing code generation
 ├── pairing/                  # Pairing logic (double handshake)
-├── firebase/                 # Shared Firebase Admin init (firebase-admin.ts)
-└── prisma/                   # Firestore-backed data service (PrismaService shim)
+├── firebase/                 # Optional Firebase Admin init (ID token verify only)
+└── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
+
+SQL migrations live in `prisma/migrations`. Local Supabase config lives at the repo root in `supabase/config.toml` (`project_id = "couple2"`).
 
 ### Database Schema
 
-Firestore collections (document IDs are UUIDs generated on create). Relations are
-resolved with follow-up reads rather than SQL joins.
+Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are foreign keys.
 
 **`users`** — user profiles and partner relationships
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | string (UUID) | Document ID |
+| `id` | string (UUID) | Primary key |
 | `email` | string | One account per email (enforced in app logic) |
 | `name` | string? | From the provider |
 | `picture` | string? | Avatar URL |
@@ -93,15 +96,15 @@ resolved with follow-up reads rather than SQL joins.
 | `pairingCode` | string? | 6-char code, expires in 30 days |
 | `pairingCodeExpiresAt` | timestamp? | Expiry |
 | `partnerId` | string? | UUID of paired user |
-| `createdAt` / `updatedAt` | timestamp | Set by the data layer |
+| `createdAt` / `updatedAt` | timestamp | Set by the database / Prisma |
 
-**`partnerLists`** / **`listItems`** — shared lists and their items (`ownerId`, `type`, `name`; items carry `listId`, `content`, `metadata`, `isCompleted`, `addedById`). Deleting a list cascades to its items.
+**`partner_lists`** / **`list_items`** — shared lists and their items (`ownerId`, `type`, `name`; items carry `listId`, `content`, `metadata` JSON, `isCompleted`, `addedById`). Deleting a list cascades to its items.
 
-**`pairingRequests`** — tracks the double handshake state
+**`pairing_requests`** — tracks the double handshake state
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | string (UUID) | Document ID |
+| `id` | string (UUID) | Primary key |
 | `requesterId` | string | UUID of requesting user |
 | `targetCode` | string | Partner's code entered |
 | `createdAt` | timestamp | Created |
@@ -113,7 +116,7 @@ resolved with follow-up reads rather than SQL joins.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | POST | `/auth/firebase` | — | Login with a Firebase ID token (Google or Apple) → returns app JWT |
-| POST | `/auth/dev-login` | — | Dev-only login by email (no Firebase needed) |
+| POST | `/auth/dev-login` | — | Dev-only login by email (no Firebase service account) |
 | GET | `/auth/me` | JWT | Get current user + partner info |
 
 **Pairing**
@@ -134,35 +137,53 @@ resolved with follow-up reads rather than SQL joins.
 ### Environment Variables
 
 ```env
-JWT_SECRET=your-secret-key
+JWT_SECRET=local-dev-jwt-secret-change-me-32b
 PORT=3000
 
-# Firebase Admin credentials (Firestore + ID token verification).
-# Provide ONE of the following (checked in this order):
-FIREBASE_SERVICE_ACCOUNT=            # inline service-account JSON (raw or base64)
+# Host process (`npm run dev`). See couple2_backend/.env.example.
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
+
+# Optional — only POST /auth/firebase. dev-login does not use this.
+FIREBASE_SERVICE_ACCOUNT=
 # FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccount.json
-# or simply drop the key at couple2_backend/serviceAccount.json (gitignored)
 ```
 
-Get the key from Firebase console → Project settings → Service accounts →
-Generate new private key (project `couple42-27692`). The backend still **boots**
-without it (lazy init); `dev-login` works keyless, but any Firestore or
-`/auth/firebase` call requires it.
+Real Google/Apple login still verifies a Firebase ID token (project `couple42-27692`).
+That path needs a service-account key. Local lists, pairing, and `dev-login` do not.
 
 ### Running
 
-No database container needed — data lives in Cloud Firestore.
+Database is local Supabase in Docker. No cloud Supabase account.
+
+From the **repository root**:
 
 ```bash
-npm install
-npx prisma generate   # regenerate model TYPES only (after editing schema.prisma)
-npm run dev           # development (watch)
-npm run prod          # production
-npm test              # unit tests
+supabase start
 ```
 
-Place the Firebase service-account key at `couple2_backend/serviceAccount.json`
-(or set `FIREBASE_SERVICE_ACCOUNT`) before exercising Firestore / real login.
+That publishes Postgres on `127.0.0.1:54322` (user/password/db `postgres` / `postgres` / `postgres`). Studio is on port 54323.
+
+**API on the host** (`couple2_backend`):
+
+```bash
+cp .env.example .env
+npm install
+npx prisma migrate deploy
+npm run dev           # http://localhost:3000
+npm test
+```
+
+**API in Docker** (same Supabase Postgres; compose does not start its own database):
+
+```bash
+# repo root: supabase start
+cd couple2_backend
+docker compose up --build
+```
+
+`docker-compose.dev.yml` no longer starts Postgres. Use `supabase start` instead.
+
+`POST /auth/dev-login` with `{ "email": "a@example.com", "name": "A" }` creates the user in Postgres and returns an app JWT. No Firebase key required. Use that JWT as `Authorization: Bearer …` for `/lists` and `/pairing`.
 
 ---
 
@@ -250,7 +271,7 @@ lib/
 1. User taps **Sign in with Google** or **Sign in with Apple**.
 2. `firebase_auth` runs the provider flow and signs the user into Firebase.
 3. App gets the **Firebase ID token** (`user.getIdToken()`) and sends it to `POST /auth/firebase`.
-4. Backend verifies the token with `firebase-admin`, upserts the user in Firestore, and returns an app JWT.
+4. Backend verifies the token with `firebase-admin`, upserts the user in Postgres, and returns an app JWT. Local testing can skip this and call `POST /auth/dev-login` instead.
 5. The app JWT is stored in `SharedPreferences`.
 6. GoRouter detects the auth state change and navigates to `/home`.
 
