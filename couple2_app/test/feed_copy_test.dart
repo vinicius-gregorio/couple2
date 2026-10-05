@@ -46,5 +46,19 @@ void main() {
       'desbloqueou a pergunta do dia',
     );
     expect(activityRoute('QUESTION_UNLOCKED', const {}), '/question');
+    expect(
+      feedActionText('MOOD_SHARED', {'mood': 'LOW', 'note': 'segredo'}),
+      'não está num dia muito bom',
+    );
+    expect(
+      feedActionText('MOOD_SHARED', {'mood': 'GOOD'}),
+      'compartilhou como está',
+    );
+    expect(
+      feedActionText('NUDGE_SENT', {'message': 'oi'}),
+      'mandou um carinho: "oi"',
+    );
+    expect(activityRoute('MOOD_SHARED', const {}), '/mood/history');
+    expect(activityRoute('NUDGE_SENT', const {}), '/nudges');
   });
 }

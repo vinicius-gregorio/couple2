@@ -10,6 +10,7 @@ import {
   DEFAULT_PUSH_PREFERENCES,
   LIST_ACTIVITY_TYPES,
   LIST_PUSH_WINDOW_MS,
+  MOOD_PUSH_WINDOW_MS,
   PushCategory,
   PushPreferenceFlags,
   categoryEnabled,
@@ -35,6 +36,11 @@ export interface PushSpec {
    * Later events in the window are feed-only.
    */
   listId?: string;
+  /**
+   * Overrides the default `entityType:entityId` collapse key.
+   * Nudges share `nudge` so a burst replaces one notification.
+   */
+  collapseKey?: string;
 }
 
 export interface RecordActivityInput {
@@ -176,7 +182,9 @@ export class ActivityService {
     for (const recipientId of recipients) {
       const spamBlocked = push.listId
         ? await this.recentListPush(couple.id, push.listId, recipientId, now)
-        : false;
+        : input.type === ActivityType.MOOD_SHARED
+          ? await this.recentMoodPush(couple.id, recipientId, now)
+          : false;
       const sent = await this.sendToRecipient({
         recipientId,
         couple,
@@ -184,7 +192,8 @@ export class ActivityService {
         category,
         copy,
         data: { type: input.type, route: push.route },
-        collapseKey: `${input.entity.type}:${input.entity.id}`,
+        collapseKey:
+          push.collapseKey ?? `${input.entity.type}:${input.entity.id}`,
         spamBlocked,
       });
       if (sent) pushed.push(recipientId);
@@ -334,6 +343,28 @@ export class ActivityService {
       const payload = asRecord(row.payload);
       if (!payload || payload.listId !== listId) return false;
       const ids = payload.pushedRecipientIds;
+      return Array.isArray(ids) && ids.includes(recipientId);
+    });
+  }
+
+  /** A successful LOW/BAD push in the last 6 hours. Feed rows without a push do not count. */
+  private async recentMoodPush(
+    coupleId: string,
+    recipientId: string,
+    now: Date,
+  ): Promise<boolean> {
+    const since = new Date(now.getTime() - MOOD_PUSH_WINDOW_MS);
+    const recent = await this.prisma.activityEvent.findMany({
+      where: {
+        coupleId,
+        type: ActivityType.MOOD_SHARED,
+        createdAt: { gt: since },
+      },
+      select: { payload: true },
+    });
+    return recent.some((row) => {
+      const payload = asRecord(row.payload);
+      const ids = payload?.pushedRecipientIds;
       return Array.isArray(ids) && ids.includes(recipientId);
     });
   }

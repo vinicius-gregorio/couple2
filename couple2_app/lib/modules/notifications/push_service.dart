@@ -26,13 +26,17 @@ class PushService {
     this.onActivity,
     FirebaseMessaging? messaging,
     FlutterLocalNotificationsPlugin? localNotifications,
-  })  : _repository = repository,
-        _messaging = messaging ?? FirebaseMessaging.instance,
-        _localNotifications =
-            localNotifications ?? FlutterLocalNotificationsPlugin();
+  }) : _repository = repository,
+       _messaging = messaging ?? FirebaseMessaging.instance,
+       _localNotifications =
+           localNotifications ?? FlutterLocalNotificationsPlugin();
 
   final INotificationsRepository _repository;
   final void Function()? onActivity;
+
+  /// Foreground FCM message. The app shows a snackbar from this callback.
+  void Function(RemoteMessage message)? onForegroundMessage;
+
   final FirebaseMessaging _messaging;
   final FlutterLocalNotificationsPlugin _localNotifications;
 
@@ -72,6 +76,7 @@ class PushService {
     });
 
     _messageSub = FirebaseMessaging.onMessage.listen((message) async {
+      onForegroundMessage?.call(message);
       await _showForeground(message);
       onActivity?.call();
     });
@@ -128,11 +133,13 @@ class PushService {
     );
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
   }
 

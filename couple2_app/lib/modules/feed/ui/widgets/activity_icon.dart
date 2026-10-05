@@ -16,6 +16,10 @@ IconData activityIcon(String type) {
       return Icons.question_answer_outlined;
     case 'QUESTION_UNLOCKED':
       return Icons.lock_open;
+    case 'MOOD_SHARED':
+      return Icons.sentiment_satisfied_alt_outlined;
+    case 'NUDGE_SENT':
+      return Icons.favorite_border;
     default:
       return Icons.notifications_none;
   }

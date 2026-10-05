@@ -82,6 +82,7 @@ src/
 ├── lists/                    # Shared lists scoped by coupleId
 ├── notifications/            # Device tokens, activity feed, push, date reminders
 ├── questions/                # Pergunta do dia (assign, answer, history, 10:00 job)
+├── mood/                     # Mood check-in and nudges
 ├── firebase/                 # Firebase Admin init (ID token verify + FCM)
 └── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
@@ -115,7 +116,11 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 
 **`activity_events`** — couple-scoped feed. `actorId` null is a system event. `payload` is a snapshot (item text is truncated to 80 characters). Gift / private list types never write a row. A partial unique index on `(coupleId, type, entityId, payload.occurrenceDate)` stops duplicate `COUPLE_DATE_UPCOMING` rows.
 
-**`notification_preferences`** — one row per user, created on the first `GET`. Category flags plus `quietStartMin` / `quietEndMin` (minutes from midnight in the couple timezone; `1380` is 23:00). A window that passes midnight wraps. Quiet hours and a disabled category still leave the event in the feed. `dailyQuestion` gates the 10:00 question push and the answer/unlock pushes.
+**`notification_preferences`** — one row per user, created on the first `GET`. Category flags plus `quietStartMin` / `quietEndMin` (minutes from midnight in the couple timezone; `1380` is 23:00). A window that passes midnight wraps. Quiet hours and a disabled category still leave the event in the feed. `dailyQuestion` gates the 10:00 question push and the answer/unlock pushes. `mood` gates the LOW/BAD check-in push (at most one per partner every 6 hours). `nudges` gates nudge pushes; turning it off still stores the nudge.
+
+**`mood_checkins`** — each check-in (`mood` `GREAT` / `GOOD` / `OK` / `LOW` / `BAD`, optional `note` ≤ 140). Any number per day; current mood is the latest row for that person. The note is emotional-health data: it is returned by the mood API to both partners, it is not copied into the feed payload, and a LOW/BAD push never includes it. Deleting the user or the couple cascades these rows.
+
+**`nudges`** — a caring ping (`kind` `THINKING_OF_YOU` / `HUG` / `KISS` / `MISS_YOU`, optional `message` ≤ 80). `receiverId` is always the sender's `partnerId`. The sender cannot mark it seen. Deleting either user, or the couple, cascades the row.
 
 **`questions`** — pt-BR bank (`slug` unique, `category` `FUN` / `DEEP` / `MEMORIES` / `FUTURE` / `DAILY_LIFE`, `active`). Seeded by the Prisma migration with `INSERT ... ON CONFLICT (slug) DO NOTHING` (≥ 120, and ≥ 120 non-`DEEP` so the weekly cap cannot force a repeat inside 120 days). Deactivate with `active=false`. Do not `DELETE`.
 
@@ -205,6 +210,17 @@ Creating a list, adding an item, and completing an item (only the transition to 
 
 The hourly job also runs at 10:00 local: it creates today's question (same assignment as `GET /questions/today`) and sends one `dailyQuestion` push with `data.route=/question`. A couple with no iOS/Android token still gets the row. A second run the same morning does not push again. `DEEP` is skipped when the couple already received one in the last 7 days, unless that is the only way to assign a question.
 
+**Humor e carinho** (scoped by the active `coupleId`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/mood` | JWT + active couple | `{ mood, note? }`. `note` ≤ 140. Writes `MOOD_SHARED`. Push only when `mood` is `LOW` or `BAD`, `prefs.mood` is on, and that partner has not received a mood push in the last 6 hours. The push says the partner is not having a very good day and never includes the note |
+| GET | `/mood/current` | JWT + active couple | `{ me, partner }`. Each side is `{ mood, note, createdAt, stale }` or null. `stale` is true when the check-in is older than 24 hours |
+| GET | `/mood/history?days=30` | JWT + active couple | Both partners' check-ins in the window, newest first. `days` defaults to 30 and cannot exceed 90 |
+| POST | `/nudges` | JWT + active couple | `{ kind, message? }`. `message` ≤ 80. A `receiverId` in the body is stripped before validation and ignored. The row always goes to `partnerId`. At most 10 per sender per rolling hour; the 11th is 429 `{ retryAfter }` with no row and no push. Push uses `collapseKey: nudge` and `data.route=/nudges`. More than 3 in 10 minutes say "mandou N carinhos". Writes `NUDGE_SENT` even when `prefs.nudges` is off |
+| GET | `/nudges/received?cursor` | JWT + active couple | Nudges received by the caller, newest first |
+| POST | `/nudges/:id/seen` | JWT + active couple | Only the receiver. The sender, or another couple, gets 404 |
+
 ### Pairing Flow
 
 1. User A calls `POST /pairing/pair` with User B's code → creates a `PENDING` request.
@@ -249,6 +265,8 @@ npm run dev
 List routes keep working with no service account. A partner action writes the feed row and prints one line from `LogPushSender` (`type`, `route`, title, body). Nothing is sent to FCM. Set `PUSH_DRIVER=fcm` only when `FIREBASE_SERVICE_ACCOUNT` is present.
 
 An hourly job records `COUPLE_DATE_UPCOMING` for couples whose local time is 09:00, for dates 7, 1, and 0 days away. Running it again the same morning does not create a second row or a second push. The same hourly tick creates the question of the day at 10:00 local and sends the `dailyQuestion` push (`route: /question`) once.
+
+A LOW or BAD check-in prints one mood push (`route: /mood/history`) unless one was already sent to that partner in the last 6 hours. GREAT, GOOD, and OK stay in the feed only. A nudge prints `route: /nudges` and `collapseKey=nudge` when `nudges` is enabled. `PUSH_DRIVER=log` is enough to see both.
 
 ### Running
 
@@ -352,11 +370,18 @@ lib/
 │   ├── couple/                      # Couple record + important dates
 │   ├── notifications/               # Push registration + preference screen
 │   ├── feed/                        # Activity feed page and Home preview
-│   └── daily_question/              # Pergunta do dia: today, history, Home card
-│       ├── data/daily_question_repository.dart
-│       ├── domain/entities/couple_question.dart
-│       ├── ui/pages/today/          # TodayQuestionPage + TodayQuestionViewModel
-│       └── ui/pages/history/
+│   ├── daily_question/              # Pergunta do dia: today, history, Home card
+│   │   ├── data/daily_question_repository.dart
+│   │   ├── domain/entities/couple_question.dart
+│   │   ├── ui/pages/today/          # TodayQuestionPage + TodayQuestionViewModel
+│   │   └── ui/pages/history/
+│   └── mood/                        # Check-in, history, nudges, Home card
+│       ├── data/mood_repository.dart
+│       ├── data/nudges_repository.dart
+│       ├── domain/entities/mood_checkin.dart
+│       ├── domain/entities/nudge.dart
+│       ├── ui/widgets/mood_picker_sheet.dart
+│       └── ui/pages/mood_history/
 ├── core/
 │   ├── external/http_client/        # Custom Dio wrapper with typed exceptions
 │   └── domain/entities/             # Shared entities
@@ -368,7 +393,7 @@ lib/
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
 - **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>` or `/question`), including when the app was closed (`getInitialMessage`).
+- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. Mood history: `/mood/history`. Received nudges: `/nudges`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`, `/question`, or `/nudges`), including when the app was closed (`getInitialMessage`). A foreground message also shows a floating snackbar.
 - **Push** — permission is requested after pairing, not on first boot. The FCM token is posted to `/devices`. Logout deletes that token before clearing SharedPreferences. Home shows a bell with the unread count and the last 3 events. Opening the feed calls `POST /feed/seen`.
 - **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).

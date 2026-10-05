@@ -48,6 +48,14 @@ export function buildPushCopy(input: {
         title: 'Pergunta desbloqueada',
         body: `Desbloqueada! Veja a resposta de ${actor}.`,
       };
+    case ActivityType.MOOD_SHARED:
+      // The note is never part of the payload, and it is never read here.
+      return {
+        title: 'Como você está',
+        body: `${actor} não está num dia muito bom 💛`,
+      };
+    case ActivityType.NUDGE_SENT:
+      return nudgeCopy(actor, input.payload);
     default:
       return {
         title: 'Couple',
@@ -55,6 +63,34 @@ export function buildPushCopy(input: {
           ? `${actor} fez uma atualização`
           : 'Tem novidade no casal',
       };
+  }
+}
+
+function nudgeCopy(actor: string, payload: Record<string, unknown>): PushCopy {
+  const count = numberOrNull(payload.recentCount) ?? 1;
+  if (count > 3) {
+    return { title: 'Carinho', body: `${actor} mandou ${count} carinhos` };
+  }
+  const phrase = nudgePhrase(actor, text(payload.kind));
+  const message = text(payload.message);
+  return {
+    title: 'Carinho',
+    body: message ? `${phrase} “${message}”` : phrase,
+  };
+}
+
+function nudgePhrase(actor: string, kind: string): string {
+  switch (kind) {
+    case 'THINKING_OF_YOU':
+      return `${actor} está pensando em você`;
+    case 'HUG':
+      return `${actor} mandou um abraço`;
+    case 'KISS':
+      return `${actor} mandou um beijo`;
+    case 'MISS_YOU':
+      return `${actor} está com saudade`;
+    default:
+      return `${actor} mandou um carinho`;
   }
 }
 

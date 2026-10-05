@@ -28,4 +28,6 @@ The hourly scheduler sends `COUPLE_DATE_UPCOMING` at 09:00 local time for dates 
 
 The same hourly scheduler creates today's question at 10:00 local time and sends one push with `data.type=DAILY_QUESTION` and `data.route=/question` ("A pergunta de hoje chegou"). It respects `dailyQuestion`, the master push switch, and quiet hours. No feed row is written for that arrival. `QUESTION_ANSWERED` pushes "respondeu. Responda para ver." `QUESTION_UNLOCKED` pushes "Desbloqueada!" to the partner who answered first. Neither push includes the answer text.
 
+`POST /mood` writes `MOOD_SHARED` for every level. The partner is pushed only for `LOW` or `BAD`, only when `prefs.mood` is on, and at most once every 6 hours. The body is "{name} não está num dia muito bom 💛". The note is not in the payload. `POST /nudges` writes `NUDGE_SENT` and pushes with `collapseKey=nudge` and `data.route=/nudges` when `prefs.nudges` is on. More than 3 nudges in 10 minutes use "{name} mandou N carinhos" and drop the individual message. Quiet hours and the master push switch still apply. A disabled category keeps the feed row (and, for a nudge, the nudge row).
+
 Gift-idea / private list types (`GIFT_IDEAS`, `GIFTS`, `GIFT`, `PRIVATE`) do not create events. Web push is not sent.

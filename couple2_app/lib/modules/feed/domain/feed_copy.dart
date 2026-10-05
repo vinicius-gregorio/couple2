@@ -26,6 +26,17 @@ String feedActionText(String type, Map<String, dynamic>? payload) {
       return 'respondeu a pergunta do dia';
     case 'QUESTION_UNLOCKED':
       return 'desbloqueou a pergunta do dia';
+    case 'MOOD_SHARED':
+      final mood = data['mood'];
+      if (mood == 'LOW' || mood == 'BAD') {
+        return 'não está num dia muito bom';
+      }
+      return 'compartilhou como está';
+    case 'NUDGE_SENT':
+      final message = _text(data['message']);
+      return message == null
+          ? 'mandou um carinho'
+          : 'mandou um carinho: "$message"';
     default:
       return 'fez uma atualização';
   }
@@ -54,6 +65,8 @@ String? activityRoute(String type, Map<String, dynamic>? payload) {
   if (type == 'QUESTION_ANSWERED' || type == 'QUESTION_UNLOCKED') {
     return '/question';
   }
+  if (type == 'MOOD_SHARED') return '/mood/history';
+  if (type == 'NUDGE_SENT') return '/nudges';
   return null;
 }
 
