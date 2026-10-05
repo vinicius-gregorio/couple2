@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modules/auth/data/auth_providers.dart';
+import '../modules/lists/ui/pages/lists/lists_viewmodel.dart';
 import '../modules/notifications/push_service_provider.dart';
 
 export 'session_provider.dart';
@@ -11,5 +12,6 @@ final logoutActionProvider = Provider<Future<void> Function()>((ref) {
     final authRepository = ref.read(authRepositoryProvider);
     await authRepository.logOut();
     await ref.read(pushServiceProvider).stop();
+    ref.invalidate(listsViewModelProvider);
   };
 });

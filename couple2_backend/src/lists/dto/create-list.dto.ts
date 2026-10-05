@@ -1,5 +1,5 @@
-import { ListType } from '@prisma/client';
-import { IsEnum, IsString, MinLength } from 'class-validator';
+import { ListType, ListVisibility } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateListDto {
   @IsEnum(ListType)
@@ -8,4 +8,9 @@ export class CreateListDto {
   @IsString()
   @MinLength(1)
   name: string;
+
+  /** Omitted GIFT_IDEAS lists become PRIVATE_FROM_PARTNER in the service. */
+  @IsOptional()
+  @IsEnum(ListVisibility)
+  visibility?: ListVisibility;
 }

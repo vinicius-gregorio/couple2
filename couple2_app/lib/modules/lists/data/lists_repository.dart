@@ -3,7 +3,11 @@ import '../domain/domain.dart';
 
 abstract class IListsRepository {
   Future<List<PartnerList>> getLists();
-  Future<PartnerList> createList(String type, String name);
+  Future<PartnerList> createList(
+    String type,
+    String name, {
+    String? visibility,
+  });
   Future<ListItem> addItem(
     String listId,
     String content,
@@ -16,7 +20,7 @@ abstract class IListsRepository {
 
 class ListsRepository implements IListsRepository {
   ListsRepository({required ICPLHttpClient httpClient})
-      : _httpClient = httpClient;
+    : _httpClient = httpClient;
 
   final ICPLHttpClient _httpClient;
 
@@ -29,10 +33,18 @@ class ListsRepository implements IListsRepository {
   }
 
   @override
-  Future<PartnerList> createList(String type, String name) async {
+  Future<PartnerList> createList(
+    String type,
+    String name, {
+    String? visibility,
+  }) async {
     final response = await _httpClient.post<Map<String, dynamic>>(
       '/lists',
-      data: {'type': type, 'name': name},
+      data: {
+        'type': type,
+        'name': name,
+        if (visibility != null) 'visibility': visibility,
+      },
     );
     return PartnerList.fromJson(response.data as Map<String, dynamic>);
   }

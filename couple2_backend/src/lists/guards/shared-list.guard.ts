@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
 import type { UserWithPartner } from '../../auth/strategies/jwt.strategy';
+import { listAccessWhere } from '../list-access';
 
 interface RequestWithUser {
   user: UserWithPartner;
@@ -21,13 +22,13 @@ export class SharedListGuard implements CanActivate {
     const user = request.user;
     const listId = request.params.id;
 
-    const list = await this.prisma.partnerList.findUnique({
-      where: { id: listId },
+    // 404 for a missing list, another couple, an ENDED couple, and a
+    // partner's PRIVATE_FROM_PARTNER list. 403 would admit the list exists.
+    const list = await this.prisma.partnerList.findFirst({
+      where: { id: listId, AND: [listAccessWhere(user)] },
     });
 
-    // 404 for missing lists and for lists that belong to another couple,
-    // including an ENDED couple this user used to share.
-    if (!list || !user.coupleId || list.coupleId !== user.coupleId) {
+    if (!list) {
       throw new NotFoundException('List not found');
     }
 

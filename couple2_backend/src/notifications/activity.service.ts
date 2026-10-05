@@ -268,6 +268,63 @@ export class ActivityService {
   }
 
   /**
+   * D-14 private gift reminder. No feed row. One recipient: the list owner.
+   * importantDates, the master switch, and quiet hours still apply.
+   * The caller claims GiftReminderDispatch first so a rerun does not send again.
+   * The copy is built by the caller and must not include the gift name.
+   */
+  async pushGiftReminder(input: {
+    coupleId: string;
+    recipientId: string;
+    kind: string;
+    occurrenceDate: string;
+    title: string;
+    body: string;
+  }): Promise<void> {
+    const couple = await this.prisma.couple.findUnique({
+      where: { id: input.coupleId },
+      select: {
+        id: true,
+        timezone: true,
+        userAId: true,
+        userBId: true,
+        status: true,
+      },
+    });
+    if (!couple || couple.status !== 'ACTIVE') {
+      this.logger.warn(
+        `Skip gift reminder for inactive couple ${input.coupleId}`,
+      );
+      return;
+    }
+    if (
+      input.recipientId !== couple.userAId &&
+      input.recipientId !== couple.userBId
+    ) {
+      this.logger.warn(`Skip gift reminder for outsider ${input.recipientId}`);
+      return;
+    }
+
+    try {
+      await this.sendToRecipient({
+        recipientId: input.recipientId,
+        couple,
+        now: this.clock.now(),
+        category: 'importantDates',
+        copy: { title: input.title, body: input.body },
+        data: { type: 'GIFT_REMINDER', route: '/lists' },
+        collapseKey: `GiftReminder:${input.recipientId}:${input.kind}:${input.occurrenceDate}`,
+        spamBlocked: false,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Gift reminder push failed for ${input.recipientId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  /**
    * 2-hour reminder for an ACCEPTED date. No feed row. Both partners are
    * recipients. datePlans, the master switch, and quiet hours still apply.
    * The caller claims reminderSentAt first so a second run does not send again.

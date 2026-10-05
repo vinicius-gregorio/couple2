@@ -2,18 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/session_provider.dart';
+import '../../../../../design_system/design_system.dart';
 import '../../../domain/domain.dart';
-import '../../../../../../design_system/design_system.dart';
 import '../../../routing/routes.dart';
 import 'lists_viewmodel.dart';
 
-const _listTypes = ['SHOPPING_CART', 'MOVIES', 'MILESTONES', 'TRAVEL'];
+const _listTypes = [
+  'SHOPPING_CART',
+  'MOVIES',
+  'MILESTONES',
+  'TRAVEL',
+  'GIFT_IDEAS',
+];
 
 const _typeLabels = {
   'SHOPPING_CART': 'Shopping Cart',
   'MOVIES': 'Movies',
   'MILESTONES': 'Milestones',
   'TRAVEL': 'Travel',
+  'GIFT_IDEAS': 'Ideias de presente 🎁',
 };
 
 const _typeIcons = {
@@ -21,6 +29,7 @@ const _typeIcons = {
   'MOVIES': Icons.movie,
   'MILESTONES': Icons.flag,
   'TRAVEL': Icons.flight,
+  'GIFT_IDEAS': Icons.card_giftcard,
 };
 
 class ListsPage extends ConsumerWidget {
@@ -29,11 +38,12 @@ class ListsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(listsViewModelProvider);
+    final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
     return Scaffold(
       appBar: AppBar(title: const AppText('Our Lists')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateListSheet(context, ref),
+        onPressed: () => _showCreateListSheet(context, ref, partnerName),
         child: const Icon(Icons.add),
       ),
       body: _buildBody(context, state),
@@ -65,23 +75,45 @@ class ListsPage extends ConsumerWidget {
       return const Center(child: AppText('No lists yet. Create one!'));
     }
 
-    return ListView.builder(
+    final privateLists = state.lists
+        .where((list) => list.visibility == 'PRIVATE_FROM_PARTNER')
+        .toList();
+    final sharedLists = state.lists
+        .where((list) => list.visibility != 'PRIVATE_FROM_PARTNER')
+        .toList();
+
+    return ListView(
       padding: const EdgeInsets.all(12),
-      itemCount: state.lists.length,
-      itemBuilder: (context, index) {
-        final list = state.lists[index];
-        return _ListCard(list: list);
-      },
+      children: [
+        for (final list in sharedLists) _ListCard(list: list),
+        if (privateLists.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 12, 4, 8),
+            child: AppText(
+              'Minhas listas privadas',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          for (final list in privateLists) _ListCard(list: list),
+        ],
+      ],
     );
   }
 
-  void _showCreateListSheet(BuildContext context, WidgetRef ref) {
+  void _showCreateListSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String? partnerName,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => _CreateListSheet(
-        onConfirm: (type, name) {
-          ref.read(listsViewModelProvider.notifier).createList(type, name);
+        partnerName: partnerName,
+        onConfirm: (type, name, visibility) {
+          ref
+              .read(listsViewModelProvider.notifier)
+              .createList(type, name, visibility: visibility);
         },
       ),
     );
@@ -98,36 +130,43 @@ class _ListCard extends ConsumerWidget {
     final label = _typeLabels[list.type] ?? list.type;
     final done = list.items.where((i) => i.isCompleted).length;
     final total = list.items.length;
+    final isPrivate = list.visibility == 'PRIVATE_FROM_PARTNER';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Icon(icon),
         title: AppText(list.name),
-        subtitle: AppText('$label · $done/$total done'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppText('$label · $done/$total done'),
+            if (isPrivate) const AppText('🔒 Só você vê'),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              onPressed: () => ref
-                  .read(listsViewModelProvider.notifier)
-                  .deleteList(list.id),
+              onPressed: () =>
+                  ref.read(listsViewModelProvider.notifier).deleteList(list.id),
             ),
             const Icon(Icons.chevron_right),
           ],
         ),
-        onTap: () => context.push(
-          ListsRoutes.listDetail.replaceFirst(':id', list.id),
-        ),
+        onTap: () =>
+            context.push(ListsRoutes.listDetail.replaceFirst(':id', list.id)),
       ),
     );
   }
 }
 
 class _CreateListSheet extends StatefulWidget {
-  const _CreateListSheet({required this.onConfirm});
-  final void Function(String type, String name) onConfirm;
+  const _CreateListSheet({required this.onConfirm, required this.partnerName});
+
+  final void Function(String type, String name, String? visibility) onConfirm;
+  final String? partnerName;
 
   @override
   State<_CreateListSheet> createState() => _CreateListSheetState();
@@ -135,6 +174,7 @@ class _CreateListSheet extends StatefulWidget {
 
 class _CreateListSheetState extends State<_CreateListSheet> {
   String _selectedType = _listTypes.first;
+  bool _hideFromPartner = true;
   final _nameController = TextEditingController();
 
   @override
@@ -143,8 +183,15 @@ class _CreateListSheetState extends State<_CreateListSheet> {
     super.dispose();
   }
 
+  String get _partnerLabel {
+    final name = widget.partnerName?.trim();
+    if (name == null || name.isEmpty) return 'parceiro';
+    return name;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isGift = _selectedType == 'GIFT_IDEAS';
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -156,17 +203,25 @@ class _CreateListSheetState extends State<_CreateListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppText('New List', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const AppText(
+            'New List',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedType,
             items: _listTypes
-                .map((t) => DropdownMenuItem(
-                      value: t,
-                      child: Text(_typeLabels[t] ?? t),
-                    ))
+                .map(
+                  (t) => DropdownMenuItem(
+                    value: t,
+                    child: Text(_typeLabels[t] ?? t),
+                  ),
+                )
                 .toList(),
-            onChanged: (v) => setState(() => _selectedType = v!),
+            onChanged: (v) => setState(() {
+              _selectedType = v!;
+              if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
+            }),
             decoration: const InputDecoration(labelText: 'Type'),
           ),
           const SizedBox(height: 12),
@@ -175,12 +230,27 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             decoration: const InputDecoration(labelText: 'Name'),
             autofocus: true,
           ),
+          if (isGift) ...[
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Esconder de $_partnerLabel'),
+              subtitle: Text(
+                '$_partnerLabel não verá esta lista nem receberá notificações',
+              ),
+              value: _hideFromPartner,
+              onChanged: (value) => setState(() => _hideFromPartner = value),
+            ),
+          ],
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
               final name = _nameController.text.trim();
               if (name.isEmpty) return;
-              widget.onConfirm(_selectedType, name);
+              final visibility = isGift
+                  ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
+                  : null;
+              widget.onConfirm(_selectedType, name, visibility);
               Navigator.of(context).pop();
             },
             child: const Text('Create'),

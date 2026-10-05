@@ -5,8 +5,9 @@ import '../../../data/lists_providers.dart';
 import '../../../data/lists_repository.dart';
 import '../../../domain/domain.dart';
 
-final listsViewModelProvider =
-    NotifierProvider<ListsViewModel, ListsState>(ListsViewModel.new);
+final listsViewModelProvider = NotifierProvider<ListsViewModel, ListsState>(
+  ListsViewModel.new,
+);
 
 class ListsState {
   final bool isLoading;
@@ -60,9 +61,13 @@ class ListsViewModel extends Notifier<ListsState> {
 
   Future<void> refresh() => _fetchLists();
 
-  Future<void> createList(String type, String name) async {
+  Future<void> createList(
+    String type,
+    String name, {
+    String? visibility,
+  }) async {
     try {
-      final list = await _repo.createList(type, name);
+      final list = await _repo.createList(type, name, visibility: visibility);
       state = state.copyWith(lists: [list, ...state.lists]);
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
@@ -94,9 +99,7 @@ class ListsViewModel extends Notifier<ListsState> {
         lists: state.lists.map((l) {
           if (l.id != listId) return l;
           return l.copyWith(
-            items: l.items
-                .map((i) => i.id == itemId ? updated : i)
-                .toList(),
+            items: l.items.map((i) => i.id == itemId ? updated : i).toList(),
           );
         }).toList(),
       );

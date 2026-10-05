@@ -80,6 +80,7 @@ interface ListRow {
   name: string;
   ownerId: string;
   coupleId: string | null;
+  visibility?: string;
   createdAt: Date;
   items?: unknown[];
 }
@@ -118,6 +119,7 @@ class Memory {
   prefs = new Map<string, PrefRow>();
   lists = new Map<string, ListRow>();
   items = new Map<string, ItemRow>();
+  giftClaims = new Set<string>();
   seq = 0;
 
   constructor(readonly clock: { now: Date }) {}
@@ -328,6 +330,46 @@ function createPrisma(memory: Memory) {
         return row;
       },
       findUnique: async ({ where }: any) => memory.lists.get(where.id) ?? null,
+      findMany: async ({ where, select }: any) => {
+        let rows = [...memory.lists.values()];
+        if (where?.coupleId) {
+          rows = rows.filter((row) => row.coupleId === where.coupleId);
+        }
+        if (where?.type) {
+          rows = rows.filter((row) => row.type === where.type);
+        }
+        if (where?.visibility) {
+          rows = rows.filter((row) => row.visibility === where.visibility);
+        }
+        return rows.map((row) => {
+          const items = [...memory.items.values()].filter(
+            (item) => item.listId === row.id,
+          );
+          if (!select) return { ...row, items };
+          return {
+            ...(select.ownerId ? { ownerId: row.ownerId } : {}),
+            ...(select.items
+              ? {
+                  items: items.map((item) => ({
+                    isCompleted: item.isCompleted,
+                  })),
+                }
+              : {}),
+          };
+        });
+      },
+    },
+    giftReminderDispatch: {
+      create: async ({ data }: any) => {
+        const key = giftClaimKey(data);
+        if (memory.giftClaims.has(key)) throw uniqueError();
+        memory.giftClaims.add(key);
+        return data;
+      },
+      deleteMany: async ({ where }: any) => {
+        const had = memory.giftClaims.delete(giftClaimKey(where));
+        return { count: had ? 1 : 0 };
+      },
     },
     listItem: {
       create: async ({ data }: any) => {
@@ -355,6 +397,16 @@ function createPrisma(memory: Memory) {
       },
     },
   };
+}
+
+function giftClaimKey(data: {
+  userId: string;
+  kind: string;
+  occurrenceDate: Date | string;
+}): string {
+  const date = data.occurrenceDate;
+  const iso = date instanceof Date ? date.toISOString() : String(date);
+  return `${data.userId}|${data.kind}|${iso}`;
 }
 
 function tokenMatches(token: TokenRow, where: any): boolean {

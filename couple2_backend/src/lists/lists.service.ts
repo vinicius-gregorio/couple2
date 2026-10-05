@@ -1,10 +1,19 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ActivityType, Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ActivityType, ListType, ListVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import { ActivityService } from '../notifications/activity.service';
 import type { RecordActivityInput } from '../notifications/activity.service';
 import { CreateListDto, AddItemDto } from './dto';
+import { validateGiftItemMetadata } from './gift-metadata';
 import { listEmitsActivity } from './list-activity';
+import { listAccessWhere } from './list-access';
+
+type ListReader = { id: string; coupleId: string | null };
 
 @Injectable()
 export class ListsService {
@@ -15,17 +24,17 @@ export class ListsService {
     private readonly activity: ActivityService,
   ) {}
 
-  getLists(coupleId: string) {
+  getLists(user: ListReader) {
     return this.prisma.partnerList.findMany({
-      where: { coupleId },
+      where: listAccessWhere(user),
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getList(listId: string, coupleId: string) {
+  async getList(listId: string, user: ListReader) {
     const list = await this.prisma.partnerList.findFirst({
-      where: { id: listId, coupleId },
+      where: { id: listId, AND: [listAccessWhere(user)] },
       include: { items: true },
     });
     if (!list) throw new NotFoundException('List not found');
@@ -33,17 +42,19 @@ export class ListsService {
   }
 
   async createList(userId: string, coupleId: string, dto: CreateListDto) {
+    const visibility = this.resolveVisibility(dto);
     const list = await this.prisma.partnerList.create({
       data: {
         type: dto.type,
         name: dto.name,
         ownerId: userId,
         coupleId,
+        visibility,
       },
       include: { items: true },
     });
 
-    if (listEmitsActivity(list.type)) {
+    if (listEmitsActivity(list)) {
       await this.safeRecord({
         coupleId,
         actorId: userId,
@@ -58,19 +69,22 @@ export class ListsService {
   }
 
   async addItem(listId: string, userId: string, dto: AddItemDto) {
+    const list = await this.prisma.partnerList.findUnique({
+      where: { id: listId },
+    });
+    if (!list) throw new NotFoundException('List not found');
+
+    const metadata = this.itemMetadata(list.type, dto.metadata);
     const item = await this.prisma.listItem.create({
       data: {
         listId,
         content: dto.content,
-        metadata: dto.metadata as Prisma.InputJsonValue,
+        metadata,
         addedById: userId,
       },
     });
 
-    const list = await this.prisma.partnerList.findUnique({
-      where: { id: listId },
-    });
-    if (list?.coupleId && listEmitsActivity(list.type)) {
+    if (list.coupleId && listEmitsActivity(list)) {
       await this.safeRecord({
         coupleId: list.coupleId,
         actorId: userId,
@@ -99,11 +113,7 @@ export class ListsService {
     });
 
     const becameComplete = !item.isCompleted && updated.isCompleted;
-    if (
-      becameComplete &&
-      item.list.coupleId &&
-      listEmitsActivity(item.list.type)
-    ) {
+    if (becameComplete && item.list.coupleId && listEmitsActivity(item.list)) {
       await this.safeRecord({
         coupleId: item.list.coupleId,
         actorId,
@@ -127,6 +137,35 @@ export class ListsService {
 
   deleteList(listId: string) {
     return this.prisma.partnerList.delete({ where: { id: listId } });
+  }
+
+  private resolveVisibility(dto: CreateListDto): ListVisibility {
+    const visibility =
+      dto.visibility ??
+      (dto.type === ListType.GIFT_IDEAS
+        ? ListVisibility.PRIVATE_FROM_PARTNER
+        : ListVisibility.SHARED);
+
+    if (
+      visibility === ListVisibility.PRIVATE_FROM_PARTNER &&
+      dto.type !== ListType.GIFT_IDEAS
+    ) {
+      throw new BadRequestException(
+        'PRIVATE_FROM_PARTNER is only allowed for GIFT_IDEAS',
+      );
+    }
+
+    return visibility;
+  }
+
+  private itemMetadata(
+    type: ListType,
+    metadata: Record<string, unknown> | undefined,
+  ): Prisma.InputJsonValue | undefined {
+    if (type === ListType.GIFT_IDEAS) {
+      return validateGiftItemMetadata(metadata);
+    }
+    return metadata as Prisma.InputJsonValue | undefined;
   }
 
   /**
