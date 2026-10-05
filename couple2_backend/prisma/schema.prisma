@@ -117,6 +117,7 @@ model Couple {
   coupleQuestions CoupleQuestion[]
   moodCheckins    MoodCheckin[]
   nudges          Nudge[]
+  datePlans       DatePlan[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -347,4 +348,39 @@ model Nudge {
   @@index([receiverId, createdAt(sort: Desc)])
   @@index([senderId, createdAt])
   @@map("nudges")
+}
+
+enum DatePlanStatus {
+  PROPOSED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  DONE
+  EXPIRED
+}
+
+/// A proposed or accepted date. proposerId is the current offer (it changes
+/// on counter). sourceListItemId is an optional MOVIES/TRAVEL item with no FK:
+/// deleting the item leaves the date in place.
+model DatePlan {
+  id               String         @id @default(uuid())
+  coupleId         String
+  couple           Couple         @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  proposerId       String
+  title            String
+  description      String?
+  location         String?
+  scheduledAt      DateTime
+  status           DatePlanStatus @default(PROPOSED)
+  responseNote     String?
+  respondedAt      DateTime?
+  completedAt      DateTime?
+  reminderSentAt   DateTime?
+  sourceListItemId String?
+  createdById      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([coupleId, status, scheduledAt])
+  @@map("date_plans")
 }

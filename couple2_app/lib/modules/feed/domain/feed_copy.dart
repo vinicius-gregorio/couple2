@@ -37,6 +37,18 @@ String feedActionText(String type, Map<String, dynamic>? payload) {
       return message == null
           ? 'mandou um carinho'
           : 'mandou um carinho: "$message"';
+    case 'DATE_PLAN_PROPOSED':
+      return _datePlanText('propôs o date', title, data);
+    case 'DATE_PLAN_ACCEPTED':
+      return 'aceitou o date "$title"';
+    case 'DATE_PLAN_DECLINED':
+      return 'recusou o date "$title"';
+    case 'DATE_PLAN_COUNTERED':
+      return _datePlanText('sugeriu', title, data);
+    case 'DATE_PLAN_CANCELLED':
+      return 'cancelou o date "$title"';
+    case 'DATE_PLAN_DONE':
+      return 'marcou o date "$title" como feito';
     default:
       return 'fez uma atualização';
   }
@@ -67,7 +79,14 @@ String? activityRoute(String type, Map<String, dynamic>? payload) {
   }
   if (type == 'MOOD_SHARED') return '/mood/history';
   if (type == 'NUDGE_SENT') return '/nudges';
+  if (type.startsWith('DATE_PLAN_')) return '/dates';
   return null;
+}
+
+String _datePlanText(String verb, String title, Map<String, dynamic> data) {
+  final when = _text(data['whenLabel']);
+  if (when == null) return '$verb "$title"';
+  return '$verb "$title" para $when';
 }
 
 String _whenLabel(Object? inDays) {

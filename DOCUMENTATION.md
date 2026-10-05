@@ -42,7 +42,7 @@ NestJS REST API that handles social authentication, user management, and the pai
 | `@nestjs/jwt` | 11.0.2 | App JWT generation and validation |
 | `@nestjs/passport` | 11.0.5 | Passport.js integration |
 | `firebase-admin` | 13.10.0 | Optional Firebase ID token verification and FCM (`PUSH_DRIVER=fcm`) |
-| `@nestjs/schedule` | ^6.0.0 | Hourly job for important-date reminders |
+| `@nestjs/schedule` | ^6.0.0 | Hourly reminders and the 10-minute date-plan job |
 | `@prisma/client` | 7.2.0 | Postgres queries and model types |
 | `@prisma/adapter-pg` | 7.2.0 | Prisma 7 driver adapter for `pg` |
 | `pg` | ^8.23.1 | Postgres connection pool |
@@ -83,6 +83,7 @@ src/
 ├── notifications/            # Device tokens, activity feed, push, date reminders
 ├── questions/                # Pergunta do dia (assign, answer, history, 10:00 job)
 ├── mood/                     # Mood check-in and nudges
+├── date-plans/               # Date night RSVP, reminder, and expiry job
 ├── firebase/                 # Firebase Admin init (ID token verify + FCM)
 └── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
@@ -121,6 +122,8 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 **`mood_checkins`** — each check-in (`mood` `GREAT` / `GOOD` / `OK` / `LOW` / `BAD`, optional `note` ≤ 140). Any number per day; current mood is the latest row for that person. The note is emotional-health data: it is returned by the mood API to both partners, it is not copied into the feed payload, and a LOW/BAD push never includes it. Deleting the user or the couple cascades these rows.
 
 **`nudges`** — a caring ping (`kind` `THINKING_OF_YOU` / `HUG` / `KISS` / `MISS_YOU`, optional `message` ≤ 80). `receiverId` is always the sender's `partnerId`. The sender cannot mark it seen. Deleting either user, or the couple, cascades the row.
+
+**`date_plans`** — a date proposal (`status` `PROPOSED` / `ACCEPTED` / `DECLINED` / `CANCELLED` / `DONE` / `EXPIRED`). `scheduledAt` is UTC. `proposerId` is whoever made the current offer and changes on counter. `createdById` stays the original author. `sourceListItemId` optionally points at a `MOVIES` or `TRAVEL` item and has no foreign key, so deleting the item leaves the date. `reminderSentAt` marks the 2-hour push as claimed. Indexed by `(coupleId, status, scheduledAt)`. Deleting the couple cascades these rows. `DECLINED`, `CANCELLED`, `DONE`, and `EXPIRED` are terminal.
 
 **`questions`** — pt-BR bank (`slug` unique, `category` `FUN` / `DEEP` / `MEMORIES` / `FUTURE` / `DAILY_LIFE`, `active`). Seeded by the Prisma migration with `INSERT ... ON CONFLICT (slug) DO NOTHING` (≥ 120, and ≥ 120 non-`DEEP` so the weekly cap cannot force a repeat inside 120 days). Deactivate with `active=false`. Do not `DELETE`.
 
@@ -220,6 +223,24 @@ The hourly job also runs at 10:00 local: it creates today's question (same assig
 | POST | `/nudges` | JWT + active couple | `{ kind, message? }`. `message` ≤ 80. A `receiverId` in the body is stripped before validation and ignored. The row always goes to `partnerId`. At most 10 per sender per rolling hour; the 11th is 429 `{ retryAfter }` with no row and no push. Push uses `collapseKey: nudge` and `data.route=/nudges`. More than 3 in 10 minutes say "mandou N carinhos". Writes `NUDGE_SENT` even when `prefs.nudges` is off |
 | GET | `/nudges/received?cursor` | JWT + active couple | Nudges received by the caller, newest first |
 | POST | `/nudges/:id/seen` | JWT + active couple | Only the receiver. The sender, or another couple, gets 404 |
+
+**Date night** (scoped by the active `coupleId`; `DatePlanGuard` on `:id`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/date-plans` | JWT + active couple | `{ title, scheduledAt, location?, description?, sourceListItemId? }`. `title` ≤ 80, `location` ≤ 120, `description` ≤ 500. `scheduledAt` is a future ISO-8601 datetime with `Z` or a numeric offset (a past or naive value is 400). `sourceListItemId` must be an item on a `MOVIES` or `TRAVEL` list of this couple, otherwise 422. Writes `DATE_PLAN_PROPOSED` and pushes the partner (`data.route=/dates/:id`) |
+| GET | `/date-plans?scope=upcoming\|past&cursor&limit=20` | JWT + active couple | `upcoming` is `PROPOSED` or `ACCEPTED` with `scheduledAt >= now-2h`, oldest first. `past` is everything else, newest first. Keyset cursor on `(scheduledAt, id)` |
+| GET | `/date-plans/:id` | JWT + active couple + date | 404 when the date is missing or belongs to another couple |
+| PATCH | `/date-plans/:id` | JWT + active couple + date | Edit by the current proposer while `PROPOSED`. Anyone else is 403. A status that is no longer `PROPOSED` is 409 |
+| POST | `/date-plans/:id/accept` | JWT + active couple + date | Non-proposer, from `PROPOSED` to `ACCEPTED`. The proposer is 403. Lost race is 409. Writes `DATE_PLAN_ACCEPTED` |
+| POST | `/date-plans/:id/decline` | JWT + active couple + date | Non-proposer. `{ note? }` ≤ 140, note not required. `PROPOSED` → `DECLINED` |
+| POST | `/date-plans/:id/counter` | JWT + active couple + date | Non-proposer. `{ scheduledAt, note? }`. Stays `PROPOSED`, `proposerId` becomes the caller, `scheduledAt` is replaced. A past time is 400 |
+| POST | `/date-plans/:id/cancel` | JWT + active couple + date | Proposer while `PROPOSED`, or either partner while `ACCEPTED`. `{ note? }`. → `CANCELLED` |
+| POST | `/date-plans/:id/done` | JWT + active couple + date | Either partner, only from `ACCEPTED`, and only when `scheduledAt <= now+2h`. Too early is 422. Sets `DONE` and `completedAt` |
+
+Every transition is `updateMany` with the expected status. `count = 0` is 409, so accept and cancel racing produce one winner. Push text formats `scheduledAt` in the couple timezone. The author's own action is not pushed back to them.
+
+Every 10 minutes the scheduler does two things. An `ACCEPTED` date with `scheduledAt` in `[now+1h50, now+2h10]` and `reminderSentAt` null gets one push to both partners (`DATE_PLAN_REMINDER`, `data.route=/dates/:id`, category `datePlans`) and `reminderSentAt` is set first so a second run does not send again. A `PROPOSED` date with `scheduledAt < now` becomes `EXPIRED` with no push and no feed row.
 
 ### Pairing Flow
 
@@ -375,13 +396,17 @@ lib/
 │   │   ├── domain/entities/couple_question.dart
 │   │   ├── ui/pages/today/          # TodayQuestionPage + TodayQuestionViewModel
 │   │   └── ui/pages/history/
-│   └── mood/                        # Check-in, history, nudges, Home card
-│       ├── data/mood_repository.dart
-│       ├── data/nudges_repository.dart
-│       ├── domain/entities/mood_checkin.dart
-│       ├── domain/entities/nudge.dart
-│       ├── ui/widgets/mood_picker_sheet.dart
-│       └── ui/pages/mood_history/
+│   ├── mood/                        # Check-in, history, nudges, Home card
+│   │   ├── data/mood_repository.dart
+│   │   ├── data/nudges_repository.dart
+│   │   ├── domain/entities/mood_checkin.dart
+│   │   ├── domain/entities/nudge.dart
+│   │   ├── ui/widgets/mood_picker_sheet.dart
+│   │   └── ui/pages/mood_history/
+│   └── date_plans/                  # Date night: list, form, detail, Home card
+│       ├── data/date_plans_repository.dart
+│       ├── domain/entities/date_plan.dart
+│       └── ui/pages/date_plans/
 ├── core/
 │   ├── external/http_client/        # Custom Dio wrapper with typed exceptions
 │   └── domain/entities/             # Shared entities
@@ -393,7 +418,7 @@ lib/
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
 - **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. Mood history: `/mood/history`. Received nudges: `/nudges`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`, `/question`, or `/nudges`), including when the app was closed (`getInitialMessage`). A foreground message also shows a floating snackbar.
+- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. Mood history: `/mood/history`. Received nudges: `/nudges`. Dates: `/dates`, `/dates/new`, and `/dates/:id`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`, `/question`, `/nudges`, or `/dates/<id>`), including when the app was closed (`getInitialMessage`). A foreground message also shows a floating snackbar.
 - **Push** — permission is requested after pairing, not on first boot. The FCM token is posted to `/devices`. Logout deletes that token before clearing SharedPreferences. Home shows a bell with the unread count and the last 3 events. Opening the feed calls `POST /feed/seen`.
 - **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).

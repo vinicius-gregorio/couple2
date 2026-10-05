@@ -20,6 +20,15 @@ IconData activityIcon(String type) {
       return Icons.sentiment_satisfied_alt_outlined;
     case 'NUDGE_SENT':
       return Icons.favorite_border;
+    case 'DATE_PLAN_PROPOSED':
+    case 'DATE_PLAN_COUNTERED':
+      return Icons.event_outlined;
+    case 'DATE_PLAN_ACCEPTED':
+    case 'DATE_PLAN_DONE':
+      return Icons.event_available_outlined;
+    case 'DATE_PLAN_DECLINED':
+    case 'DATE_PLAN_CANCELLED':
+      return Icons.event_busy_outlined;
     default:
       return Icons.notifications_none;
   }

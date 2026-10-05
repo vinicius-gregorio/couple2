@@ -60,5 +60,17 @@ void main() {
     );
     expect(activityRoute('MOOD_SHARED', const {}), '/mood/history');
     expect(activityRoute('NUDGE_SENT', const {}), '/nudges');
+    expect(
+      feedActionText('DATE_PLAN_PROPOSED', {
+        'title': 'Japonês',
+        'whenLabel': 'sexta-feira, 20:00',
+      }),
+      'propôs o date "Japonês" para sexta-feira, 20:00',
+    );
+    expect(
+      activityRoute('DATE_PLAN_ACCEPTED', {'route': '/dates/plan-1'}),
+      '/dates/plan-1',
+    );
+    expect(activityRoute('DATE_PLAN_DONE', const {}), '/dates');
   });
 }

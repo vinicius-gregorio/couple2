@@ -56,6 +56,27 @@ export function buildPushCopy(input: {
       };
     case ActivityType.NUDGE_SENT:
       return nudgeCopy(actor, input.payload);
+    case ActivityType.DATE_PLAN_PROPOSED:
+      return {
+        title: 'Convite de date',
+        body: `${actor} propôs "${title}" para ${whenPhrase(input.payload)}`,
+      };
+    case ActivityType.DATE_PLAN_ACCEPTED:
+      return { title: 'Date confirmado', body: `${actor} aceitou "${title}"` };
+    case ActivityType.DATE_PLAN_DECLINED:
+      return { title: 'Date recusado', body: `${actor} recusou "${title}"` };
+    case ActivityType.DATE_PLAN_COUNTERED:
+      return {
+        title: 'Novo horário',
+        body: `${actor} sugeriu "${title}" para ${whenPhrase(input.payload)}`,
+      };
+    case ActivityType.DATE_PLAN_CANCELLED:
+      return { title: 'Date cancelado', body: `${actor} cancelou "${title}"` };
+    case ActivityType.DATE_PLAN_DONE:
+      return {
+        title: 'Date feito',
+        body: `${actor} marcou "${title}" como feito`,
+      };
     default:
       return {
         title: 'Couple',
@@ -92,6 +113,10 @@ function nudgePhrase(actor: string, kind: string): string {
     default:
       return `${actor} mandou um carinho`;
   }
+}
+
+function whenPhrase(payload: Record<string, unknown>): string {
+  return text(payload.whenLabel) || 'um novo horário';
 }
 
 function whenLabel(inDays: number | null): string {

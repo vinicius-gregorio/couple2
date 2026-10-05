@@ -267,6 +267,62 @@ export class ActivityService {
     }
   }
 
+  /**
+   * 2-hour reminder for an ACCEPTED date. No feed row. Both partners are
+   * recipients. datePlans, the master switch, and quiet hours still apply.
+   * The caller claims reminderSentAt first so a second run does not send again.
+   */
+  async pushDatePlanReminder(input: {
+    coupleId: string;
+    datePlanId: string;
+    title: string;
+    body: string;
+  }): Promise<void> {
+    const couple = await this.prisma.couple.findUnique({
+      where: { id: input.coupleId },
+      select: {
+        id: true,
+        timezone: true,
+        userAId: true,
+        userBId: true,
+        status: true,
+      },
+    });
+    if (!couple || couple.status !== 'ACTIVE') {
+      this.logger.warn(
+        `Skip date reminder for inactive couple ${input.coupleId}`,
+      );
+      return;
+    }
+
+    const now = this.clock.now();
+    const recipients = [couple.userAId, couple.userBId].filter(
+      (id, index, all) => all.indexOf(id) === index,
+    );
+    for (const recipientId of recipients) {
+      try {
+        await this.sendToRecipient({
+          recipientId,
+          couple,
+          now,
+          category: 'datePlans',
+          copy: { title: input.title, body: input.body },
+          data: {
+            type: 'DATE_PLAN_REMINDER',
+            route: `/dates/${input.datePlanId}`,
+          },
+          collapseKey: `DatePlan:${input.datePlanId}:reminder`,
+          spamBlocked: false,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Date reminder push failed for ${recipientId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+  }
+
   private async sendToRecipient(input: {
     recipientId: string;
     couple: { id: string; timezone: string };
