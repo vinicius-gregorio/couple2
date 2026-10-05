@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../modules/couple/data/couple_providers.dart';
+import '../../../../modules/couple/routing/routes.dart';
+import '../../../../modules/couple/ui/widgets/days_together_card.dart';
+import '../../../../modules/couple/ui/widgets/profile_sheet.dart';
 import '../../../../modules/lists/routing/routes.dart';
 import '../../../providers.dart';
 
@@ -11,89 +15,133 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(currentUserProvider);
+    final sessionAsync = ref.watch(sessionProvider);
+    final coupleAsync = ref.watch(coupleProvider);
     final logout = ref.read(logoutActionProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const AppText('Home'),
-        leading: userAsync.when(
-          data: (user) {
-            if (user?.profilePictureUrl == null) {
-              return const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: CircleAvatar(child: Icon(Icons.person)),
-              );
-            }
-            return Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircleAvatar(
-                backgroundImage: NetworkImage(user!.profilePictureUrl!),
-                onBackgroundImageError: (_, __) {},
-              ),
-            );
-          },
-          loading: () => const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: CircleAvatar(child: Icon(Icons.person)),
+        leading: sessionAsync.when(
+          data: (session) => _AvatarButton(
+            pictureUrl: session?.picture,
+            onPressed: session == null
+                ? null
+                : () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => ProfileSheet(session: session),
+                    );
+                  },
           ),
-          error: (_, __) => const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: CircleAvatar(child: Icon(Icons.person)),
-          ),
+          loading: () => const _AvatarButton(pictureUrl: null),
+          error: (_, __) => const _AvatarButton(pictureUrl: null),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await logout();
-              // if (context.mounted) {
-              //   context.go('/auth/login');
-              // }
             },
           ),
         ],
       ),
-      body: userAsync.when(
-        data: (user) {
-          if (user == null) {
+      body: sessionAsync.when(
+        data: (session) {
+          if (session == null) {
             return const Center(child: AppText('Usuário não encontrado'));
           }
 
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          return RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(sessionProvider.notifier).refresh();
+              ref.invalidate(coupleProvider);
+              await ref.read(coupleProvider.future);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 24),
               children: [
-                if (user.profilePictureUrl != null)
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(user.profilePictureUrl!),
-                    onBackgroundImageError: (_, __) {},
+                if (session.picture != null)
+                  Center(
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundImage: NetworkImage(session.picture!),
+                      onBackgroundImageError: (_, __) {},
+                    ),
                   )
                 else
-                  const CircleAvatar(
-                    radius: 50,
-                    child: Icon(Icons.person, size: 50),
+                  const Center(
+                    child: CircleAvatar(
+                      radius: 50,
+                      child: Icon(Icons.person, size: 50),
+                    ),
                   ),
                 const SizedBox(height: 16),
                 AppText(
-                  'Bem-vindo, ${user.name}!',
+                  'Bem-vindo, ${session.name}!',
                   style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => context.push(ListsRoutes.lists),
-                  icon: const Icon(Icons.list),
-                  label: const Text('Our Lists'),
+                if (session.coupleId != null)
+                  coupleAsync.when(
+                    data: (couple) {
+                      if (couple == null) return const SizedBox.shrink();
+                      return DaysTogetherCard(
+                        couple: couple,
+                        onOpenSettings: () => context.push(CoupleRoutes.settings),
+                        onOpenDates: () => context.push(CoupleRoutes.dates),
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, _) => Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: AppText('Erro ao carregar o casal: $error'),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.push(ListsRoutes.lists),
+                    icon: const Icon(Icons.list),
+                    label: const Text('Our Lists'),
+                  ),
                 ),
               ],
             ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) =>
+        error: (error, _) =>
             Center(child: AppText('Erro ao carregar usuário: $error')),
       ),
+    );
+  }
+}
+
+class _AvatarButton extends StatelessWidget {
+  const _AvatarButton({required this.pictureUrl, this.onPressed});
+
+  final String? pictureUrl;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = pictureUrl == null
+        ? const CircleAvatar(child: Icon(Icons.person))
+        : CircleAvatar(
+            backgroundImage: NetworkImage(pictureUrl!),
+            onBackgroundImageError: (_, __) {},
+          );
+
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: InkWell(onTap: onPressed, child: avatar),
     );
   }
 }

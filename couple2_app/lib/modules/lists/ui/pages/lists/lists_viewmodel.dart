@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/external/http_client/exceptions/cpl_http_forbidden_exception.dart';
 import '../../../data/lists_providers.dart';
 import '../../../data/lists_repository.dart';
 import '../../../domain/domain.dart';
@@ -11,22 +12,26 @@ class ListsState {
   final bool isLoading;
   final String? errorMessage;
   final List<PartnerList> lists;
+  final bool needsPairing;
 
   const ListsState({
     this.isLoading = false,
     this.errorMessage,
     this.lists = const [],
+    this.needsPairing = false,
   });
 
   ListsState copyWith({
     bool? isLoading,
     String? errorMessage,
     List<PartnerList>? lists,
+    bool? needsPairing,
   }) {
     return ListsState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
       lists: lists ?? this.lists,
+      needsPairing: needsPairing ?? this.needsPairing,
     );
   }
 }
@@ -43,9 +48,13 @@ class ListsViewModel extends Notifier<ListsState> {
   Future<void> _fetchLists() async {
     try {
       final lists = await _repo.getLists();
-      state = state.copyWith(isLoading: false, lists: lists);
+      state = ListsState(isLoading: false, lists: lists);
+    } on CPLHttpForbiddenException {
+      // P0 pairing screens are not in this build. This 403 is the hook they
+      // should replace with the pairing flow.
+      state = const ListsState(isLoading: false, needsPairing: true);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = ListsState(isLoading: false, errorMessage: e.toString());
     }
   }
 
