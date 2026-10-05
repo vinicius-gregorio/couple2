@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:couple2_app/core/core.dart';
+import 'package:couple2_app/modules/notifications/data/device_token_store.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -112,6 +113,16 @@ class AuthRepository implements IAuthRepository {
   @override
   Future<void> logOut() async {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(devicePushTokenKey);
+    if (token != null && token.isNotEmpty) {
+      try {
+        await httpClient.delete<void>(
+          '/devices/${Uri.encodeComponent(token)}',
+        );
+      } catch (_) {
+        // Logout still clears the local session if the device call fails.
+      }
+    }
     await prefs.clear();
 
     await _firebaseAuth.signOut();

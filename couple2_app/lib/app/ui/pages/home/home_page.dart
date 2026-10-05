@@ -7,6 +7,9 @@ import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
 import '../../../../modules/couple/ui/widgets/days_together_card.dart';
 import '../../../../modules/couple/ui/widgets/profile_sheet.dart';
+import '../../../../modules/feed/data/feed_providers.dart';
+import '../../../../modules/feed/routing/routes.dart';
+import '../../../../modules/feed/ui/widgets/feed_preview.dart';
 import '../../../../modules/lists/routing/routes.dart';
 import '../../../providers.dart';
 
@@ -17,7 +20,9 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionAsync = ref.watch(sessionProvider);
     final coupleAsync = ref.watch(coupleProvider);
+    final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
+    final paired = sessionAsync.asData?.value?.coupleId != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -39,6 +44,11 @@ class HomePage extends ConsumerWidget {
           error: (_, __) => const _AvatarButton(pictureUrl: null),
         ),
         actions: [
+          if (paired)
+            _FeedBell(
+              count: unread,
+              onPressed: () => context.push(FeedRoutes.feed),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -57,6 +67,8 @@ class HomePage extends ConsumerWidget {
             onRefresh: () async {
               await ref.read(sessionProvider.notifier).refresh();
               ref.invalidate(coupleProvider);
+              ref.invalidate(unreadCountProvider);
+              ref.invalidate(feedPreviewProvider);
               await ref.read(coupleProvider.future);
             },
             child: ListView(
@@ -104,6 +116,10 @@ class HomePage extends ConsumerWidget {
                       child: AppText('Erro ao carregar o casal: $error'),
                     ),
                   ),
+                if (session.coupleId != null) ...[
+                  const SizedBox(height: 16),
+                  FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
+                ],
                 const SizedBox(height: 24),
                 Center(
                   child: ElevatedButton.icon(
@@ -119,6 +135,26 @@ class HomePage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
             Center(child: AppText('Erro ao carregar usuário: $error')),
+      ),
+    );
+  }
+}
+
+class _FeedBell extends StatelessWidget {
+  const _FeedBell({required this.count, required this.onPressed});
+
+  final int count;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'O que rolou',
+      onPressed: onPressed,
+      icon: Badge(
+        isLabelVisible: count > 0,
+        label: Text(count > 99 ? '99+' : '$count'),
+        child: const Icon(Icons.notifications_outlined),
       ),
     );
   }

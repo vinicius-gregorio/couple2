@@ -49,6 +49,13 @@ model User {
   couplesAsA Couple[]  @relation("CoupleUserA")
   couplesAsB Couple[]  @relation("CoupleUserB")
 
+  // Feed cursor. Unread = partner events with createdAt > feedSeenAt.
+  // Null means the feed was never opened, so every partner event counts.
+  feedSeenAt DateTime?
+
+  deviceTokens           DeviceToken[]
+  notificationPreference NotificationPreference?
+
   @@map("users")
 }
 
@@ -102,6 +109,7 @@ model Couple {
   timezone        String       @default("America/Sao_Paulo")
   dates           CoupleDate[]
   lists           PartnerList[]
+  activityEvents  ActivityEvent[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -156,4 +164,76 @@ model ListItem {
   createdAt   DateTime    @default(now())
 
   @@map("list_items")
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum ActivityType {
+  LIST_CREATED
+  LIST_ITEM_ADDED
+  LIST_ITEM_COMPLETED
+  COUPLE_DATE_UPCOMING
+  COUPLE_UPDATED
+  QUESTION_ANSWERED
+  QUESTION_UNLOCKED
+  MOOD_SHARED
+  NUDGE_SENT
+  DATE_PLAN_PROPOSED
+  DATE_PLAN_ACCEPTED
+  DATE_PLAN_DECLINED
+  DATE_PLAN_COUNTERED
+  DATE_PLAN_CANCELLED
+  DATE_PLAN_DONE
+}
+
+model DeviceToken {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String         @unique
+  platform   DevicePlatform
+  appVersion String?
+  locale     String?
+  lastSeenAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model ActivityEvent {
+  id         String       @id @default(uuid())
+  coupleId   String
+  couple     Couple       @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  actorId    String?
+  type       ActivityType
+  entityType String
+  entityId   String
+  payload    Json?
+  createdAt  DateTime     @default(now())
+
+  @@index([coupleId, createdAt(sort: Desc)])
+  @@index([coupleId, type, entityId])
+  @@map("activity_events")
+}
+
+model NotificationPreference {
+  userId         String   @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushEnabled    Boolean  @default(true)
+  lists          Boolean  @default(true)
+  importantDates Boolean  @default(true)
+  dailyQuestion  Boolean  @default(true)
+  mood           Boolean  @default(true)
+  nudges         Boolean  @default(true)
+  datePlans      Boolean  @default(true)
+  quietStartMin  Int?
+  quietEndMin    Int?
+  updatedAt      DateTime @updatedAt
+
+  @@map("notification_preferences")
 }
