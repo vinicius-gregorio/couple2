@@ -39,6 +39,16 @@ model User {
   // Lists created by this user
   lists PartnerList[]
 
+  // Calendar birthday. Not a CoupleDate — those are shared couple events.
+  birthDate DateTime? @db.Date
+
+  // Active couple. Written in the same transaction as partnerId.
+  // Null after unpair; ended couples stay in `couples` with status ENDED.
+  coupleId   String?
+  couple     Couple?   @relation("ActiveCouple", fields: [coupleId], references: [id])
+  couplesAsA Couple[]  @relation("CoupleUserA")
+  couplesAsB Couple[]  @relation("CoupleUserB")
+
   @@map("users")
 }
 
@@ -64,16 +74,74 @@ enum ListType {
   TRAVEL
 }
 
+enum CoupleStatus {
+  ACTIVE
+  ENDED
+}
+
+enum CoupleDateType {
+  CUSTOM
+}
+
+enum Recurrence {
+  NONE
+  YEARLY
+}
+
+model Couple {
+  id              String       @id @default(uuid())
+  userAId         String
+  userBId         String
+  userA           User         @relation("CoupleUserA", fields: [userAId], references: [id])
+  userB           User         @relation("CoupleUserB", fields: [userBId], references: [id])
+  members         User[]       @relation("ActiveCouple")
+  status          CoupleStatus @default(ACTIVE)
+  pairedAt        DateTime     @default(now())
+  endedAt         DateTime?
+  anniversaryDate DateTime?    @db.Date
+  timezone        String       @default("America/Sao_Paulo")
+  dates           CoupleDate[]
+  lists           PartnerList[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userAId, status])
+  @@index([userBId, status])
+  @@map("couples")
+}
+
+model CoupleDate {
+  id          String         @id @default(uuid())
+  coupleId    String
+  couple      Couple         @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  type        CoupleDateType @default(CUSTOM)
+  title       String
+  date        DateTime       @db.Date
+  recurrence  Recurrence     @default(YEARLY)
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([coupleId])
+  @@map("couple_dates")
+}
+
 model PartnerList {
   id        String     @id @default(uuid())
   type      ListType
   name      String
   ownerId   String
   owner     User       @relation(fields: [ownerId], references: [id])
+  // Nullable until a later release. Orphan lists (unpaired owners) stay null
+  // and are attached on the next pairing. Lists of an ENDED couple keep that
+  // coupleId so neither partner can see them after unpair.
+  coupleId  String?
+  couple    Couple?    @relation(fields: [coupleId], references: [id], onDelete: Restrict)
   items     ListItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  @@index([coupleId])
   @@map("partner_lists")
 }
 

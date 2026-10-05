@@ -30,8 +30,10 @@ The pairing system uses a **double handshake** mechanism to ensure both users co
 │  Step 3: PAIRING COMPLETE!                                      │
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │ Transaction:                                                ││
-│  │ • User A.partnerId = User B.id                              ││
-│  │ • User B.partnerId = User A.id                              ││
+│  │ • Create one ACTIVE Couple (canonical userA/userB order)   ││
+│  │ • User A.partnerId = User B.id and coupleId = that couple  ││
+│  │ • User B.partnerId = User A.id and coupleId = that couple  ││
+│  │ • Attach lists whose coupleId is still NULL                ││
 │  │ • Clear both pairing codes                                  ││
 │  │ • Delete all PairingRequests for both users                 ││
 │  └─────────────────────────────────────────────────────────────┘│

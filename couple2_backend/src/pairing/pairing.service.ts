@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma';
 import { UsersService } from '../users';
 import { PairResponseDto, PairingStatus } from './dto';
+import { applyPairing } from './apply-pairing';
 
 @Injectable()
 export class PairingService {
@@ -119,51 +120,20 @@ export class PairingService {
 
   /**
    * Completes the pairing between two users.
-   * Sets partner references, clears pairing codes, and deletes pairing requests.
+   * partnerId, coupleId, and the Couple row commit together or not at all.
    */
   private async completePairing(
     userAId: string,
     userBId: string,
   ): Promise<PairResponseDto> {
-    // Use a transaction to ensure atomicity
-    const [, userB] = await this.prisma.$transaction(async (tx) => {
-      // Set User A's partner to User B
-      const updatedUserA = await tx.user.update({
-        where: { id: userAId },
-        data: {
-          partnerId: userBId,
-          pairingCode: null,
-          pairingCodeExpiresAt: null,
-        },
-      });
-
-      // Set User B's partner to User A
-      const updatedUserB = await tx.user.update({
-        where: { id: userBId },
-        data: {
-          partnerId: userAId,
-          pairingCode: null,
-          pairingCodeExpiresAt: null,
-        },
-      });
-
-      // Delete all pairing requests from both users
-      await tx.pairingRequest.deleteMany({
-        where: {
-          OR: [{ requesterId: userAId }, { requesterId: userBId }],
-        },
-      });
-
-      return [updatedUserA, updatedUserB];
-    });
+    const paired = await this.prisma.$transaction((tx) =>
+      applyPairing(tx, userAId, userBId),
+    );
 
     return {
       status: PairingStatus.PAIRED,
       message: 'Successfully paired with your partner!',
-      partner: {
-        id: userB.id,
-        name: userB.name,
-      },
+      partner: paired.partner,
     };
   }
 
@@ -237,18 +207,33 @@ export class PairingService {
 
     const partnerId = user.partnerId;
 
-    // Use transaction to unpair both users
+    // End the couple and clear both pointers in one transaction.
+    // Lists keep the ended coupleId, so neither partner (nor a future
+    // partner) can read them. There is no archive window.
     await this.prisma.$transaction(async (tx) => {
-      // Clear User A's partner
+      if (user.coupleId) {
+        await tx.couple.update({
+          where: { id: user.coupleId },
+          data: { status: 'ENDED', endedAt: new Date() },
+        });
+      } else {
+        await tx.couple.updateMany({
+          where: {
+            status: 'ACTIVE',
+            OR: [{ userAId: userId }, { userBId: userId }],
+          },
+          data: { status: 'ENDED', endedAt: new Date() },
+        });
+      }
+
       await tx.user.update({
         where: { id: userId },
-        data: { partnerId: null },
+        data: { partnerId: null, coupleId: null },
       });
 
-      // Clear User B's partner
       await tx.user.update({
         where: { id: partnerId },
-        data: { partnerId: null },
+        data: { partnerId: null, coupleId: null },
       });
     });
 

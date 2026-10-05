@@ -7,9 +7,17 @@ import { UsersModule } from './users';
 import { AuthModule } from './auth';
 import { PairingModule } from './pairing';
 import { ListsModule } from './lists/lists.module';
+import { CoupleModule } from './couple/couple.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, PairingModule, ListsModule],
+  imports: [
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    PairingModule,
+    ListsModule,
+    CoupleModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

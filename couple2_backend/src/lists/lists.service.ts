@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import { CreateListDto, AddItemDto } from './dto';
@@ -7,24 +7,30 @@ import { CreateListDto, AddItemDto } from './dto';
 export class ListsService {
   constructor(private prisma: PrismaService) {}
 
-  getLists(userId: string, partnerId: string | null) {
+  getLists(coupleId: string) {
     return this.prisma.partnerList.findMany({
-      where: {
-        ownerId: {
-          in: [userId, ...(partnerId ? [partnerId] : [])],
-        },
-      },
+      where: { coupleId },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  createList(userId: string, dto: CreateListDto) {
+  async getList(listId: string, coupleId: string) {
+    const list = await this.prisma.partnerList.findFirst({
+      where: { id: listId, coupleId },
+      include: { items: true },
+    });
+    if (!list) throw new NotFoundException('List not found');
+    return list;
+  }
+
+  createList(userId: string, coupleId: string, dto: CreateListDto) {
     return this.prisma.partnerList.create({
       data: {
         type: dto.type,
         name: dto.name,
         ownerId: userId,
+        coupleId,
       },
       include: { items: true },
     });
