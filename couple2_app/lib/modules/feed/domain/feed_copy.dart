@@ -22,6 +22,10 @@ String feedActionText(String type, Map<String, dynamic>? payload) {
       return '$title ${_whenLabel(inDays)}';
     case 'COUPLE_UPDATED':
       return 'atualizou o casal';
+    case 'QUESTION_ANSWERED':
+      return 'respondeu a pergunta do dia';
+    case 'QUESTION_UNLOCKED':
+      return 'desbloqueou a pergunta do dia';
     default:
       return 'fez uma atualização';
   }
@@ -46,6 +50,9 @@ String? activityRoute(String type, Map<String, dynamic>? payload) {
   if (listId is String && listId.isNotEmpty) return '/lists/$listId';
   if (type == 'COUPLE_DATE_UPCOMING' || type == 'COUPLE_UPDATED') {
     return '/couple/dates';
+  }
+  if (type == 'QUESTION_ANSWERED' || type == 'QUESTION_UNLOCKED') {
+    return '/question';
   }
   return null;
 }

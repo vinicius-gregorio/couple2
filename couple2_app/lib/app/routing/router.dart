@@ -7,6 +7,7 @@ import '../../modules/auth/data/auth_repository.dart';
 import '../../modules/auth/routing/routes.dart';
 import '../../modules/auth/routing/routing.dart';
 import '../../modules/couple/routing/routing.dart';
+import '../../modules/daily_question/routing/routing.dart';
 import '../../modules/feed/routing/routing.dart';
 import '../../modules/lists/routing/routing.dart';
 import '../../modules/notifications/routing/routing.dart';
@@ -34,6 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ...coupleRoutes,
       ...feedRoutes,
       ...notificationRoutes,
+      ...dailyQuestionRoutes,
     ],
   );
 });

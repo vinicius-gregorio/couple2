@@ -81,6 +81,7 @@ src/
 ├── couple/                   # Couple record, important dates, CoupleGuard
 ├── lists/                    # Shared lists scoped by coupleId
 ├── notifications/            # Device tokens, activity feed, push, date reminders
+├── questions/                # Pergunta do dia (assign, answer, history, 10:00 job)
 ├── firebase/                 # Firebase Admin init (ID token verify + FCM)
 └── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
@@ -114,7 +115,13 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 
 **`activity_events`** — couple-scoped feed. `actorId` null is a system event. `payload` is a snapshot (item text is truncated to 80 characters). Gift / private list types never write a row. A partial unique index on `(coupleId, type, entityId, payload.occurrenceDate)` stops duplicate `COUPLE_DATE_UPCOMING` rows.
 
-**`notification_preferences`** — one row per user, created on the first `GET`. Category flags plus `quietStartMin` / `quietEndMin` (minutes from midnight in the couple timezone; `1380` is 23:00). A window that passes midnight wraps. Quiet hours and a disabled category still leave the event in the feed.
+**`notification_preferences`** — one row per user, created on the first `GET`. Category flags plus `quietStartMin` / `quietEndMin` (minutes from midnight in the couple timezone; `1380` is 23:00). A window that passes midnight wraps. Quiet hours and a disabled category still leave the event in the feed. `dailyQuestion` gates the 10:00 question push and the answer/unlock pushes.
+
+**`questions`** — pt-BR bank (`slug` unique, `category` `FUN` / `DEEP` / `MEMORIES` / `FUTURE` / `DAILY_LIFE`, `active`). Seeded by the Prisma migration with `INSERT ... ON CONFLICT (slug) DO NOTHING` (≥ 120, and ≥ 120 non-`DEEP` so the weekly cap cannot force a repeat inside 120 days). Deactivate with `active=false`. Do not `DELETE`.
+
+**`couple_questions`** — one row per couple per calendar `date` (`@db.Date`, unique on `(coupleId, date)`). `unlockedAt` is set when the second partner answers. `dailyNotifiedAt` marks that the 10:00 local push was already claimed. `(coupleId, questionId)` is indexed, not unique: the service does not repeat a question until every active one has been used, then it reuses the least-recent question and logs a warning (acceptance criterion 6). A hard unique constraint would make that insert fail.
+
+**`question_answers`** — one row per user per couple question (`text` 1–1000). Editable until `unlockedAt` is set.
 
 **`couples`** — one row per pairing. `userAId` is the smaller user id. `status` is `ACTIVE` or `ENDED`. `anniversaryDate` is the relationship start (calendar date, optional). `timezone` is one IANA zone for the couple (default `America/Sao_Paulo`). Partial unique indexes allow only one `ACTIVE` row per user. Re-pairing the same people creates a new row.
 
@@ -188,6 +195,16 @@ Creating a list, adding an item, and completing an item (only the transition to 
 | GET | `/notifications/preferences` | JWT | Creates defaults on the first read |
 | PATCH | `/notifications/preferences` | JWT | Category toggles and quiet hours. Unknown fields are 400 |
 
+**Pergunta do dia** (scoped by the active `coupleId`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/questions/today` | JWT + active couple | Lazy-assigns today's question in the couple timezone. Two concurrent calls share one `CoupleQuestion` (`P2002` re-reads the winner). Response: `{ id, date, question{text,category}, myAnswer?, partnerAnswered, unlockedAt, answerable, partnerAnswer? }`. `partnerAnswer` is omitted while locked, and that text is not selected until `unlockedAt` is set |
+| POST | `/questions/:coupleQuestionId/answer` | JWT + active couple | `{ text }` (1–1000). 404 outside the couple. 422 when the date is more than 7 days before today. 409 after unlock. The second distinct answer sets `unlockedAt` in the same transaction, then writes `QUESTION_UNLOCKED` and pushes the partner who answered first. The first answer writes `QUESTION_ANSWERED` and pushes "responda para ver". Edits before unlock return 200 and refresh `updatedAt`. Answer text is not stored in the feed payload |
+| GET | `/questions/history?cursor&limit=20` | JWT + active couple | Keyset page by `date` desc. Locked rows never include the partner's text |
+
+The hourly job also runs at 10:00 local: it creates today's question (same assignment as `GET /questions/today`) and sends one `dailyQuestion` push with `data.route=/question`. A couple with no iOS/Android token still gets the row. A second run the same morning does not push again. `DEEP` is skipped when the couple already received one in the last 7 days, unless that is the only way to assign a question.
+
 ### Pairing Flow
 
 1. User A calls `POST /pairing/pair` with User B's code → creates a `PENDING` request.
@@ -231,7 +248,7 @@ npm run dev
 
 List routes keep working with no service account. A partner action writes the feed row and prints one line from `LogPushSender` (`type`, `route`, title, body). Nothing is sent to FCM. Set `PUSH_DRIVER=fcm` only when `FIREBASE_SERVICE_ACCOUNT` is present.
 
-An hourly job records `COUPLE_DATE_UPCOMING` for couples whose local time is 09:00, for dates 7, 1, and 0 days away. Running it again the same morning does not create a second row or a second push.
+An hourly job records `COUPLE_DATE_UPCOMING` for couples whose local time is 09:00, for dates 7, 1, and 0 days away. Running it again the same morning does not create a second row or a second push. The same hourly tick creates the question of the day at 10:00 local and sends the `dailyQuestion` push (`route: /question`) once.
 
 ### Running
 
@@ -334,11 +351,12 @@ lib/
 │   ├── auth/                        # Auth feature module
 │   ├── couple/                      # Couple record + important dates
 │   ├── notifications/               # Push registration + preference screen
-│   └── feed/                        # Activity feed page and Home preview
-│       ├── ui/pages/auth/           # Login screen + ViewModel
-│       ├── ui/widgets/              # Google + Apple sign-in buttons
-│       ├── domain/entities/         # User entity
-│       └── data/                    # Auth repository (Firebase) + Riverpod providers
+│   ├── feed/                        # Activity feed page and Home preview
+│   └── daily_question/              # Pergunta do dia: today, history, Home card
+│       ├── data/daily_question_repository.dart
+│       ├── domain/entities/couple_question.dart
+│       ├── ui/pages/today/          # TodayQuestionPage + TodayQuestionViewModel
+│       └── ui/pages/history/
 ├── core/
 │   ├── external/http_client/        # Custom Dio wrapper with typed exceptions
 │   └── domain/entities/             # Shared entities
@@ -350,7 +368,7 @@ lib/
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
 - **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`), including when the app was closed (`getInitialMessage`).
+- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>` or `/question`), including when the app was closed (`getInitialMessage`).
 - **Push** — permission is requested after pairing, not on first boot. The FCM token is posted to `/devices`. Logout deletes that token before clearing SharedPreferences. Home shows a bell with the unread count and the last 3 events. Opening the feed calls `POST /feed/seen`.
 - **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).

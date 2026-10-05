@@ -7,6 +7,8 @@ import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
 import '../../../../modules/couple/ui/widgets/days_together_card.dart';
 import '../../../../modules/couple/ui/widgets/profile_sheet.dart';
+import '../../../../modules/daily_question/data/daily_question_providers.dart';
+import '../../../../modules/daily_question/ui/widgets/today_question_card.dart';
 import '../../../../modules/feed/data/feed_providers.dart';
 import '../../../../modules/feed/routing/routes.dart';
 import '../../../../modules/feed/ui/widgets/feed_preview.dart';
@@ -69,6 +71,7 @@ class HomePage extends ConsumerWidget {
               ref.invalidate(coupleProvider);
               ref.invalidate(unreadCountProvider);
               ref.invalidate(feedPreviewProvider);
+              ref.invalidate(todayQuestionProvider);
               await ref.read(coupleProvider.future);
             },
             child: ListView(
@@ -103,7 +106,8 @@ class HomePage extends ConsumerWidget {
                       if (couple == null) return const SizedBox.shrink();
                       return DaysTogetherCard(
                         couple: couple,
-                        onOpenSettings: () => context.push(CoupleRoutes.settings),
+                        onOpenSettings: () =>
+                            context.push(CoupleRoutes.settings),
                         onOpenDates: () => context.push(CoupleRoutes.dates),
                       );
                     },
@@ -117,6 +121,8 @@ class HomePage extends ConsumerWidget {
                     ),
                   ),
                 if (session.coupleId != null) ...[
+                  const SizedBox(height: 16),
+                  const TodayQuestionCard(),
                   const SizedBox(height: 16),
                   FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
                 ],

@@ -18,11 +18,7 @@ void main() {
       'Aniversário de Bob é em 7 dias',
     );
     expect(
-      feedActorLabel(
-        actorId: 'bob',
-        currentUserId: 'ada',
-        actorName: 'Bob',
-      ),
+      feedActorLabel(actorId: 'bob', currentUserId: 'ada', actorName: 'Bob'),
       'Bob',
     );
     expect(
@@ -40,9 +36,15 @@ void main() {
       activityRoute('LIST_ITEM_ADDED', {'listId': 'list-1'}),
       '/lists/list-1',
     );
+    expect(activityRoute('COUPLE_DATE_UPCOMING', const {}), '/couple/dates');
     expect(
-      activityRoute('COUPLE_DATE_UPCOMING', const {}),
-      '/couple/dates',
+      feedActionText('QUESTION_ANSWERED', const {}),
+      'respondeu a pergunta do dia',
     );
+    expect(
+      feedActionText('QUESTION_UNLOCKED', const {}),
+      'desbloqueou a pergunta do dia',
+    );
+    expect(activityRoute('QUESTION_UNLOCKED', const {}), '/question');
   });
 }
