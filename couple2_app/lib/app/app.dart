@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 
 import '../design_system/design_system.dart';
+import '../modules/feed/data/feed_providers.dart';
+import '../modules/notifications/push_service.dart';
+import '../modules/notifications/push_service_provider.dart';
 import 'routing/router.dart';
 import 'session_provider.dart';
 export 'bootstrap.dart';
@@ -14,10 +19,13 @@ class CoupleApp extends ConsumerStatefulWidget {
 }
 
 class _CoupleAppState extends ConsumerState<CoupleApp> with WidgetsBindingObserver {
+  bool _pushRequested = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startPushIfPaired());
   }
 
   @override
@@ -30,11 +38,36 @@ class _CoupleAppState extends ConsumerState<CoupleApp> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(sessionProvider.notifier).refresh();
+      ref.invalidate(unreadCountProvider);
+      ref.invalidate(feedPreviewProvider);
+      _startPushIfPaired();
     }
+  }
+
+  void _startPushIfPaired() {
+    if (_pushRequested || !canRegisterPush) return;
+    final session = ref.read(sessionProvider).asData?.value;
+    if (session?.coupleId == null) return;
+    _pushRequested = true;
+    final router = ref.read(routerProvider);
+    unawaited(ref.read(pushServiceProvider).ensureStarted(router));
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(sessionProvider, (previous, next) {
+      final before = previous?.asData?.value?.coupleId;
+      final after = next.asData?.value?.coupleId;
+      if (after == null) {
+        _pushRequested = false;
+        return;
+      }
+      if (after != before) {
+        _pushRequested = false;
+        _startPushIfPaired();
+      }
+    });
+
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

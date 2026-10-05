@@ -41,7 +41,8 @@ NestJS REST API that handles social authentication, user management, and the pai
 | `@nestjs/platform-express` | 11.0.1 | Express HTTP adapter |
 | `@nestjs/jwt` | 11.0.2 | App JWT generation and validation |
 | `@nestjs/passport` | 11.0.5 | Passport.js integration |
-| `firebase-admin` | 13.10.0 | Optional Firebase ID token verification (`/auth/firebase` only) |
+| `firebase-admin` | 13.10.0 | Optional Firebase ID token verification and FCM (`PUSH_DRIVER=fcm`) |
+| `@nestjs/schedule` | ^6.0.0 | Hourly job for important-date reminders |
 | `@prisma/client` | 7.2.0 | Postgres queries and model types |
 | `@prisma/adapter-pg` | 7.2.0 | Prisma 7 driver adapter for `pg` |
 | `pg` | ^8.23.1 | Postgres connection pool |
@@ -79,7 +80,8 @@ src/
 ├── pairing/                  # Pairing logic (double handshake + Couple row)
 ├── couple/                   # Couple record, important dates, CoupleGuard
 ├── lists/                    # Shared lists scoped by coupleId
-├── firebase/                 # Optional Firebase Admin init (ID token verify only)
+├── notifications/            # Device tokens, activity feed, push, date reminders
+├── firebase/                 # Firebase Admin init (ID token verify + FCM)
 └── prisma/                   # PrismaService (Postgres via the pg adapter)
 ```
 
@@ -105,7 +107,14 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 | `partnerId` | string? | UUID of paired user. Written in the same transaction as `coupleId` |
 | `coupleId` | string? | Active couple. Null after unpair |
 | `birthDate` | date? | Calendar birthday (`YYYY-MM-DD`) |
+| `feedSeenAt` | timestamp? | Unread partner events are those newer than this. Null means the feed was never opened |
 | `createdAt` / `updatedAt` | timestamp | Set by the database / Prisma |
+
+**`device_tokens`** — one row per FCM token (`token` unique, `platform` `IOS` / `ANDROID` / `WEB`). Logout deletes only the current user's row. A token that signs into another account is reassigned. Web tokens are stored but not pushed (no web push).
+
+**`activity_events`** — couple-scoped feed. `actorId` null is a system event. `payload` is a snapshot (item text is truncated to 80 characters). Gift / private list types never write a row. A partial unique index on `(coupleId, type, entityId, payload.occurrenceDate)` stops duplicate `COUPLE_DATE_UPCOMING` rows.
+
+**`notification_preferences`** — one row per user, created on the first `GET`. Category flags plus `quietStartMin` / `quietEndMin` (minutes from midnight in the couple timezone; `1380` is 23:00). A window that passes midnight wraps. Quiet hours and a disabled category still leave the event in the feed.
 
 **`couples`** — one row per pairing. `userAId` is the smaller user id. `status` is `ACTIVE` or `ENDED`. `anniversaryDate` is the relationship start (calendar date, optional). `timezone` is one IANA zone for the couple (default `America/Sao_Paulo`). Partial unique indexes allow only one `ACTIVE` row per user. Re-pairing the same people creates a new row.
 
@@ -165,6 +174,20 @@ Postgres tables (Prisma `@map` names). Primary keys are UUIDs. Relations are for
 | DELETE | `/lists/items/:id` | JWT + active couple | Delete an item. 404 outside the couple |
 | DELETE | `/lists/:id` | JWT + active couple | Delete a list in this couple |
 
+Creating a list, adding an item, and completing an item (only the transition to `true`) write a feed event after the list write commits. The partner gets at most one push per list every 5 minutes. The author does not.
+
+**Devices, feed, notification preferences**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/devices` | JWT | Upsert `{ token, platform, appVersion?, locale? }`. Reassigns the token if another user had it |
+| DELETE | `/devices/:token` | JWT | Remove that token only if it belongs to the caller. Called on logout before local prefs are cleared |
+| GET | `/feed?cursor&limit=20` | JWT + active couple | Keyset page `(createdAt, id)` descending. Both partners and system events. Another couple gets none of these rows |
+| GET | `/feed/unread-count` | JWT + active couple | Partner events with `createdAt > feedSeenAt` |
+| POST | `/feed/seen` | JWT + active couple | Sets `feedSeenAt` to now |
+| GET | `/notifications/preferences` | JWT | Creates defaults on the first read |
+| PATCH | `/notifications/preferences` | JWT | Category toggles and quiet hours. Unknown fields are 400 |
+
 ### Pairing Flow
 
 1. User A calls `POST /pairing/pair` with User B's code → creates a `PENDING` request.
@@ -182,13 +205,33 @@ PORT=3000
 # Host process (`npm run dev`). See couple2_backend/.env.example.
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public
 
-# Optional — only POST /auth/firebase. dev-login does not use this.
+# Optional — POST /auth/firebase and PUSH_DRIVER=fcm.
 FIREBASE_SERVICE_ACCOUNT=
 # FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccount.json
+
+# log = print the push (default in dev, and whenever credentials are missing).
+# fcm = send via Firebase Cloud Messaging.
+PUSH_DRIVER=log
 ```
 
 Real Google/Apple login still verifies a Firebase ID token (project `couple42-27692`).
-That path needs a service-account key. Local lists, pairing, and `dev-login` do not.
+That path needs a service-account key. Local lists, pairing, `dev-login`, and `PUSH_DRIVER=log` do not.
+FCM in production uses the same service account; the key needs the `firebasecloudmessaging` role.
+iOS also needs the APNs key uploaded to Firebase project `couple42-27692`.
+
+### Push locally (`PUSH_DRIVER=log`)
+
+```bash
+cd couple2_backend
+cp .env.example .env   # PUSH_DRIVER=log is already set
+npm install
+npx prisma migrate deploy
+npm run dev
+```
+
+List routes keep working with no service account. A partner action writes the feed row and prints one line from `LogPushSender` (`type`, `route`, title, body). Nothing is sent to FCM. Set `PUSH_DRIVER=fcm` only when `FIREBASE_SERVICE_ACCOUNT` is present.
+
+An hourly job records `COUPLE_DATE_UPCOMING` for couples whose local time is 09:00, for dates 7, 1, and 0 days away. Running it again the same morning does not create a second row or a second push.
 
 ### Running
 
@@ -256,6 +299,8 @@ Flutter app for iOS, Android, Web, macOS, Windows, and Linux. Handles Firebase A
 | `dio` | ^5.9.0 | HTTP client |
 | `firebase_core` | ^4.2.0 | Firebase initialization |
 | `firebase_auth` | ^6.1.0 | Google + Apple sign-in via Firebase |
+| `firebase_messaging` | ^16.0.4 | FCM token, refresh, and notification taps |
+| `flutter_local_notifications` | ^19.4.2 | Show a push while the Android app is in the foreground |
 | `google_sign_in` | ^7.2.0 | Obtains the Google credential on mobile (fed to Firebase) |
 | `shared_preferences` | ^2.5.4 | Persistent local key-value storage |
 | `google_fonts` | ^6.2.1 | Typography |
@@ -287,7 +332,9 @@ lib/
 │       └── routes.dart              # Route path constants
 ├── modules/
 │   ├── auth/                        # Auth feature module
-│   └── couple/                      # Couple record + important dates
+│   ├── couple/                      # Couple record + important dates
+│   ├── notifications/               # Push registration + preference screen
+│   └── feed/                        # Activity feed page and Home preview
 │       ├── ui/pages/auth/           # Login screen + ViewModel
 │       ├── ui/widgets/              # Google + Apple sign-in buttons
 │       ├── domain/entities/         # User entity
@@ -303,7 +350,8 @@ lib/
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
 - **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`.
+- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`), including when the app was closed (`getInitialMessage`).
+- **Push** — permission is requested after pairing, not on first boot. The FCM token is posted to `/devices`. Logout deletes that token before clearing SharedPreferences. Home shows a bell with the unread count and the last 3 events. Opening the feed calls `POST /feed/seen`.
 - **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).
 - **Firebase Auth** — sign-in runs through `firebase_auth`. Web uses `signInWithPopup`; mobile Google uses a `google_sign_in` credential exchanged into Firebase; Apple uses the Firebase Apple provider.
