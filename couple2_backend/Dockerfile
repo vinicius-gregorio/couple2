@@ -5,7 +5,10 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+# Prisma's engine links OpenSSL. ca-certificates is the public trust store.
+# Generate does not open a connection.
+RUN apk add --no-cache openssl ca-certificates \
+  && update-ca-certificates
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -29,7 +32,14 @@ FROM node:22-alpine AS development
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+# Public CAs, plus Supabase Root 2021 so a cloud DATABASE_URL can verify TLS.
+# NODE_EXTRA_CA_CERTS adds that root without replacing Node's built-in CAs.
+# SSL_CERT_FILE is what Prisma's engine reads. Verification stays on.
+RUN apk add --no-cache openssl ca-certificates
+COPY certs/supabase-root-2021.crt /usr/local/share/ca-certificates/supabase-root-2021.crt
+RUN update-ca-certificates
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/supabase-root-2021.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -55,7 +65,8 @@ FROM node:22-alpine AS prod-deps
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl ca-certificates \
+  && update-ca-certificates
 
 COPY package.json package-lock.json ./
 COPY prisma.config.ts ./
@@ -75,15 +86,28 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-RUN apk add --no-cache openssl \
+# node:22-alpine previously installed openssl without ca-certificates, so
+# OpenSSL clients (Prisma migrate) had an empty trust store. Public roots
+# fix Google and other public CAs. The Supabase pooler chains to Supabase
+# Root 2021 CA, which is not in that bundle — install it too.
+# NODE_EXTRA_CA_CERTS lets Node (pg, Firebase JWKS if it uses the extra
+# store) trust that root. Do not set NODE_TLS_REJECT_UNAUTHORIZED.
+RUN apk add --no-cache openssl ca-certificates \
   && addgroup -S app \
   && adduser -S app -G app
+COPY certs/supabase-root-2021.crt /usr/local/share/ca-certificates/supabase-root-2021.crt
+RUN update-ca-certificates \
+  && chmod 644 /usr/local/share/ca-certificates/supabase-root-2021.crt \
+  && chmod 644 /etc/ssl/certs/ca-certificates.crt
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/supabase-root-2021.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 COPY --from=prod-deps --chown=app:app /app/node_modules ./node_modules
 COPY --from=prod-deps --chown=app:app /app/package.json ./package.json
 COPY --from=prod-deps --chown=app:app /app/prisma.config.ts ./prisma.config.ts
 COPY --from=prod-deps --chown=app:app /app/prisma ./prisma
 COPY --from=builder --chown=app:app /app/dist ./dist
+COPY --chown=app:app certs/supabase-root-2021.crt ./certs/supabase-root-2021.crt
 
 USER app
 
