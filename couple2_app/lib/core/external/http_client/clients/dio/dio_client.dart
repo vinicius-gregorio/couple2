@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../http_client.dart';
-import 'dio_extensions.dart';
 
 class DioClient implements ICPLHttpClient {
   DioClient({

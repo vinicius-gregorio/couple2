@@ -18,6 +18,18 @@ void main() {
     expect(
       nextDateLine(
         const UpcomingDate(
+          kind: 'birthday',
+          title: 'Bruno Smoke',
+          date: '2026-11-02',
+          inDays: 28,
+          self: true,
+        ),
+      ),
+      'Próxima data: Seu aniversário em 28 dias',
+    );
+    expect(
+      nextDateLine(
+        const UpcomingDate(
           kind: 'anniversary',
           title: 'Aniversário de namoro',
           date: '2026-10-05',

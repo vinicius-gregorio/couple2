@@ -15,7 +15,7 @@ class DatePlansPage extends ConsumerStatefulWidget {
 }
 
 class _DatePlansPageState extends ConsumerState<DatePlansPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabs;
   final _upcoming = <DatePlan>[];
   final _past = <DatePlan>[];
@@ -29,6 +29,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabs = TabController(length: 2, vsync: this);
     Future<void>.microtask(() async {
       await Future.wait([
@@ -40,8 +41,14 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabs.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshAll();
   }
 
   Future<void> _load(String scope, {bool reset = false}) async {
@@ -94,6 +101,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
   }
 
   Future<void> _refreshAll() async {
+    if (!mounted) return;
     ref.invalidate(nextDateProvider);
     await Future.wait([
       _load('upcoming', reset: true),
@@ -103,6 +111,10 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(datePlansChangedProvider, (previous, next) {
+      if (previous != next) _refreshAll();
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const AppText('Dates'),

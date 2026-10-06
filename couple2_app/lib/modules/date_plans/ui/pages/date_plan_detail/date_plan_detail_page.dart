@@ -60,6 +60,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       final plan = await action();
       ref.invalidate(nextDateProvider);
       ref.invalidate(feedPreviewProvider);
+      ref.read(datePlansChangedProvider.notifier).bump();
       if (!mounted) return;
       setState(() => _plan = plan);
     } on CPLHttpException catch (error) {

@@ -9,7 +9,8 @@ String nextDateLine(UpcomingDate next) {
     _ => 'em ${next.inDays} dias',
   };
   final subject = switch (next.kind) {
-    'birthday' => 'aniversário de ${next.title}',
+    'birthday' =>
+      next.self ? 'Seu aniversário' : 'aniversário de ${next.title}',
     'anniversary' => 'aniversário de namoro',
     _ => next.title,
   };

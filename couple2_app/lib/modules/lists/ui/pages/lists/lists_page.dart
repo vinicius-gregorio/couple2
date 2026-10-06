@@ -32,11 +32,40 @@ const _typeIcons = {
   'GIFT_IDEAS': Icons.card_giftcard,
 };
 
-class ListsPage extends ConsumerWidget {
+class ListsPage extends ConsumerStatefulWidget {
   const ListsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ListsPage> createState() => _ListsPageState();
+}
+
+class _ListsPageState extends ConsumerState<ListsPage>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    Future<void>.microtask(_refresh);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  void _refresh() {
+    if (!mounted) return;
+    ref.read(listsViewModelProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(listsViewModelProvider);
     final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
@@ -155,8 +184,13 @@ class _ListCard extends ConsumerWidget {
             const Icon(Icons.chevron_right),
           ],
         ),
-        onTap: () =>
-            context.push(ListsRoutes.listDetail.replaceFirst(':id', list.id)),
+        onTap: () async {
+          await context.push(
+            ListsRoutes.listDetail.replaceFirst(':id', list.id),
+          );
+          if (!context.mounted) return;
+          await ref.read(listsViewModelProvider.notifier).refresh();
+        },
       ),
     );
   }

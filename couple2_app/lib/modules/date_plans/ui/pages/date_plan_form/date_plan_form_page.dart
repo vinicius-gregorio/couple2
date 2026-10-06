@@ -1,10 +1,12 @@
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../core/core.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
+import '../../../routing/routes.dart';
 
 class DatePlanFormPage extends ConsumerStatefulWidget {
   const DatePlanFormPage({
@@ -109,8 +111,13 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
         );
       }
       ref.invalidate(nextDateProvider);
+      ref.read(datePlansChangedProvider.notifier).bump();
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go(DatePlanRoutes.list);
+      }
     } on CPLHttpException catch (error) {
       _toast(
         datePlanErrorMessage(

@@ -417,8 +417,8 @@ lib/
 ### Key Patterns
 
 - **Clean Architecture** — each feature module has UI, Domain, and Data layers.
-- **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based.
-- **GoRouter** — unauthenticated users redirect to `/auth`; authenticated users redirect to `/home`. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. Mood history: `/mood/history`. Received nudges: `/nudges`. Dates: `/dates`, `/dates/new`, and `/dates/:id`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`, `/question`, `/nudges`, or `/dates/<id>`), including when the app was closed (`getInitialMessage`). A foreground message also shows a floating snackbar.
+- **Riverpod** — all state goes through providers; ViewModels are `StateNotifier`-based. Lists, important dates, and date plans refetch when the screen opens and when the window is focused again. Creating or changing a date plan also refreshes the dates list without a reload.
+- **GoRouter** — web uses the hash strategy (`/#/question`). `GoRouter.optionURLReflectsImperativeAPIs` is on so `push` updates that hash; `go` replaces the stack (login, logout, and a save opened with no back stack). The redirect reads auth synchronously from a `refreshListenable`. While that read is in flight it returns null, so a refresh stays on the current route. After auth resolves, a logged-in user stays put; a logged-out user goes to `/auth/login`. Logout publishes the auth change (even when the flag was already false), clears the session and user-scoped providers, and lets that redirect run. Couple routes: `/couple` and `/couple/dates`. Feed: `/feed`. Notification preferences: `/notifications/preferences`. Question of the day: `/question` and `/question/history`. Mood history: `/mood/history`. Received nudges: `/nudges`. Dates: `/dates`, `/dates/new`, and `/dates/:id`. A push tap calls `router.push` with `data.route` (for example `/lists/<id>`, `/question`, `/nudges`, or `/dates/<id>`), including when the app was closed (`getInitialMessage`). A foreground message also shows a floating snackbar.
 - **Push** — permission is requested after pairing, not on first boot. The FCM token is posted to `/devices`. Logout deletes that token before clearing SharedPreferences. Home shows a bell with the unread count and the last 3 events. Opening the feed calls `POST /feed/seen`.
 - **Session** — `sessionProvider` calls `GET /auth/me` on boot, on resume, and via `refresh()` after pairing. Home reads that session instead of the user snapshot saved at login, so `coupleId` is current without logging out. Pairing screens (P0) are not in this build; when they land they must call `sessionProvider.notifier.refresh()` after a successful pair. A 403 from lists means the user is not paired and should open that P0 flow.
 - **Custom HTTP client** — Dio wrapper in `core/external/http_client/` adds JWT headers via interceptor and maps HTTP errors to typed exceptions (401, 403, 404, 409, 422, 500…).
@@ -431,7 +431,8 @@ lib/
 3. App gets the **Firebase ID token** (`user.getIdToken()`) and sends it to `POST /auth/firebase`.
 4. Backend verifies the token with `firebase-admin`, upserts the user in Postgres, and returns an app JWT. Local testing can skip this and call `POST /auth/dev-login` instead.
 5. The app JWT is stored in `SharedPreferences`.
-6. GoRouter detects the auth state change and navigates to `/home`.
+6. GoRouter detects the auth state change and navigates to `/` (Home), or back to the route that was open before login.
+7. Logout clears the app JWT and user-scoped providers, then GoRouter opens `/auth/login`. Home does not stay up with an empty session.
 
 ### Running
 

@@ -17,55 +17,58 @@ class TodayQuestionCard extends ConsumerWidget {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = session?.partnerName ?? '';
 
-    return today.when(
-      data: (question) {
-        if (question == null) return const SizedBox.shrink();
-        final copy = todayCardCopy(
-          answeredByMe: question.answeredByMe,
-          unlocked: question.unlocked,
-          partnerName: partnerName,
-        );
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          child: InkWell(
-            onTap: () => context.push(DailyQuestionRoutes.today),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+    final question = today.asData?.value;
+    final copy = question == null
+        ? null
+        : todayCardCopy(
+            answeredByMe: question.answeredByMe,
+            unlocked: question.unlocked,
+            partnerName: partnerName,
+            partnerAnswered: question.partnerAnswered,
+          );
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      child: InkWell(
+        onTap: () => context.push(DailyQuestionRoutes.today),
+        child: IgnorePointer(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(
+                        'Pergunta do dia',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      if (today.isLoading && question == null)
+                        const LinearProgressIndicator()
+                      else if (today.hasError)
                         AppText(
-                          'Pergunta do dia',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        AppText(copy.title),
-                      ],
-                    ),
+                          'Não foi possível carregar a pergunta. Toque para abrir.',
+                        )
+                      else if (copy != null)
+                        AppText(copy.title)
+                      else
+                        const AppText('Responda a pergunta de hoje'),
+                    ],
                   ),
-                  if (copy.kind != TodayCardKind.unanswered) ...[
-                    const SizedBox(width: 12),
-                    _PartnerAvatar(
-                      pictureUrl: session?.partnerPicture,
-                      gray: copy.grayPartnerAvatar,
-                    ),
-                  ],
+                ),
+                if (copy != null && copy.kind != TodayCardKind.unanswered) ...[
+                  const SizedBox(width: 12),
+                  _PartnerAvatar(
+                    pictureUrl: session?.partnerPicture,
+                    gray: copy.grayPartnerAvatar,
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
-        );
-      },
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        child: LinearProgressIndicator(),
-      ),
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: AppText('Não foi possível carregar a pergunta: $error'),
+        ),
       ),
     );
   }

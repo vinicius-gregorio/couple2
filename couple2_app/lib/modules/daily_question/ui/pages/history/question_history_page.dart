@@ -150,7 +150,9 @@ class _HistoryTile extends StatelessWidget {
             const SizedBox(height: 4),
             AppText('$partnerName: ${question.partnerAnswer?.text ?? ''}'),
           ] else if (question.answeredByMe)
-            AppText('Você respondeu, aguardando $partnerName'),
+            AppText('Você respondeu, aguardando $partnerName')
+          else if (question.partnerAnswered)
+            AppText(partnerAlreadyAnsweredLine(partnerName)),
           if (showAnswer || showEdit) ...[
             const SizedBox(height: 8),
             if (!editing)
