@@ -68,7 +68,7 @@ The API image's final stage is `production`. Railway should build `couple2_backe
 | Dockerfile target | `production` |
 | Start command | empty — do not set `npm run prod` |
 
-The image command applies migrations and then listens: `prisma migrate deploy` and `node dist/main`. `npm run start:prod` and `npm run prod` do the same thing. `PORT` defaults to `3000` when it is unset. The process binds `0.0.0.0`.
+The image command applies migrations and then listens: `prisma migrate deploy` and `node dist/main`. `npm run start:prod` and `npm run prod` do the same thing. `tsconfig.build.json` compiles only `src` (`rootDir` `./src`), so the entry file is `dist/main.js`. `PORT` defaults to `3000` when it is unset. The process binds `0.0.0.0`.
 
 Required variable names (set the values in Railway, do not commit them):
 
