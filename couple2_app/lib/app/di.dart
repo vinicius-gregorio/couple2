@@ -11,7 +11,10 @@ class APPDI {
   Future<void> init() async {
     GetIt.I.registerSingleton<ICPLHttpClient>(
       DioClient(
-        baseUrl: 'http://localhost:3000',
+        baseUrl: const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: 'http://localhost:3000',
+        ),
         interceptors: [AuthTokenInterceptor()],
       ),
     );

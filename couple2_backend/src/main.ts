@@ -6,6 +6,7 @@ import { configureApp } from './configure-app';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   configureApp(app);
-  await app.listen(process.env.PORT ?? 3000);
+  // Railway sets PORT. Bind all interfaces so the container is reachable.
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 void bootstrap();

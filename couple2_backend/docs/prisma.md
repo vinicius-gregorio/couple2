@@ -459,13 +459,16 @@ const result = await this.prisma.$queryRaw`SELECT * FROM users WHERE email = ${e
 
 ## Docker Integration
 
-The Dockerfile runs migrations before starting the app:
+The Dockerfile's last stage is `production` (the Railway image). It installs production dependencies with `npm ci --omit=dev`, generates the Prisma client, copies `dist` plus `prisma/schema` and `prisma/migrations`, and starts as a non-root user:
 
 ```dockerfile
-CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run prod"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node dist/main"]
 ```
 
-For development with hot reload, the container waits for Supabase Postgres, then migrates:
+`npm run start:prod` and `npm run prod` are the same sequence (`prisma migrate deploy && node dist/main`). `prisma` and `dotenv` are runtime dependencies so that command works without devDependencies.
+
+Development (compose pins `--target development`) waits for Supabase Postgres, then migrates and watches:
+
 ```dockerfile
 CMD ["sh", "-c", "node scripts/wait-for-db.mjs && npx prisma migrate deploy && npm run dev"]
 ```

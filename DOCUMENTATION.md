@@ -46,6 +46,8 @@ NestJS REST API that handles social authentication, user management, and the pai
 | `@prisma/client` | 7.2.0 | Postgres queries and model types |
 | `@prisma/adapter-pg` | 7.2.0 | Prisma 7 driver adapter for `pg` |
 | `pg` | ^8.23.1 | Postgres connection pool |
+| `prisma` | 7.2.0 | SQL migrations on process start (`migrate deploy`) |
+| `dotenv` | ^17.2.3 | Loads `.env` for local runs and `prisma.config.ts` |
 | `passport-jwt` | 4.0.1 | JWT Passport strategy |
 | `rxjs` | 7.8.2 | Reactive extensions (NestJS internals) |
 | `class-validator` | ^0.15.1 | DTO validation (`ValidationPipe` global) |
@@ -57,7 +59,6 @@ NestJS REST API that handles social authentication, user management, and the pai
 
 | Package | Version | Purpose |
 |---|---|---|
-| `prisma` | 7.2.0 | Client generation and SQL migrations |
 | `typescript` | 5.7.3 | TypeScript compiler |
 | `ts-node` | 10.9.2 | TypeScript execution |
 | `jest` | 30.0.0 | Test runner |
@@ -266,7 +267,48 @@ FIREBASE_SERVICE_ACCOUNT=
 # log = print the push (default in dev, and whenever credentials are missing).
 # fcm = send via Firebase Cloud Messaging.
 PUSH_DRIVER=log
+
+# Optional comma-separated browser origins. Unset reflects the request origin.
+# CORS_ORIGINS=https://couple42-f87b6.web.app,https://couple42-f87b6.firebaseapp.com
 ```
+
+The process listens on `PORT`, or `3000` when that variable is unset, on `0.0.0.0`.
+
+### Production (Railway + Firebase Hosting)
+
+The API (`couple2_backend`, Prisma 7, Supabase Postgres) is deployed from the Dockerfile. The Flutter web app (`couple2_app`) is deployed to Firebase Hosting, project `couple42-f87b6`.
+
+**Railway** (service https://couple2-api-production.up.railway.app):
+
+| Setting | Value |
+|---|---|
+| Root directory | `couple2_backend` |
+| Builder | Dockerfile |
+| Dockerfile target | `production` (final stage; an empty target selects the same image) |
+| Start command | leave empty. Remove any `npm run prod` override |
+
+The image runs `prisma migrate deploy`, then `node dist/main` (`npm run start:prod` / `npm run prod`). No separate pre-deploy command.
+
+Variable names only (values stay in Railway):
+
+| Name | Required | Role |
+|---|---|---|
+| `DATABASE_URL` | yes | Supabase Postgres |
+| `JWT_SECRET` | yes | App JWT signing |
+| `PORT` | injected by Railway | Listen port. Image and app fall back to `3000` |
+| `NODE_ENV` | set in the image to `production` | Disables dev-login and defaults push to FCM when credentials exist |
+| `FIREBASE_SERVICE_ACCOUNT` | optional | Inline service-account JSON for Firebase auth and FCM |
+| `PUSH_DRIVER` | optional | `fcm` or `log` |
+| `CORS_ORIGINS` | optional | Comma-separated allow-list. Unset reflects any origin, including Firebase Hosting |
+
+**Firebase Hosting** from `couple2_app` (or `./scripts/build_web_release.sh` for the build):
+
+```bash
+flutter build web --release --dart-define=API_BASE_URL=https://couple2-api-production.up.railway.app
+firebase deploy --only hosting
+```
+
+`API_BASE_URL` is compiled in. Omitting it keeps `http://localhost:3000` for local dev.
 
 Real Google/Apple login still verifies a Firebase ID token (project `couple42-27692`).
 That path needs a service-account key. Local lists, pairing, `dev-login`, and `PUSH_DRIVER=log` do not.
@@ -448,4 +490,4 @@ flutter run -d macos
 flutter test               # run tests
 ```
 
-> Set the API base URL in `lib/app/di.dart` to point to your running backend instance.
+The API base URL is `API_BASE_URL` in `lib/app/di.dart`. It defaults to `http://localhost:3000`, so `flutter run` and `flutter test` need no flag. Production web passes `--dart-define=API_BASE_URL=https://couple2-api-production.up.railway.app` (see the deploy section above).
