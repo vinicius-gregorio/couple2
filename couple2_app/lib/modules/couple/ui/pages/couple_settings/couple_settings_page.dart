@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
+import '../../../../../app/routing/pop_or_go.dart';
+import '../../../../../app/routing/routes.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -87,12 +89,15 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
       _error = null;
     });
     try {
-      await ref.read(coupleRepositoryProvider).updateCouple(
+      await ref
+          .read(coupleRepositoryProvider)
+          .updateCouple(
             anniversaryDate: formatDateOnly(anniversary),
             timezone: _timezone,
           );
       ref.invalidate(coupleProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      popOrGo(context, APPRoutes.home);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Não foi possível salvar. Confira o fuso.');
@@ -109,7 +114,8 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     final zones = {
       _timezone,
       ..._commonTimezones,
-      if (coupleAsync.asData?.value != null) coupleAsync.asData!.value!.timezone,
+      if (coupleAsync.asData?.value != null)
+        coupleAsync.asData!.value!.timezone,
     }.toList();
 
     return Scaffold(
@@ -142,10 +148,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AppText(_error!),
-          ],
+          if (_error != null) ...[const SizedBox(height: 12), AppText(_error!)],
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _saving ? null : _save,

@@ -66,7 +66,7 @@ class HomePage extends ConsumerWidget {
       body: sessionAsync.when(
         data: (session) {
           if (session == null) {
-            return const Center(child: AppText('Usuário não encontrado'));
+            return const Center(child: CircularProgressIndicator());
           }
 
           return RefreshIndicator(

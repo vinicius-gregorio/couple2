@@ -13,7 +13,7 @@ Coder opens the PR only. Tech Manager merges on Tester PASS.
 - The existing hourly scheduler also runs at 10:00 in the couple timezone: creates today's question and sends one `dailyQuestion` push (`route: /question`). `dailyNotifiedAt` stops a second push the same morning. No device → the row is still created.
 - `DEEP` is left out of the draw when the couple got one in the last 7 days. The bank has 124 non-DEEP questions, so 120 consecutive days do not need a repeat.
 - When every active question has been used, the service assigns the least-recent one, returns 200, and logs a warning.
-- Flutter module `daily_question`: Today (`/question`) and History (`/question/history`). Home card has the three states. The answer field shows a 1000-character counter and Enviar/Editar until unlock, then both answers side by side.
+- Flutter module `daily_question`: Today (`/question`) and History (`/question/history`). Home card states: unanswered, partner already answered (no text), waiting on the partner, unlocked. The today screen shows the same "já respondeu" line and still omits the partner's text until unlock. The answer field shows a 1000-character counter and Enviar/Editar until unlock, then both answers side by side.
 
 ## Schema note (acceptance criterion 6)
 

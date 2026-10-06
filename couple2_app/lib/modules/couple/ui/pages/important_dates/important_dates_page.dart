@@ -13,7 +13,8 @@ class ImportantDatesPage extends ConsumerStatefulWidget {
   ConsumerState<ImportantDatesPage> createState() => _ImportantDatesPageState();
 }
 
-class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
+class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
+    with WidgetsBindingObserver {
   List<CoupleDate> _dates = const [];
   bool _loading = true;
   String? _error;
@@ -21,7 +22,22 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(coupleProvider);
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -80,15 +96,40 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
   }
 
   Future<void> _delete(CoupleDate date) async {
-    await ref.read(coupleRepositoryProvider).deleteDate(date.id);
-    ref.invalidate(coupleProvider);
-    await _load();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir data?'),
+        content: Text('“${date.title}” será apagada para os dois.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(coupleRepositoryProvider).deleteDate(date.id);
+      ref.invalidate(coupleProvider);
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Não foi possível excluir a data');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final coupleAsync = ref.watch(coupleProvider);
-    final upcoming = coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
+    final upcoming =
+        coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
     return Scaffold(
       appBar: AppBar(title: const AppText('Datas importantes')),
@@ -114,12 +155,20 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
             ...upcoming.map(
               (entry) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: AppText(nextDateLine(entry).replaceFirst('Próxima data: ', '')),
-                subtitle: AppText(formatDisplayDate(entry.date)),
+                title: IgnorePointer(
+                  child: AppText(
+                    nextDateLine(entry).replaceFirst('Próxima data: ', ''),
+                  ),
+                ),
+                subtitle: IgnorePointer(
+                  child: AppText(formatDisplayDate(entry.date)),
+                ),
                 onTap: entry.coupleDateId == null
                     ? null
                     : () {
-                        final match = _dates.where((date) => date.id == entry.coupleDateId);
+                        final match = _dates.where(
+                          (date) => date.id == entry.coupleDateId,
+                        );
                         if (match.isNotEmpty) _openSheet(match.first);
                       },
               ),
@@ -130,10 +179,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (_error != null) ...[
-            AppText(_error!),
-            const SizedBox(height: 8),
-          ],
+          if (_error != null) ...[AppText(_error!), const SizedBox(height: 8)],
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_dates.isEmpty)
@@ -142,13 +188,26 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage> {
             ..._dates.map(
               (date) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: AppText(date.title),
-                subtitle: AppText(
-                  '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                title: IgnorePointer(child: AppText(date.title)),
+                subtitle: IgnorePointer(
+                  child: AppText(
+                    '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                  ),
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _delete(date),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Editar',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _openSheet(date),
+                    ),
+                    IconButton(
+                      tooltip: 'Excluir',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _delete(date),
+                    ),
+                  ],
                 ),
                 onTap: () => _openSheet(date),
               ),

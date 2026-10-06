@@ -12,6 +12,8 @@ export interface UpcomingEntry {
   date: string;
   inDays: number;
   coupleDateId: string | null;
+  /** Set only for the viewer's own birthday, so the client can say "Seu aniversário". */
+  self?: boolean;
 }
 
 export function calendarYmdInTimeZone(instant: Date, timeZone: string): string {
@@ -83,7 +85,7 @@ export function buildUpcoming(input: {
   timezone: string;
   now?: Date;
   anniversaryDate: Date | null;
-  birthdays: { name: string; birthDate: Date | null }[];
+  birthdays: { name: string; birthDate: Date | null; self?: boolean }[];
   dates: {
     id: string;
     title: string;
@@ -100,7 +102,9 @@ export function buildUpcoming(input: {
   ) => {
     const inDays = diffCalendarDays(today, occurrence);
     if (inDays < 0 || inDays > UPCOMING_WINDOW_DAYS) return;
-    entries.push({ ...entry, date: occurrence, inDays });
+    const next: UpcomingEntry = { ...entry, date: occurrence, inDays };
+    if (!next.self) delete next.self;
+    entries.push(next);
   };
 
   if (input.anniversaryDate) {
@@ -119,6 +123,7 @@ export function buildUpcoming(input: {
       kind: 'birthday',
       title: birthday.name,
       coupleDateId: null,
+      ...(birthday.self ? { self: true } : {}),
     });
   }
 

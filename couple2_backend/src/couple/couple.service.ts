@@ -153,7 +153,11 @@ export class CoupleService {
         timezone: couple.timezone,
         anniversaryDate: couple.anniversaryDate,
         birthdays: [
-          { name: displayName(me.name, 'Você'), birthDate: me.birthDate },
+          {
+            name: displayName(me.name, 'Você'),
+            birthDate: me.birthDate,
+            self: true,
+          },
           {
             name: displayName(partner.name, 'Parceiro'),
             birthDate: partner.birthDate,

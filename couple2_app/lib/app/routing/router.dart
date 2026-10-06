@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../modules/auth/data/auth_providers.dart';
 import '../../modules/auth/data/auth_repository.dart';
-import '../../modules/auth/routing/routes.dart';
 import '../../modules/auth/routing/routing.dart';
 import '../../modules/couple/routing/routing.dart';
 import '../../modules/daily_question/routing/routing.dart';
@@ -14,17 +13,81 @@ import '../../modules/date_plans/routing/routing.dart';
 import '../../modules/mood/routing/routing.dart';
 import '../../modules/notifications/routing/routing.dart';
 import '../ui/pages/home/home_page.dart';
+import 'auth_redirect.dart';
 import 'routes.dart';
+
+/// Reads the stored session once, then mirrors login and logout.
+///
+/// GoRouter must be created once. This listenable asks it to re-run [redirect]
+/// without rebuilding the router (which would reset the URL to `/`).
+class AuthGate extends ChangeNotifier {
+  AuthGate(this._repo) {
+    _repo.authStateNotifier.addListener(_onRepo);
+    _restore();
+  }
+
+  final IAuthRepository _repo;
+
+  /// Null until the first read of the stored session finishes.
+  bool? loggedIn;
+
+  /// Deep link to reopen after the user signs in.
+  String? restoreLocation;
+
+  int _generation = 0;
+
+  Future<void> _restore() async {
+    final generation = ++_generation;
+    final value = await _repo.isLoggedIn();
+    if (generation != _generation) return;
+    _repo.publishLoggedIn(value);
+  }
+
+  void _onRepo() {
+    _generation++;
+    loggedIn = _repo.authStateNotifier.value;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _repo.authStateNotifier.removeListener(_onRepo);
+    super.dispose();
+  }
+}
+
+final authGateProvider = Provider<AuthGate>((ref) {
+  final repo = ref.watch(authRepositoryProvider);
+  final gate = AuthGate(repo);
+  ref.onDispose(gate.dispose);
+  return gate;
+});
 
 /// Provider do GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
+  final gate = ref.watch(authGateProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: APPRoutes.home,
     debugLogDiagnostics: true,
-    redirect: (context, state) => _redirect(context, state, authRepository),
-    refreshListenable: AuthNotifier(authRepository),
+    refreshListenable: gate,
+    redirect: (context, state) {
+      if (gate.loggedIn == false) {
+        final remember = locationToRestore(state.uri.toString());
+        if (remember != null) gate.restoreLocation = remember;
+      }
+      final target = resolveAuthRedirect(
+        loggedIn: gate.loggedIn,
+        matchedLocation: state.matchedLocation,
+        restoreLocation: gate.restoreLocation,
+      );
+      if (gate.loggedIn == true &&
+          target != null &&
+          target == gate.restoreLocation) {
+        gate.restoreLocation = null;
+      }
+      return target;
+    },
     routes: [
       GoRoute(
         path: APPRoutes.home,
@@ -42,36 +105,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ...datePlanRoutes,
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
-
-/// Lógica de redirecionamento baseada no estado de autenticação
-Future<String?> _redirect(
-  BuildContext context,
-  GoRouterState state,
-  IAuthRepository authRepository,
-) async {
-  final isLoggedIn = await authRepository.isLoggedIn();
-  final isLoggingIn = state.matchedLocation.startsWith('/auth');
-
-  // Se o usuário não está logado, redireciona para login
-  if (!isLoggedIn && !isLoggingIn) {
-    return AuthRoutes.login;
-  }
-
-  // Se o usuário está logado mas ainda está na página de login,
-  // redireciona para home
-  if (isLoggedIn && isLoggingIn) {
-    return APPRoutes.home;
-  }
-
-  // Não há necessidade de redirecionar
-  return null;
-}
-
-/// Notificador para atualizar o GoRouter quando o estado de autenticação mudar
-class AuthNotifier extends ChangeNotifier {
-  AuthNotifier(IAuthRepository authRepository) {
-    // Escuta mudanças no estado de autenticação
-    authRepository.authStateNotifier.addListener(notifyListeners);
-  }
-}

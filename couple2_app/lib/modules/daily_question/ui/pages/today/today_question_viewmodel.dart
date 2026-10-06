@@ -40,7 +40,9 @@ class TodayQuestionState {
 class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
   @override
   TodayQuestionState build() {
+    final cached = ref.read(todayQuestionProvider).asData?.value;
     Future<void>.microtask(load);
+    if (cached != null) return TodayQuestionState(question: cached);
     return const TodayQuestionState(isLoading: true);
   }
 

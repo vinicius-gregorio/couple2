@@ -89,6 +89,31 @@ describe('buildUpcoming', () => {
     });
   });
 
+  it('marks only the viewer birthday as self', () => {
+    const upcoming = buildUpcoming({
+      timezone: 'UTC',
+      now: new Date('2026-10-05T12:00:00.000Z'),
+      anniversaryDate: null,
+      birthdays: [
+        {
+          name: 'Bruno Smoke',
+          birthDate: new Date('1993-11-02T00:00:00.000Z'),
+          self: true,
+        },
+        {
+          name: 'Ana Smoke',
+          birthDate: new Date('1995-11-20T00:00:00.000Z'),
+        },
+      ],
+      dates: [],
+    });
+
+    const mine = upcoming.find((entry) => entry.title === 'Bruno Smoke');
+    const partner = upcoming.find((entry) => entry.title === 'Ana Smoke');
+    expect(mine).toMatchObject({ kind: 'birthday', self: true });
+    expect(partner?.self).toBeUndefined();
+  });
+
   it('omits occurrences outside the next 60 days', () => {
     const upcoming = buildUpcoming({
       timezone: 'UTC',

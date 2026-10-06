@@ -55,74 +55,81 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
       ),
       body: RefreshIndicator(
         onRefresh: viewModel.load,
-        child: state.isLoading && question == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(24),
-                children: [
-                  if (state.errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: AppText(state.errorMessage!),
-                    ),
-                  if (question == null)
-                    const AppText('Não foi possível carregar a pergunta.')
-                  else ...[
-                    AppText(
-                      questionCategoryLabel(question.question.category),
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    AppText(
-                      question.question.text,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 24),
-                    if (question.unlocked)
-                      _UnlockedAnswers(
-                        mine: question.myAnswer?.text ?? '',
-                        partner: question.partnerAnswer?.text ?? '',
-                        partnerName: partnerName.trim().isEmpty
-                            ? 'Seu par'
-                            : partnerName.trim(),
-                      )
-                    else ...[
-                      TextField(
-                        controller: _controller,
-                        maxLength: 1000,
-                        minLines: 4,
-                        maxLines: 8,
-                        enabled: !state.isSaving,
-                        decoration: const InputDecoration(
-                          hintText: 'Sua resposta',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: state.isSaving
-                              ? null
-                              : () => viewModel.submit(_controller.text),
-                          child: Text(
-                            question.answeredByMe ? 'Editar' : 'Enviar',
-                          ),
-                        ),
-                      ),
-                      if (question.answeredByMe && !question.partnerAnswered)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 16),
-                          child: AppText(
-                            'Resposta enviada. A resposta do seu par aparece quando os dois tiverem respondido.',
-                          ),
-                        ),
-                    ],
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          children: [
+            if (state.isLoading && question == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              if (state.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: AppText(state.errorMessage!),
+                ),
+              if (question == null)
+                const AppText('Não foi possível carregar a pergunta.')
+              else ...[
+                AppText(
+                  questionCategoryLabel(question.question.category),
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 8),
+                AppText(
+                  question.question.text,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 24),
+                if (question.unlocked)
+                  _UnlockedAnswers(
+                    mine: question.myAnswer?.text ?? '',
+                    partner: question.partnerAnswer?.text ?? '',
+                    partnerName: partnerName.trim().isEmpty
+                        ? 'Seu par'
+                        : partnerName.trim(),
+                  )
+                else ...[
+                  if (!question.answeredByMe && question.partnerAnswered) ...[
+                    AppText(partnerAlreadyAnsweredLine(partnerName)),
+                    const SizedBox(height: 16),
                   ],
+                  TextField(
+                    controller: _controller,
+                    maxLength: 1000,
+                    minLines: 4,
+                    maxLines: 8,
+                    enabled: !state.isSaving,
+                    decoration: const InputDecoration(
+                      hintText: 'Sua resposta',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: state.isSaving
+                          ? null
+                          : () => viewModel.submit(_controller.text),
+                      child: Text(question.answeredByMe ? 'Editar' : 'Enviar'),
+                    ),
+                  ),
+                  if (question.answeredByMe && !question.partnerAnswered)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: AppText(
+                        'Resposta enviada. A resposta do seu par aparece quando os dois tiverem respondido.',
+                      ),
+                    ),
                 ],
-              ),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }

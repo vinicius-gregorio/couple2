@@ -21,6 +21,22 @@ void main() {
     expect(waiting.title, 'Você respondeu, aguardando Bia');
     expect(waiting.grayPartnerAvatar, isTrue);
 
+    final partnerFirst = todayCardCopy(
+      answeredByMe: false,
+      unlocked: false,
+      partnerName: 'Ana Smoke',
+      partnerAnswered: true,
+    );
+    expect(partnerFirst.kind, TodayCardKind.partnerAnswered);
+    expect(partnerFirst.title, 'Ana Smoke já respondeu');
+    expect(partnerFirst.grayPartnerAvatar, isFalse);
+    expect(
+      partnerAlreadyAnsweredLine('Ana Smoke'),
+      'Ana Smoke já respondeu. A resposta aparece quando você responder.',
+    );
+    expect(partnerAlreadyAnsweredLine('  '), contains('Seu par'));
+    expect(partnerAlreadyAnsweredLine('Ana Smoke'), isNot(contains('varanda')));
+
     final unlocked = todayCardCopy(
       answeredByMe: true,
       unlocked: true,

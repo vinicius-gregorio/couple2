@@ -28,6 +28,7 @@ class UpcomingDate {
     required this.date,
     required this.inDays,
     this.coupleDateId,
+    this.self = false,
   });
 
   final String kind;
@@ -36,6 +37,9 @@ class UpcomingDate {
   final int inDays;
   final String? coupleDateId;
 
+  /// True when this birthday belongs to the signed-in user.
+  final bool self;
+
   factory UpcomingDate.fromJson(Map<String, dynamic> json) {
     return UpcomingDate(
       kind: json['kind'] as String,
@@ -43,6 +47,7 @@ class UpcomingDate {
       date: json['date'] as String,
       inDays: json['inDays'] as int,
       coupleDateId: json['coupleDateId'] as String?,
+      self: json['self'] as bool? ?? false,
     );
   }
 }

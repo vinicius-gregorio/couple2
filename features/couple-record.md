@@ -129,7 +129,7 @@ model CoupleDate {
 ### App Flutter
 - **Novo módulo `couple`** (via `create_module.sh`): `data/couple_repository.dart` (`ICoupleRepository`), `couple_providers.dart`, `domain/entities/couple.dart` e `couple_date.dart`, e `ui/pages/...`.
 - **Sessão:** novo `sessionProvider` (`AsyncNotifier`) que chama `GET /auth/me` no boot, no resume e depois do pairing. Ele substitui a leitura estática de `currentUserProvider`, o que corrige o `partnerId` desatualizado.
-- **Home:** card "**X dias juntos**" + "Próxima data: aniversário de B em 12 dias". Se não houver `anniversaryDate`, mostra o CTA "Quando vocês começaram?".
+- **Home:** card "**X dias juntos**" + "Próxima data: aniversário de B em 12 dias". O aniversário de quem está vendo a Home sai como "Seu aniversário" (`upcoming.self`); o do parceiro continua "aniversário de \<nome\>". Se não houver `anniversaryDate`, mostra o CTA "Quando vocês começaram?". Salvar `/couple` aberto direto (sem pilha) volta para a Home. Datas importantes: tocar a linha ou o lápis edita; excluir pede confirmação.
 - **Telas:**
   - `CoupleSettingsPage`: data de início (DatePicker) e fuso (default = fuso do device).
   - `ImportantDatesPage`: lista de próximas datas + bottom sheet para adicionar/editar CoupleDate.

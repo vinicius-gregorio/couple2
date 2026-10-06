@@ -1,4 +1,4 @@
-enum TodayCardKind { unanswered, waiting, unlocked }
+enum TodayCardKind { unanswered, partnerAnswered, waiting, unlocked }
 
 class TodayCardCopy {
   const TodayCardCopy({
@@ -17,6 +17,7 @@ TodayCardCopy todayCardCopy({
   required bool answeredByMe,
   required bool unlocked,
   required String partnerName,
+  bool partnerAnswered = false,
 }) {
   final name = partnerName.trim().isEmpty ? 'seu par' : partnerName.trim();
   if (unlocked) {
@@ -33,11 +34,24 @@ TodayCardCopy todayCardCopy({
       grayPartnerAvatar: true,
     );
   }
+  if (partnerAnswered) {
+    return TodayCardCopy(
+      kind: TodayCardKind.partnerAnswered,
+      title: '$name já respondeu',
+      grayPartnerAvatar: false,
+    );
+  }
   return const TodayCardCopy(
     kind: TodayCardKind.unanswered,
     title: 'Responda a pergunta de hoje',
     grayPartnerAvatar: false,
   );
+}
+
+/// Shown before this person answers. Never includes the partner's text.
+String partnerAlreadyAnsweredLine(String partnerName) {
+  final name = partnerName.trim().isEmpty ? 'Seu par' : partnerName.trim();
+  return '$name já respondeu. A resposta aparece quando você responder.';
 }
 
 /// Pending rows from the last 7 days that this person has not answered yet.

@@ -4,9 +4,26 @@ import 'dart:convert';
 import 'package:couple2_app/core/core.dart';
 import 'package:couple2_app/modules/notifications/data/device_token_store.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
-import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show ValueNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// [ValueNotifier] that still notifies when the logged-in flag does not change.
+///
+/// A session restored from storage never flips the flag to `true` unless we
+/// publish it. Logout then sets `false` again and GoRouter would not refresh.
+class AuthStateNotifier extends ValueNotifier<bool> {
+  AuthStateNotifier() : super(false);
+
+  void publish(bool loggedIn) {
+    if (value == loggedIn) {
+      notifyListeners();
+      return;
+    }
+    value = loggedIn;
+  }
+}
 
 abstract class IAuthRepository {
   Future<bool> isLoggedIn();
@@ -16,6 +33,9 @@ abstract class IAuthRepository {
 
   /// Notifier que emite quando o estado de autenticação muda
   ValueNotifier<bool> get authStateNotifier;
+
+  /// Publishes [loggedIn] and always notifies, even if the value is unchanged.
+  void publishLoggedIn(bool loggedIn);
 }
 
 class AuthRepository implements IAuthRepository {
@@ -27,10 +47,15 @@ class AuthRepository implements IAuthRepository {
   FirebaseAuth get _firebaseAuth => FirebaseAuth.instance;
 
   /// Notifier para mudanças no estado de autenticação
-  final ValueNotifier<bool> _authStateNotifier = ValueNotifier<bool>(false);
+  final AuthStateNotifier _authStateNotifier = AuthStateNotifier();
 
   @override
   ValueNotifier<bool> get authStateNotifier => _authStateNotifier;
+
+  @override
+  void publishLoggedIn(bool loggedIn) {
+    _authStateNotifier.publish(loggedIn);
+  }
 
   @override
   Future<bool> isLoggedIn() async {
@@ -48,8 +73,8 @@ class AuthRepository implements IAuthRepository {
       final googleSignIn = GoogleSignIn.instance;
       await googleSignIn.initialize();
 
-      GoogleSignInAccount? account =
-          await googleSignIn.attemptLightweightAuthentication();
+      GoogleSignInAccount? account = await googleSignIn
+          .attemptLightweightAuthentication();
       account ??= await googleSignIn.authenticate();
 
       final auth = account.authentication;
@@ -105,7 +130,7 @@ class AuthRepository implements IAuthRepository {
     await prefs.setString('user', jsonEncode(user.toJson()));
     await prefs.setBool(_keyIsLoggedIn, true);
 
-    _authStateNotifier.value = true;
+    publishLoggedIn(true);
 
     return user;
   }
@@ -116,17 +141,19 @@ class AuthRepository implements IAuthRepository {
     final token = prefs.getString(devicePushTokenKey);
     if (token != null && token.isNotEmpty) {
       try {
-        await httpClient.delete<void>(
-          '/devices/${Uri.encodeComponent(token)}',
-        );
+        await httpClient.delete<void>('/devices/${Uri.encodeComponent(token)}');
       } catch (_) {
         // Logout still clears the local session if the device call fails.
       }
     }
     await prefs.clear();
 
-    await _firebaseAuth.signOut();
+    try {
+      await _firebaseAuth.signOut();
+    } catch (_) {
+      // Dev sessions are not signed into Firebase. Local logout still finishes.
+    }
 
-    _authStateNotifier.value = false;
+    publishLoggedIn(false);
   }
 }
