@@ -57,18 +57,33 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Deployment
+## Deployment (Railway)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The API image's final stage is `production`. Railway should build `couple2_backend/Dockerfile` with that target (it is also the default stage, so an empty target is the same image).
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Setting | Value |
+|---|---|
+| Root directory | `couple2_backend` |
+| Builder | Dockerfile |
+| Dockerfile target | `production` |
+| Start command | empty — do not set `npm run prod` |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+The image command applies migrations and then listens: `prisma migrate deploy` and `node dist/main`. `npm run start:prod` and `npm run prod` do the same thing. `tsconfig.build.json` compiles only `src` (`rootDir` `./src`), so the entry file is `dist/main.js`. `PORT` defaults to `3000` when it is unset. The process binds `0.0.0.0`.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Required variable names (set the values in Railway, do not commit them):
+
+- `DATABASE_URL` — Supabase Postgres connection string
+- `JWT_SECRET`
+
+Railway injects `PORT`. The image sets `NODE_ENV=production`.
+
+Optional:
+
+- `FIREBASE_SERVICE_ACCOUNT` — inline service-account JSON, for `POST /auth/firebase` and FCM
+- `PUSH_DRIVER` — `fcm` or `log`. In production, credentials without this variable use FCM
+- `CORS_ORIGINS` — comma-separated allow-list. Unset reflects the request origin, which already includes Firebase Hosting (`https://couple42-f87b6.web.app` and `https://couple42-f87b6.firebaseapp.com`)
+
+Local development image: `docker build --target development` (what `docker compose up --build` uses).
 
 ## Resources
 

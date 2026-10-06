@@ -9,6 +9,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # The Dockerfile's final stage is production. Pin development so
+      # `docker compose up` does not boot the Railway image.
       target: development
     container_name: couple2_backend
     restart: unless-stopped
