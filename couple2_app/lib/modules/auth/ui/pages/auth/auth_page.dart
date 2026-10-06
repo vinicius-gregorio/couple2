@@ -28,6 +28,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
 
+    ref.listen(authViewModelProvider, (previous, next) {
+      final message = next.errorMessage;
+      if (message == null || message == previous?.errorMessage) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
+
     return Scaffold(
       appBar: AppBar(title: const AppText('Login')),
       body: Padding(
@@ -51,22 +59,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
-
-              if (authState.isLoading)
-                const Center(
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      AppText('Autenticando...'),
-                    ],
-                  ),
-                )
-              else ...[
-                GoogleSignInButton(onPressed: _handleGoogleSignIn),
-                const SizedBox(height: 16),
-                AppleSignInButton(onPressed: _handleAppleSignIn),
-              ],
+              GoogleSignInButton(
+                onPressed: _handleGoogleSignIn,
+                isLoading: authState.isLoading,
+              ),
+              const SizedBox(height: 16),
+              AppleSignInButton(
+                onPressed: authState.isLoading ? null : _handleAppleSignIn,
+              ),
 
               if (authState.errorMessage != null) ...[
                 const SizedBox(height: 24),

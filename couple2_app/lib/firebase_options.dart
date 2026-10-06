@@ -1,4 +1,12 @@
-// File generated/maintained for FlutterFire — Firebase project `couple42-27692`.
+// Firebase web app for project `couple42-f87b6` (Hosting + Google sign-in).
+//
+// TODO(deployer): Android and iOS below still point at the old project
+// `couple42-27692` (project number 1002990038711). Prod web and the Google
+// provider are `couple42-f87b6`. Do not ship mobile against these values.
+// Replace them with the couple42-f87b6 `google-services.json` and
+// `GoogleService-Info.plist` from the Firebase console. Those files are not
+// in the repo, and the f87b6 mobile apiKey/appId were not provided, so the
+// mobile entries were left unchanged on purpose.
 //
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
@@ -24,15 +32,16 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCec6nKj1UhIA8oJarzXaAVg7yGFcNm8SA',
-    appId: '1:1002990038711:web:27aaf475790557687b6732',
-    messagingSenderId: '1002990038711',
-    projectId: 'couple42-27692',
-    authDomain: 'couple42-27692.firebaseapp.com',
-    storageBucket: 'couple42-27692.firebasestorage.app',
-    measurementId: 'G-PV1CW9BNTH',
+    apiKey: 'AIzaSyD9P9F1D4JEotkekw9UFFg5faj0bTIH8So',
+    appId: '1:921169930113:web:5976bc9325ca7d48712a80',
+    messagingSenderId: '921169930113',
+    projectId: 'couple42-f87b6',
+    authDomain: 'couple42-f87b6.firebaseapp.com',
+    storageBucket: 'couple42-f87b6.firebasestorage.app',
+    measurementId: 'G-E6L527GRRE',
   );
 
+  // TODO(deployer): still couple42-27692. Needs the f87b6 Android app config.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDqVrlddtI55e3WLj4I9IlJYvSfrhYwbc0',
     appId: '1:1002990038711:android:a7a9187ea54874417b6732',
@@ -41,6 +50,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'couple42-27692.firebasestorage.app',
   );
 
+  // TODO(deployer): still couple42-27692. Needs the f87b6 iOS app config.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBxw45vltEZy8qiB0HJuzuDHvffgwErRCI',
     appId: '1:1002990038711:ios:22730ea031dbaebf7b6732',
