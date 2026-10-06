@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/core.dart';
@@ -8,6 +9,26 @@ import '../../../data/auth_repository.dart';
 final authViewModelProvider = NotifierProvider<AuthViewModel, AuthState>(
   AuthViewModel.new,
 );
+
+const _unset = _Unset();
+
+class _Unset {
+  const _Unset();
+}
+
+/// User-visible auth failure. Always includes the Firebase error code.
+String formatAuthError(Object error) {
+  if (error is firebase_auth.FirebaseAuthException) {
+    final code = error.code.trim();
+    final message = error.message?.trim();
+    if (code.isEmpty) {
+      return message == null || message.isEmpty ? error.toString() : message;
+    }
+    if (message == null || message.isEmpty) return code;
+    return '$code: $message';
+  }
+  return error.toString();
+}
 
 /// Estados possíveis da autenticação
 class AuthState {
@@ -25,15 +46,19 @@ class AuthState {
 
   AuthState copyWith({
     bool? isLoading,
-    String? errorMessage,
+    Object? errorMessage = _unset,
     bool? isAuthenticated,
-    User? currentUser,
+    Object? currentUser = _unset,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      currentUser: currentUser ?? this.currentUser,
+      currentUser: identical(currentUser, _unset)
+          ? this.currentUser
+          : currentUser as User?,
     );
   }
 }
@@ -54,7 +79,7 @@ class AuthViewModel extends Notifier<AuthState> {
       final isLoggedIn = await _authRepository.isLoggedIn();
       state = state.copyWith(isAuthenticated: isLoggedIn);
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
+      state = state.copyWith(errorMessage: formatAuthError(e));
     }
   }
 
@@ -81,7 +106,10 @@ class AuthViewModel extends Notifier<AuthState> {
       );
       return user;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: formatAuthError(e),
+      );
       return null;
     }
   }
@@ -99,7 +127,10 @@ class AuthViewModel extends Notifier<AuthState> {
         errorMessage: null,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: formatAuthError(e),
+      );
     }
   }
 

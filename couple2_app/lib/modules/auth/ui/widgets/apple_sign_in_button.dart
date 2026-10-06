@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 class AppleSignInButton extends StatelessWidget {
   const AppleSignInButton({super.key, required this.onPressed});
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
