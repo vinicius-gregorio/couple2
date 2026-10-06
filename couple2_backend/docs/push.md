@@ -18,7 +18,7 @@ npm run dev
 
 Create two users with `POST /auth/dev-login`, pair them, `POST /devices` for one of them, then have the other complete a list item. The API log shows the push. `GET /feed` returns the event for both partners. The author is not a recipient.
 
-FCM credentials are the same service account used for `verifyIdToken` (Firebase project `couple42-27692`). The key needs the `firebasecloudmessaging` IAM role. iOS delivery also needs the APNs authentication key uploaded in that Firebase project. The app enables Push and the `remote-notification` background mode, and Android 13+ uses `POST_NOTIFICATIONS`. The app asks for permission only after pairing.
+FCM credentials are the same service account used for `verifyIdToken` (Firebase project `couple42-f87b6`). The key needs the `firebasecloudmessaging` IAM role. iOS delivery also needs the APNs authentication key uploaded in that Firebase project. The app enables Push and the `remote-notification` background mode, and Android 13+ uses `POST_NOTIFICATIONS`. The app asks for permission only after pairing.
 
 Invalid FCM responses `messaging/registration-token-not-registered` and `messaging/invalid-argument` delete that row from `device_tokens` during the same send.
 
