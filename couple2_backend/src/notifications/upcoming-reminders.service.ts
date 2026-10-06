@@ -183,7 +183,11 @@ export class UpcomingRemindersService {
       timezone: couple.timezone,
       now,
       anniversaryDate: couple.anniversaryDate,
-      birthdays: [couple.userA, couple.userB],
+      birthdays: [couple.userA, couple.userB].map((user) => ({
+        userId: user.id,
+        name: user.name,
+        birthDate: user.birthDate,
+      })),
     });
     if (occasions.length === 0) return 0;
 

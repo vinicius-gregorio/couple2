@@ -443,6 +443,44 @@ describe('Gift ideas (e2e)', () => {
     ).toHaveLength(0);
   });
 
+  it('does not remind the birthday person about their own birthday', async () => {
+    const pair = await paired(app, prisma, prefix, 'ac8-self', userIds);
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Authorization', `Bearer ${pair.b.accessToken}`)
+      .send({ birthDate: '1992-10-19' })
+      .expect(200);
+
+    const partnerToken = `${prefix}-ac8-self-a`;
+    const birthdayToken = `${prefix}-ac8-self-b`;
+    await registerDevice(app, pair.a, partnerToken);
+    await registerDevice(app, pair.b, birthdayToken);
+
+    const secret = await createPrivate(app, pair.b, SECRET_LIST);
+    await addItem(app, pair.b, secret.id, GIFT_A);
+
+    sent.length = 0;
+    await reminders.run(LOCAL_NINE);
+
+    const giftPushes = sent.filter(
+      (message) =>
+        message.data.type === 'GIFT_REMINDER' &&
+        (message.tokens.includes(partnerToken) ||
+          message.tokens.includes(birthdayToken)),
+    );
+    expect(giftPushes).toHaveLength(0);
+    expect(
+      sent.some(
+        (message) =>
+          message.tokens.includes(birthdayToken) ||
+          message.tokens.includes(partnerToken),
+      ),
+    ).toBe(false);
+    expect(
+      await prisma.activityEvent.count({ where: { coupleId: pair.coupleId } }),
+    ).toBe(0);
+  });
+
   it('skips the gift reminder when importantDates is off and covers the anniversary', async () => {
     const muted = await paired(app, prisma, prefix, 'ac8-pref', userIds);
     await request(app.getHttpServer())
