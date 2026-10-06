@@ -17,7 +17,9 @@ ENV DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=
 RUN npx prisma generate
 
 COPY . .
-RUN npm run build
+# Host incremental state (tsconfig.build.tsbuildinfo) points at a dist/
+# directory that is not in the build context. Drop it so nest emits dist/main.js.
+RUN rm -f tsconfig.build.tsbuildinfo && npm run build
 
 # ============================================
 # Development — docker build --target development
