@@ -5,6 +5,7 @@ class PartnerList {
   final String type;
   final String name;
   final String ownerId;
+  final String visibility;
   final List<ListItem> items;
   final DateTime createdAt;
 
@@ -13,6 +14,7 @@ class PartnerList {
     required this.type,
     required this.name,
     required this.ownerId,
+    this.visibility = 'SHARED',
     required this.items,
     required this.createdAt,
   });
@@ -23,6 +25,7 @@ class PartnerList {
       type: json['type'] as String,
       name: json['name'] as String,
       ownerId: json['ownerId'] as String,
+      visibility: json['visibility'] as String? ?? 'SHARED',
       items: (json['items'] as List<dynamic>)
           .map((e) => ListItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -36,6 +39,7 @@ class PartnerList {
       'type': type,
       'name': name,
       'ownerId': ownerId,
+      'visibility': visibility,
       'items': items.map((e) => e.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
     };
@@ -46,6 +50,7 @@ class PartnerList {
     String? type,
     String? name,
     String? ownerId,
+    String? visibility,
     List<ListItem>? items,
     DateTime? createdAt,
   }) {
@@ -54,6 +59,7 @@ class PartnerList {
       type: type ?? this.type,
       name: name ?? this.name,
       ownerId: ownerId ?? this.ownerId,
+      visibility: visibility ?? this.visibility,
       items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
     );

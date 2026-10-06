@@ -25,8 +25,8 @@ export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
   @Get()
-  getLists(@GetCouple() couple: Couple) {
-    return this.listsService.getLists(couple.id);
+  getLists(@GetUser() user: UserWithPartner) {
+    return this.listsService.getLists(user);
   }
 
   @Post()
@@ -40,8 +40,8 @@ export class ListsController {
 
   @Get(':id')
   @UseGuards(SharedListGuard)
-  getList(@Param('id') id: string, @GetCouple() couple: Couple) {
-    return this.listsService.getList(id, couple.id);
+  getList(@Param('id') id: string, @GetUser() user: UserWithPartner) {
+    return this.listsService.getList(id, user);
   }
 
   @Post(':id/items')
