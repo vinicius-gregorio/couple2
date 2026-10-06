@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart'
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'google_web_sign_in.dart';
+
 /// [ValueNotifier] that still notifies when the logged-in flag does not change.
 ///
 /// A session restored from storage never flips the flag to `true` unless we
@@ -42,6 +44,9 @@ class AuthRepository implements IAuthRepository {
   AuthRepository({required this.httpClient});
   static const _keyIsLoggedIn = 'is_logged_in';
 
+  /// One redirect completion per page load, shared by every repository.
+  static Future<void>? _redirectSignIn;
+
   final ICPLHttpClient httpClient;
 
   FirebaseAuth get _firebaseAuth => FirebaseAuth.instance;
@@ -63,11 +68,43 @@ class AuthRepository implements IAuthRepository {
     return prefs.getBool(_keyIsLoggedIn) ?? false;
   }
 
+  /// Finishes a Google redirect after Firebase.initializeApp.
+  ///
+  /// No-op off web and on later calls. A returning user is exchanged for an
+  /// app JWT the same way a popup sign-in is. Failures are kept for the
+  /// login screen instead of crashing startup.
+  Future<void> completeRedirectSignIn() {
+    if (!kIsWeb) return Future<void>.value();
+    return _redirectSignIn ??= _completeRedirectSignIn();
+  }
+
+  Future<void> _completeRedirectSignIn() {
+    return runGoogleRedirectBootstrap(
+      hasRedirectUser: () async {
+        final result = await _firebaseAuth.getRedirectResult();
+        return result.user != null;
+      },
+      completeLogin: () async {
+        await _completeLogin();
+      },
+      onError: PendingGoogleAuthError.report,
+    );
+  }
+
   @override
   Future<User> signInWithGoogle() async {
     if (kIsWeb) {
-      // Web: Firebase handles the OAuth popup directly.
-      await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+      // Redirect first. Popup is only used when redirect throws before the
+      // browser leaves. A started redirect completes in [completeRedirectSignIn].
+      await signInWithGoogleOnWeb(
+        signInWithRedirect: () async {
+          await _firebaseAuth.signInWithRedirect(GoogleAuthProvider());
+        },
+        signInWithPopup: () async {
+          await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+        },
+        hasCurrentUser: () => _firebaseAuth.currentUser != null,
+      );
     } else {
       // Mobile/desktop: obtain a Google credential, exchange for a Firebase one.
       final googleSignIn = GoogleSignIn.instance;

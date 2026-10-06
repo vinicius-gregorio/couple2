@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/core.dart';
 import '../../../data/auth_providers.dart';
 import '../../../data/auth_repository.dart';
+import '../../../data/google_web_sign_in.dart';
 
 /// Provider do ViewModel de autenticação
 final authViewModelProvider = NotifierProvider<AuthViewModel, AuthState>(
@@ -75,11 +76,22 @@ class AuthViewModel extends Notifier<AuthState> {
 
   /// Verifica o status de autenticação ao inicializar
   Future<void> _checkAuthStatus() async {
+    final pendingRedirectError = PendingGoogleAuthError.take();
     try {
       final isLoggedIn = await _authRepository.isLoggedIn();
-      state = state.copyWith(isAuthenticated: isLoggedIn);
+      // A tap can fail before this read returns. Keep that error.
+      final startupError = pendingRedirectError == null
+          ? null
+          : formatAuthError(pendingRedirectError);
+      state = state.copyWith(
+        isAuthenticated: isLoggedIn,
+        errorMessage: state.errorMessage ?? startupError,
+      );
     } catch (e) {
-      state = state.copyWith(errorMessage: formatAuthError(e));
+      state = state.copyWith(
+        errorMessage:
+            state.errorMessage ?? formatAuthError(pendingRedirectError ?? e),
+      );
     }
   }
 
@@ -93,9 +105,15 @@ class AuthViewModel extends Notifier<AuthState> {
     return _runSignIn(_authRepository.signInWithApple);
   }
 
-  Future<User?> _runSignIn(Future<User> Function() signIn) async {
+  /// Sets loading before any await so a tap paints a spinner immediately.
+  /// A second call while loading is ignored.
+  Future<User?> _runSignIn(Future<User> Function() signIn) {
+    if (state.isLoading) return Future<User?>.value();
     state = state.copyWith(isLoading: true, errorMessage: null);
+    return _finishSignIn(signIn);
+  }
 
+  Future<User?> _finishSignIn(Future<User> Function() signIn) async {
     try {
       final user = await signIn();
       state = state.copyWith(
@@ -105,6 +123,10 @@ class AuthViewModel extends Notifier<AuthState> {
         errorMessage: null,
       );
       return user;
+    } on GoogleRedirectInProgress {
+      // The browser is navigating to Google. Keep the spinner; the session
+      // is completed by getRedirectResult on the next load.
+      return null;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

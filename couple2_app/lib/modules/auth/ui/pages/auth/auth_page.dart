@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,9 +16,9 @@ class AuthPage extends ConsumerStatefulWidget {
 }
 
 class _AuthPageState extends ConsumerState<AuthPage> {
-  Future<void> _handleGoogleSignIn() async {
-    await ref.read(authViewModelProvider.notifier).signInWithGoogle();
-    // Router redireciona automaticamente em caso de sucesso.
+  void _handleGoogleSignIn() {
+    // signInWithGoogle sets loading synchronously, before its first await.
+    unawaited(ref.read(authViewModelProvider.notifier).signInWithGoogle());
   }
 
   Future<void> _handleAppleSignIn() async {
