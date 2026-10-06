@@ -66,7 +66,7 @@ void main() {
     expect(find.text('Entrar com Google'), findsOneWidget);
     expect(find.byType(SvgPicture), findsNothing);
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.byType(GoogleSignInButton));
     await tester.pump();
 
     expect(taps, 0);
@@ -175,13 +175,13 @@ void main() {
       return pending.future;
     };
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.byType(GoogleSignInButton));
     expect(loadingWhenCalled, isTrue);
     expect(container.read(authViewModelProvider).isLoading, isTrue);
     expect(pending.isCompleted, isFalse);
     expect(repo.googleCalls, 1);
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.byType(GoogleSignInButton));
     expect(repo.googleCalls, 1);
 
     await tester.pump();
@@ -210,7 +210,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.byType(GoogleSignInButton));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -236,7 +236,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.byType(GoogleSignInButton));
     await tester.pump();
 
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsOneWidget);
