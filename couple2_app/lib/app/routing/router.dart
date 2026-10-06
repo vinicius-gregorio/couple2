@@ -12,9 +12,13 @@ import '../../modules/lists/routing/routing.dart';
 import '../../modules/date_plans/routing/routing.dart';
 import '../../modules/mood/routing/routing.dart';
 import '../../modules/notifications/routing/routing.dart';
+import '../../modules/pairing/routing/routing.dart';
+import '../session.dart';
+import '../session_provider.dart';
 import '../ui/pages/home/home_page.dart';
 import 'auth_redirect.dart';
 import 'routes.dart';
+import 'session_redirect.dart';
 
 /// Reads the stored session once, then mirrors login and logout.
 ///
@@ -63,23 +67,41 @@ final authGateProvider = Provider<AuthGate>((ref) {
   return gate;
 });
 
+/// Asks GoRouter to re-run redirect when `GET /auth/me` lands or changes.
+class SessionRedirectListenable extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
+final sessionRedirectListenableProvider = Provider<SessionRedirectListenable>((
+  ref,
+) {
+  final listenable = SessionRedirectListenable();
+  ref.listen(sessionProvider, (previous, next) => listenable.ping());
+  ref.onDispose(listenable.dispose);
+  return listenable;
+});
+
 /// Provider do GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
   final gate = ref.watch(authGateProvider);
+  final sessionListenable = ref.watch(sessionRedirectListenableProvider);
 
   final router = GoRouter(
     initialLocation: APPRoutes.home,
     debugLogDiagnostics: true,
-    refreshListenable: gate,
+    refreshListenable: Listenable.merge([gate, sessionListenable]),
     redirect: (context, state) {
       if (gate.loggedIn == false) {
         final remember = locationToRestore(state.uri.toString());
         if (remember != null) gate.restoreLocation = remember;
       }
-      final target = resolveAuthRedirect(
+      final session = ref.read(sessionProvider);
+      final target = resolveAppRedirect(
         loggedIn: gate.loggedIn,
         matchedLocation: state.matchedLocation,
         restoreLocation: gate.restoreLocation,
+        sessionReady: sessionReadyForPairing(session, loggedIn: gate.loggedIn),
+        needsPairing: sessionNeedsPairing(session.asData?.value),
       );
       if (gate.loggedIn == true &&
           target != null &&
@@ -96,6 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       ...authRoutes,
+      ...pairingRoutes,
       ...listsRoutes,
       ...coupleRoutes,
       ...feedRoutes,

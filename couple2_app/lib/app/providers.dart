@@ -13,6 +13,7 @@ import '../modules/feed/ui/pages/feed/feed_viewmodel.dart';
 import '../modules/lists/ui/pages/lists/lists_viewmodel.dart';
 import '../modules/mood/data/mood_providers.dart';
 import '../modules/notifications/push_service_provider.dart';
+import '../modules/pairing/data/pairing_providers.dart';
 
 export 'session_provider.dart';
 
@@ -40,5 +41,6 @@ void _invalidateUserScope(Ref ref) {
     ..invalidate(feedViewModelProvider)
     ..invalidate(currentMoodProvider)
     ..invalidate(nextDateProvider)
-    ..invalidate(datePlansChangedProvider);
+    ..invalidate(datePlansChangedProvider)
+    ..invalidate(pairingStatusProvider);
 }

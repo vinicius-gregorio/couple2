@@ -10,6 +10,8 @@ class Session {
     this.partnerId,
     this.partnerName,
     this.partnerPicture,
+    this.pairingCode,
+    this.pairingCodeExpiresAt,
   });
 
   final String id;
@@ -22,6 +24,10 @@ class Session {
   final String? partnerId;
   final String? partnerName;
   final String? partnerPicture;
+
+  /// Present on `GET /auth/me` only while the user is unpaired.
+  final String? pairingCode;
+  final DateTime? pairingCodeExpiresAt;
 
   factory Session.fromMe(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>;
@@ -39,6 +45,19 @@ class Session {
       partnerId: partner?['id'] as String?,
       partnerName: partner?['name'] as String?,
       partnerPicture: partner?['picture'] as String?,
+      pairingCode: pairing['pairingCode'] as String?,
+      pairingCodeExpiresAt: _date(pairing['pairingCodeExpiresAt']),
     );
   }
+}
+
+/// Logged-in account with neither `coupleId` nor `partnerId`.
+bool sessionNeedsPairing(Session? session) {
+  if (session == null) return false;
+  return session.coupleId == null && session.partnerId == null;
+}
+
+DateTime? _date(Object? raw) {
+  if (raw is! String || raw.isEmpty) return null;
+  return DateTime.tryParse(raw);
 }

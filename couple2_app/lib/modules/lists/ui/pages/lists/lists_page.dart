@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/session_provider.dart';
 import '../../../../../design_system/design_system.dart';
+import '../../../../pairing/routing/routes.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
 import 'lists_viewmodel.dart';
@@ -85,12 +86,26 @@ class _ListsPageState extends ConsumerState<ListsPage>
     }
 
     if (state.needsPairing) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: AppText(
-            'Você precisa estar pareado para ver as listas. O fluxo de pareamento (P0) ainda não está neste app.',
-            textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppText(
+                'Você precisa estar pareado para ver as listas.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref.read(sessionProvider.notifier).refresh();
+                  if (!context.mounted) return;
+                  context.go(PairingRoutes.hub);
+                },
+                child: const Text('Ir para o pareamento'),
+              ),
+            ],
           ),
         ),
       );
