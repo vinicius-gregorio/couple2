@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
+import '../../../../modules/pairing/routing/routes.dart';
 import '../../../../modules/couple/ui/widgets/days_together_card.dart';
 import '../../../../modules/couple/ui/widgets/profile_sheet.dart';
 import '../../../../modules/daily_question/data/daily_question_providers.dart';
@@ -28,11 +30,12 @@ class HomePage extends ConsumerWidget {
     final coupleAsync = ref.watch(coupleProvider);
     final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
+    final needsPairing = sessionNeedsPairing(sessionAsync.asData?.value);
     final paired = sessionAsync.asData?.value?.coupleId != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const AppText('Home'),
+        title: AppText(needsPairing ? 'Parear' : 'Home'),
         leading: sessionAsync.when(
           data: (session) => _AvatarButton(
             pictureUrl: session?.picture,
@@ -67,6 +70,10 @@ class HomePage extends ConsumerWidget {
         data: (session) {
           if (session == null) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (sessionNeedsPairing(session)) {
+            return const _NeedsPairingBody();
           }
 
           return RefreshIndicator(
@@ -151,6 +158,43 @@ class HomePage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
             Center(child: AppText('Erro ao carregar usuário: $error')),
+      ),
+    );
+  }
+}
+
+class _NeedsPairingBody extends StatelessWidget {
+  const _NeedsPairingBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppText(
+                'Conectar com meu par',
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const AppText(
+                'A Home do casal abre depois que os dois digitam o código um do outro.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go(PairingRoutes.hub),
+                child: const Text('Ir para o pareamento'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

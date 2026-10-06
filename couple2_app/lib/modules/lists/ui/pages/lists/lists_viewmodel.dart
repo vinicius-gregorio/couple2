@@ -51,8 +51,6 @@ class ListsViewModel extends Notifier<ListsState> {
       final lists = await _repo.getLists();
       state = ListsState(isLoading: false, lists: lists);
     } on CPLHttpForbiddenException {
-      // P0 pairing screens are not in this build. This 403 is the hook they
-      // should replace with the pairing flow.
       state = const ListsState(isLoading: false, needsPairing: true);
     } catch (e) {
       state = ListsState(isLoading: false, errorMessage: e.toString());

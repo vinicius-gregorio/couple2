@@ -5,6 +5,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../../../../app/routing/pop_or_go.dart';
 import '../../../../../app/routing/routes.dart';
+import '../../../../pairing/ui/widgets/unpair_button.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -154,6 +155,16 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),
+          const SizedBox(height: 48),
+          const Divider(),
+          const SizedBox(height: 16),
+          const AppText('Desfazer o par'),
+          const SizedBox(height: 8),
+          const AppText(
+            'As listas deste casal ficam inacessíveis para os dois. Não há arquivo.',
+          ),
+          const SizedBox(height: 12),
+          const UnpairButton(),
         ],
       ),
     );
