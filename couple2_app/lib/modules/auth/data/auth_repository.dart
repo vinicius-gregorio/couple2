@@ -82,7 +82,11 @@ class AuthRepository implements IAuthRepository {
     return runGoogleRedirectBootstrap(
       hasRedirectUser: () async {
         final result = await _firebaseAuth.getRedirectResult();
-        return result.user != null;
+        // Mobile web can leave currentUser set when getRedirectResult is empty.
+        return redirectReturnedFirebaseUser(
+          redirectResultHasUser: result.user != null,
+          hasCurrentUser: _firebaseAuth.currentUser != null,
+        );
       },
       completeLogin: () async {
         await _completeLogin();
