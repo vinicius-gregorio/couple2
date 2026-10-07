@@ -103,6 +103,31 @@ void main() {
     expect(logins, 1);
   });
 
+  test('empty getRedirectResult still logs in when currentUser is set', () async {
+    var logins = 0;
+
+    final completed = await completeGoogleRedirect(
+      hasRedirectUser: () async => redirectReturnedFirebaseUser(
+        redirectResultHasUser: false,
+        hasCurrentUser: true,
+      ),
+      completeLogin: () async => logins++,
+    );
+
+    expect(completed, isTrue);
+    expect(logins, 1);
+  });
+
+  test('redirect login stays idle when Firebase has no user', () {
+    expect(
+      redirectReturnedFirebaseUser(
+        redirectResultHasUser: false,
+        hasCurrentUser: false,
+      ),
+      isFalse,
+    );
+  });
+
   test('redirect result without a user does not exchange a token', () async {
     var logins = 0;
 

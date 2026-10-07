@@ -58,6 +58,18 @@ Object _visibleAuthError(Object redirectError, Object popupError) {
   return popupError;
 }
 
+/// A redirect return has a Firebase user when either check is set.
+///
+/// [getRedirectResult] is empty on some mobile browsers even after the
+/// handler has signed the user in. [currentUser] is enough to exchange
+/// the ID token; neither means this page load was not a redirect return.
+bool redirectReturnedFirebaseUser({
+  required bool redirectResultHasUser,
+  required bool hasCurrentUser,
+}) {
+  return redirectResultHasUser || hasCurrentUser;
+}
+
 /// Exchanges a returning Google redirect for an app session.
 ///
 /// Returns whether [completeLogin] ran. Errors from either step propagate.

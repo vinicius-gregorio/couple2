@@ -36,7 +36,10 @@ class DefaultFirebaseOptions {
     appId: '1:921169930113:web:5976bc9325ca7d48712a80',
     messagingSenderId: '921169930113',
     projectId: 'couple42-f87b6',
-    authDomain: 'couple42-f87b6.firebaseapp.com',
+    // Must match Hosting. firebaseapp.com is a different site, so mobile
+    // browsers partition its storage: signInWithRedirect dies in the handler
+    // (second createAuthUri net::ERR_FAILED) and returns to login before Google.
+    authDomain: 'couple42-f87b6.web.app',
     storageBucket: 'couple42-f87b6.firebasestorage.app',
     measurementId: 'G-E6L527GRRE',
   );
