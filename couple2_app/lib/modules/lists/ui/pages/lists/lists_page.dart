@@ -169,6 +169,13 @@ class _ListsBody extends StatelessWidget {
   }
 }
 
+String _deleteListMessage(PartnerList list) {
+  if (list.visibility == 'PRIVATE_FROM_PARTNER') {
+    return '“${list.name}” é só sua. Seu par não vê esta lista. Não há como desfazer.';
+  }
+  return '“${list.name}” e os itens somem para os dois. Não há como desfazer.';
+}
+
 Future<void> _confirmDeleteList(
   BuildContext context,
   WidgetRef ref,
@@ -177,8 +184,7 @@ Future<void> _confirmDeleteList(
   final accepted = await confirmDestructive(
     context,
     title: 'Excluir lista?',
-    message:
-        '“${list.name}” e os itens somem para os dois. Não há como desfazer.',
+    message: _deleteListMessage(list),
     confirmLabel: 'Excluir',
     confirmKey: const Key('confirm-delete-list'),
   );
@@ -198,55 +204,61 @@ class _ListCard extends ConsumerWidget {
     final total = list.items.length;
     final isPrivate = list.visibility == 'PRIVATE_FROM_PARTNER';
 
+    final scheme = Theme.of(context).colorScheme;
+    final deleting = ref
+        .watch(listsViewModelProvider)
+        .deletingListIds
+        .contains(list.id);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: IgnorePointer(child: AppText(list.name)),
-        subtitle: IgnorePointer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText('$label · $done/$total feitos'),
-              if (isPrivate) const AppText('🔒 Só você vê'),
-            ],
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () async {
+                await context.push(
+                  ListsRoutes.listDetail.replaceFirst(':id', list.id),
+                );
+                if (!context.mounted) return;
+                await ref.read(listsViewModelProvider.notifier).refresh();
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                child: Row(
+                  children: [
+                    Icon(icon, color: scheme.primary),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          IgnorePointer(child: AppText(list.name)),
+                          IgnorePointer(
+                            child: AppText('$label · $done/$total feitos'),
+                          ),
+                          if (isPrivate)
+                            const IgnorePointer(
+                              child: AppText('🔒 Só você vê'),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: scheme.primary),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AbsorbPointer(
-              absorbing: ref.watch(listsViewModelProvider).deletingListIds.contains(
-                list.id,
-              ),
-              child: LoadingIconButton(
-                tooltip: 'Excluir lista',
-                loading: ref
-                    .watch(listsViewModelProvider)
-                    .deletingListIds
-                    .contains(list.id),
-                icon: const Icon(Icons.delete_outline),
-                onPressed:
-                    ref.watch(listsViewModelProvider).deletingListIds.contains(
-                      list.id,
-                    )
-                    ? null
-                    : () => _confirmDeleteList(context, ref, list),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ],
-        ),
-        onTap: () async {
-          await context.push(
-            ListsRoutes.listDetail.replaceFirst(':id', list.id),
-          );
-          if (!context.mounted) return;
-          await ref.read(listsViewModelProvider.notifier).refresh();
-        },
+          LoadingIconButton(
+            tooltip: 'Excluir lista',
+            loading: deleting,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: deleting
+                ? null
+                : () => _confirmDeleteList(context, ref, list),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
     );
   }
@@ -268,6 +280,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
   bool _hideFromPartner = true;
   String? _error;
   final _nameController = TextEditingController();
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -345,9 +358,10 @@ class _CreateListSheetState extends State<_CreateListSheet> {
           const SizedBox(height: 16),
           MutationErrorBanner(message: _error),
           LoadingButton(
-            onPressed: _nameController.text.trim().isEmpty
+            onPressed: _nameController.text.trim().isEmpty || _pop.used
                 ? null
                 : () async {
+                    if (_pop.used) return;
                     final name = _nameController.text.trim();
                     final visibility = isGift
                         ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
@@ -357,9 +371,9 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                       name,
                       visibility,
                     );
-                    if (!context.mounted) return;
+                    if (!context.mounted || _pop.used) return;
                     if (message == null) {
-                      Navigator.of(context).pop();
+                      _pop.pop(context);
                       return;
                     }
                     setState(() => _error = message);

@@ -122,6 +122,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
                         item: item,
                         listId: list.id,
                         listType: list.type,
+                        privateList: list.visibility == 'PRIVATE_FROM_PARTNER',
                       );
                     },
                   ),
@@ -148,12 +149,15 @@ Future<void> _confirmDeleteItem(
   BuildContext context,
   WidgetRef ref,
   String listId,
-  ListItem item,
-) async {
+  ListItem item, {
+  required bool privateList,
+}) async {
   final accepted = await confirmDestructive(
     context,
     title: 'Excluir item?',
-    message: '“${item.content}” será apagado para os dois.',
+    message: privateList
+        ? '“${item.content}” é só seu. Seu par não vê este item. Não há como desfazer.'
+        : '“${item.content}” será apagado para os dois.',
     confirmLabel: 'Excluir',
     confirmKey: Key('confirm-delete-${item.id}'),
   );
@@ -166,11 +170,13 @@ class _ItemTile extends ConsumerWidget {
     required this.item,
     required this.listId,
     required this.listType,
+    required this.privateList,
   });
 
   final ListItem item;
   final String listId;
   final String listType;
+  final bool privateList;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -221,7 +227,13 @@ class _ItemTile extends ConsumerWidget {
             loading: item.pending,
             onPressed: item.pending
                 ? null
-                : () => _confirmDeleteItem(context, ref, listId, item),
+                : () => _confirmDeleteItem(
+                    context,
+                    ref,
+                    listId,
+                    item,
+                    privateList: privateList,
+                  ),
             icon: const Icon(Icons.delete_outline),
           ),
         ],

@@ -24,6 +24,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   final _controller = TextEditingController();
   var _submitting = false;
   String? _error;
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -161,7 +162,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
         TextButton(
           onPressed: _submitting
               ? null
-              : () => popOrGo(context, PairingRoutes.hub),
+              : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
           child: const Text('Voltar ao meu código'),
         ),
       ],

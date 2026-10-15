@@ -119,6 +119,10 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                   'Toque para enviar. Segure para escolher.',
                   textAlign: TextAlign.center,
                 ),
+                TextButton(
+                  onPressed: _sending ? null : _compose,
+                  child: const Text('Escolher um carinho'),
+                ),
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: () => context.push(MoodRoutes.history),

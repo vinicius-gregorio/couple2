@@ -31,6 +31,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   late final TextEditingController _description;
   late DateTime _when;
   bool _saving = false;
+  final _pop = PopGuard();
 
   bool get _editing => widget.existing != null;
 
@@ -84,7 +85,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _pop.used) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
       _toast('Dê um título ao date.');
@@ -120,10 +121,11 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       }
       ref.invalidate(nextDateProvider);
       ref.read(datePlansChangedProvider.notifier).bump();
-      if (!mounted) return;
+      if (!mounted || _pop.used) return;
       if (context.canPop()) {
+        if (!_pop.claim(context)) return;
         context.pop(true);
-      } else {
+      } else if (_pop.claim(context)) {
         context.go(DatePlanRoutes.list);
       }
     } on CPLHttpException catch (error) {

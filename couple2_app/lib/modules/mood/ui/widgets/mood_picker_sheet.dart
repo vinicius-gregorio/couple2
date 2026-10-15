@@ -26,6 +26,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   final _note = TextEditingController();
   bool _saving = false;
   String? _error;
+  final _pop = PopGuard();
 
   @override
   void dispose() {
@@ -34,7 +35,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _pop.used) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -46,7 +47,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
       ref.invalidate(currentMoodProvider);
       ref.invalidate(feedPreviewProvider);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      _pop.pop(context);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -103,7 +104,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
           LoadingButton(
             variant: LoadingButtonVariant.filled,
             loading: _saving,
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || _pop.used ? null : _save,
             child: Text(_saving ? 'Guardando…' : 'Compartilhar'),
           ),
         ],
@@ -139,9 +140,7 @@ class _EmojiChoice extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? color.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? color.primary : color.outline,
-            ),
+            border: Border.all(color: selected ? color.primary : color.outline),
           ),
           child: Text(level.emoji, style: const TextStyle(fontSize: 36)),
         ),

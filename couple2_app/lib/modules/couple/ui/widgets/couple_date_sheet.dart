@@ -28,6 +28,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
   late final TextEditingController _title;
   late DateTime? _date;
   late String _recurrence;
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -68,8 +69,11 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
   void _submit() {
     final title = _title.text.trim();
     final date = _date;
-    if (title.isEmpty || title.length > 60 || date == null) return;
-    Navigator.of(context).pop(
+    if (title.isEmpty || title.length > 60 || date == null || _pop.used) {
+      return;
+    }
+    _pop.pop(
+      context,
       CoupleDateDraft(
         title: title,
         date: formatDateOnly(date),

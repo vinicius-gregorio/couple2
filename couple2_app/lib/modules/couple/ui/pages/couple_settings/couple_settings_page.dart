@@ -45,7 +45,8 @@ const _timezoneLabels = {
 };
 
 String timezoneLabel(String zone) {
-  return _timezoneLabels[zone] ?? zone.replaceAll('_', ' ').replaceAll('/', ' · ');
+  return _timezoneLabels[zone] ??
+      zone.replaceAll('_', ' ').replaceAll('/', ' · ');
 }
 
 class CoupleSettingsPage extends ConsumerStatefulWidget {
@@ -61,6 +62,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
   bool _saving = false;
   String? _error;
   bool _initialized = false;
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -102,7 +104,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _pop.used) return;
     final anniversary = _anniversary;
     if (anniversary == null) {
       setState(() => _error = 'Escolha a data em que vocês começaram');
@@ -121,7 +123,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           );
       ref.invalidate(coupleProvider);
       if (!mounted) return;
-      popOrGo(context, APPRoutes.home);
+      popOrGo(context, APPRoutes.home, guard: _pop);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Não foi possível salvar. Confira o fuso.');

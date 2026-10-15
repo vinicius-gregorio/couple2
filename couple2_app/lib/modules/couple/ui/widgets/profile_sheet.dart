@@ -20,6 +20,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
   DateTime? _birthDate;
   bool _saving = false;
   String? _error;
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -39,19 +40,21 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _pop.used) return;
     final previous = _birthDate;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      await ref.read(coupleRepositoryProvider).updateMyBirthDate(
+      await ref
+          .read(coupleRepositoryProvider)
+          .updateMyBirthDate(
             _birthDate == null ? null : formatDateOnly(_birthDate!),
           );
       await ref.read(sessionProvider.notifier).refresh();
       ref.invalidate(coupleProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _pop.pop(context);
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -99,7 +102,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
           const SizedBox(height: 16),
           LoadingButton(
             loading: _saving,
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || _pop.used ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),
         ],

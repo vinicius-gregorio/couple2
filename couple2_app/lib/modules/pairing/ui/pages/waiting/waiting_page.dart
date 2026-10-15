@@ -27,6 +27,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
   var _cancelling = false;
   var _confirming = false;
   String? _error;
+  final _pop = PopGuard();
 
   Future<void> _refresh() async {
     final phase = await ref.read(pairingStatusProvider.notifier).poll();
@@ -174,7 +175,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           TextButton(
             onPressed: _cancelling
                 ? null
-                : () => popOrGo(context, PairingRoutes.hub),
+                : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
             child: const Text('Voltar ao meu código'),
           ),
         ],

@@ -118,6 +118,30 @@ void main() {
     expect(find.text('Como você está?'), findsNothing);
   });
 
+  testWidgets('escolher um carinho opens the composer without a long press', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      MoodCurrent(
+        me: MoodSnapshot(
+          mood: MoodLevel.good,
+          createdAt: DateTime.now(),
+          stale: false,
+        ),
+      ),
+    );
+    expect(find.text('Escolher um carinho'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextButton, 'Escolher um carinho'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Escolher um carinho'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Um carinho'), findsOneWidget);
+  });
+
   testWidgets('tapping Você opens the mood sheet', (tester) async {
     await _pump(
       tester,

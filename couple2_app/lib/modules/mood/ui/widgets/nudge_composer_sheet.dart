@@ -28,6 +28,7 @@ class NudgeComposerSheet extends StatefulWidget {
 class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
   NudgeKind _kind = NudgeKind.thinkingOfYou;
   final _message = TextEditingController();
+  final _pop = PopGuard();
 
   @override
   void dispose() {
@@ -73,12 +74,18 @@ class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
           ),
           const SizedBox(height: 8),
           FilledButton(
-            onPressed: () {
-              final text = _message.text.trim();
-              Navigator.of(context).pop(
-                NudgeDraft(kind: _kind, message: text.isEmpty ? null : text),
-              );
-            },
+            onPressed: _pop.used
+                ? null
+                : () {
+                    final text = _message.text.trim();
+                    _pop.pop(
+                      context,
+                      NudgeDraft(
+                        kind: _kind,
+                        message: text.isEmpty ? null : text,
+                      ),
+                    );
+                  },
             child: const Text('Enviar'),
           ),
         ],

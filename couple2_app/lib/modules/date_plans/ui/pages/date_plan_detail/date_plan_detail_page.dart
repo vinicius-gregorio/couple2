@@ -150,18 +150,20 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     }
     final yes = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        content: Text("Marcar '${item.content}' como assistido?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Agora não'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Marcar'),
-          ),
-        ],
+      builder: (context) => SinglePop(
+        builder: (context, pop) => AlertDialog(
+          content: Text("Marcar '${item.content}' como assistido?"),
+          actions: [
+            TextButton(
+              onPressed: () => pop.pop(context, false),
+              child: const Text('Agora não'),
+            ),
+            TextButton(
+              onPressed: () => pop.pop(context, true),
+              child: const Text('Marcar'),
+            ),
+          ],
+        ),
       ),
     );
     if (yes != true || !mounted) return;
@@ -188,23 +190,25 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          maxLength: 140,
-          decoration: const InputDecoration(labelText: 'Nota (opcional)'),
+      builder: (context) => SinglePop(
+        builder: (context, pop) => AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            maxLength: 140,
+            decoration: const InputDecoration(labelText: 'Nota (opcional)'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => pop.pop(context),
+              child: const Text('Voltar'),
+            ),
+            FilledButton(
+              onPressed: () => pop.pop(context, controller.text),
+              child: Text(confirm),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: Text(confirm),
-          ),
-        ],
       ),
     );
   }

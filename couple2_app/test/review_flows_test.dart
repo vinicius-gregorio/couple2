@@ -73,10 +73,7 @@ void main() {
       find.bySemanticsLabel(RegExp('140 caracteres restantes')),
       findsWidgets,
     );
-    expect(
-      find.bySemanticsLabel(RegExp('characters remaining')),
-      findsNothing,
-    );
+    expect(find.bySemanticsLabel(RegExp('characters remaining')), findsNothing);
     semantics.dispose();
   });
 
@@ -255,7 +252,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('Presentes'), findsOneWidget);
 
-    await tester.tap(find.byType(ListTile));
+    await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
     expect(find.text('Lista aberta'), findsOneWidget);
   });
@@ -331,17 +328,17 @@ class _Nudges implements INudgesRepository {
     }
     return Future<NudgePage>.value(
       NudgePage(
-      items: [
-        Nudge(
-          id: 'n1',
-          senderId: 'bruno',
-          receiverId: 'ada',
-          kind: NudgeKind.hug,
-          createdAt: DateTime.now(),
-        ),
-      ],
-      nextCursor: 'c2',
-    ),
+        items: [
+          Nudge(
+            id: 'n1',
+            senderId: 'bruno',
+            receiverId: 'ada',
+            kind: NudgeKind.hug,
+            createdAt: DateTime.now(),
+          ),
+        ],
+        nextCursor: 'c2',
+      ),
     );
   }
 

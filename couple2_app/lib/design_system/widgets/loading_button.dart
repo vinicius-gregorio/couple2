@@ -52,34 +52,45 @@ class _LoadingButtonState extends State<LoadingButton> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final enabled = widget.onPressed != null && !_showSpinner;
     final callback = enabled ? _press : null;
     final accent = widget.foregroundColor;
     final spinnerColor = _spinnerColor(scheme, accent);
-    final label = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (_showSpinner) ...[
-          SizedBox(
-            key: LoadingButton.spinnerKey,
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: spinnerColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ] else if (widget.icon != null) ...[
-          widget.icon!,
-          const SizedBox(width: 8),
-        ],
-        Flexible(child: widget.child),
-      ],
+    final labelColor = _labelColor(theme, scheme, accent);
+    final label = IconTheme.merge(
+      data: IconThemeData(color: labelColor),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: labelColor),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_showSpinner) ...[
+              SizedBox(
+                key: LoadingButton.spinnerKey,
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: spinnerColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+            ] else if (widget.icon != null) ...[
+              IconTheme.merge(
+                data: IconThemeData(color: labelColor),
+                child: widget.icon!,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Flexible(child: widget.child),
+          ],
+        ),
+      ),
     );
-    final style = _style(scheme, accent);
+    final style = _style(theme, scheme, accent);
 
     final longPress = enabled ? widget.onLongPress : null;
     return switch (widget.variant) {
@@ -112,7 +123,53 @@ class _LoadingButtonState extends State<LoadingButton> {
     return scheme.onPrimary;
   }
 
-  ButtonStyle? _style(ColorScheme scheme, Color? accent) {
+  Color _disabledForeground(ThemeData theme, ColorScheme scheme) {
+    return theme.filledButtonTheme.style?.foregroundColor?.resolve({
+          WidgetState.disabled,
+        }) ??
+        scheme.onSurface.withValues(alpha: 0.38);
+  }
+
+  /// Filled labels stay white on [ColorScheme.primary], including while the
+  /// control is locked. A disabled style would paint a dark label on the wine
+  /// fill and hide the spinner.
+  Color _labelColor(ThemeData theme, ColorScheme scheme, Color? accent) {
+    final disabled = _disabledForeground(theme, scheme);
+    if (widget.variant == LoadingButtonVariant.filled) {
+      if (_showSpinner || widget.onPressed != null) return scheme.onPrimary;
+      return disabled;
+    }
+    if (!_showSpinner && widget.onPressed == null) return disabled;
+    return accent ?? scheme.primary;
+  }
+
+  ButtonStyle? _style(ThemeData theme, ColorScheme scheme, Color? accent) {
+    if (widget.variant == LoadingButtonVariant.filled && accent == null) {
+      final disabledBg =
+          theme.filledButtonTheme.style?.backgroundColor?.resolve({
+            WidgetState.disabled,
+          }) ??
+          scheme.surfaceContainerHighest;
+      final disabledFg = _disabledForeground(theme, scheme);
+      final spinning = _showSpinner;
+      return ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.primary;
+          if (states.contains(WidgetState.disabled)) return disabledBg;
+          return scheme.primary;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.onPrimary;
+          if (states.contains(WidgetState.disabled)) return disabledFg;
+          return scheme.onPrimary;
+        }),
+        iconColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.onPrimary;
+          if (states.contains(WidgetState.disabled)) return disabledFg;
+          return scheme.onPrimary;
+        }),
+      );
+    }
     if (_showSpinner) {
       final filled = widget.variant == LoadingButtonVariant.filled;
       final foreground = filled ? scheme.onPrimary : (accent ?? scheme.primary);

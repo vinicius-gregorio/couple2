@@ -10,6 +10,7 @@ export 'widgets/app_text.dart';
 export 'widgets/confirm_dialog.dart';
 export 'widgets/async_body.dart';
 export 'widgets/loading_button.dart';
+export 'widgets/pop_guard.dart';
 export 'widgets/session_splash.dart';
 export 'widgets/shimmer.dart';
 export 'widgets/skeleton.dart';
