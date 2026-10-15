@@ -42,6 +42,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
   }
 
   Future<void> _cancel() async {
+    if (_cancelling) return;
     setState(() {
       _cancelling = true;
       _error = null;

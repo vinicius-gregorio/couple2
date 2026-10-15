@@ -18,7 +18,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     with WidgetsBindingObserver {
   List<CoupleDate> _dates = const [];
   bool _loading = true;
-  String? _error;
+  bool _saving = false;
+  String? _deletingId;
+  String? _loadError;
+  String? _actionError;
 
   @override
   void initState() {
@@ -44,7 +47,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _error = null;
+      _loadError = null;
     });
     try {
       final dates = await ref.read(coupleRepositoryProvider).getDates();
@@ -58,19 +61,25 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Não foi possível carregar as datas';
+          _loadError = 'Não foi possível carregar as datas';
         });
       }
     }
   }
 
   Future<void> _openSheet([CoupleDate? existing]) async {
+    if (_saving || _deletingId != null) return;
     final draft = await showModalBottomSheet<CoupleDateDraft>(
       context: context,
       isScrollControlled: true,
       builder: (_) => CoupleDateSheet(existing: existing),
     );
-    if (draft == null) return;
+    if (draft == null || !mounted || _saving) return;
+    final previous = _dates;
+    setState(() {
+      _saving = true;
+      _actionError = null;
+    });
     try {
       final repo = ref.read(coupleRepositoryProvider);
       if (existing == null) {
@@ -88,15 +97,23 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         );
       }
       ref.invalidate(coupleProvider);
+      if (!mounted) return;
+      setState(() => _saving = false);
       await _load();
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível salvar a data');
+        setState(() {
+          _dates = previous;
+          _saving = false;
+          _actionError = 'Não foi possível salvar a data.';
+        });
       }
     }
   }
 
   Future<void> _delete(CoupleDate date) async {
+    if (_saving || _deletingId != null) return;
+    setState(() => _deletingId = date.id);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -114,14 +131,26 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      if (mounted) setState(() => _deletingId = null);
+      return;
+    }
+    final previous = _dates;
     try {
       await ref.read(coupleRepositoryProvider).deleteDate(date.id);
       ref.invalidate(coupleProvider);
-      await _load();
+      if (!mounted) return;
+      setState(() {
+        _dates = previous.where((item) => item.id != date.id).toList();
+        _deletingId = null;
+      });
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível excluir a data');
+        setState(() {
+          _dates = previous;
+          _deletingId = null;
+          _actionError = 'Não foi possível excluir a data.';
+        });
       }
     }
   }
@@ -138,14 +167,31 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         title: AppText('Datas importantes'),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openSheet(),
+        onPressed: _saving || _deletingId != null ? null : () => _openSheet(),
         child: const Icon(Icons.add),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_saving)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    key: LoadingButton.spinnerKey,
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Salvando…'),
+                ],
+              ),
+            ),
+          MutationErrorBanner(message: _actionError),
           const AppText(
-            'Datas recorrentes do casal. Conquistas continuam na lista Milestones.',
+            'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),
           const SizedBox(height: 16),
           AppText(
@@ -183,23 +229,16 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (_loading && _dates.isEmpty && _error == null)
+          if (_loading && _dates.isEmpty && _loadError == null)
             const SizedBox(height: 240, child: ListSkeleton(rows: 3))
-          else if (_error != null && _dates.isEmpty)
-            ErrorView(message: _error!, compact: true, onRetry: _load)
+          else if (_loadError != null && _dates.isEmpty)
+            ErrorView(message: _loadError!, compact: true, onRetry: _load)
           else if (_dates.isEmpty)
             const EmptyView(
               message: 'Nenhuma data ainda. Adicione a primeira.',
               compact: true,
             )
           else ...[
-            if (_error != null) ...[
-              AppText(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              const SizedBox(height: 8),
-            ],
             ..._dates.map(
               (date) => ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -215,12 +254,17 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
                     IconButton(
                       tooltip: 'Editar',
                       icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => _openSheet(date),
+                      onPressed: _saving || _deletingId != null
+                          ? null
+                          : () => _openSheet(date),
                     ),
-                    IconButton(
+                    LoadingIconButton(
                       tooltip: 'Excluir',
+                      loading: _deletingId == date.id,
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _delete(date),
+                      onPressed: _saving || _deletingId != null
+                          ? null
+                          : () => _delete(date),
                     ),
                   ],
                 ),

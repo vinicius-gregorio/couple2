@@ -110,7 +110,6 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                 ],
                 const SizedBox(height: 12),
                 _CareButton(
-                  caring: caring,
                   sending: _sending,
                   onTap: () => _send(NudgeKind.thinkingOfYou),
                   onLongPress: _sending ? null : _compose,
@@ -120,11 +119,13 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                   'Toque para enviar. Segure para escolher.',
                   textAlign: TextAlign.center,
                 ),
-                TextButton(
+                const SizedBox(height: 8),
+                OutlinedButton(
                   onPressed: () => context.push(MoodRoutes.history),
                   child: const Text('Histórico'),
                 ),
-                TextButton(
+                const SizedBox(height: 8),
+                OutlinedButton(
                   onPressed: () => context.push(MoodRoutes.nudges),
                   child: const Text('Carinhos recebidos'),
                 ),
@@ -191,60 +192,23 @@ class _MoodSide extends StatelessWidget {
 
 class _CareButton extends StatelessWidget {
   const _CareButton({
-    required this.caring,
     required this.sending,
     required this.onTap,
     required this.onLongPress,
   });
 
-  final bool caring;
   final bool sending;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    final background = sending
-        ? color.surfaceContainerHighest
-        : (caring ? color.primary : color.secondaryContainer);
-    final foreground = sending
-        ? color.onSurface.withValues(alpha: 0.38)
-        : (caring ? color.onPrimary : color.onSecondaryContainer);
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        onTap: sending ? null : onTap,
-        onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (sending) ...[
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: foreground,
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-              Text(
-                sending ? 'Enviando…' : '💗 Pensando em você',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: foreground,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return LoadingButton(
+      key: const Key('thinking-of-you'),
+      loading: sending,
+      onPressed: sending ? null : onTap,
+      onLongPress: sending ? null : onLongPress,
+      child: Text(sending ? 'Enviando…' : '💗 Pensando em você'),
     );
   }
 }

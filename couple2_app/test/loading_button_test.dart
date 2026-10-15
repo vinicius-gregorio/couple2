@@ -32,7 +32,7 @@ void main() {
     expect(taps, 1);
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
     expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNull,
     );
 
@@ -44,7 +44,7 @@ void main() {
     await tester.pump();
     expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
     expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNotNull,
     );
   });
@@ -91,7 +91,7 @@ void main() {
       final material = tester.widget<Material>(
         find
             .descendant(
-              of: find.widgetWithText(ElevatedButton, label),
+              of: find.widgetWithText(FilledButton, label),
               matching: find.byType(Material),
             )
             .first,

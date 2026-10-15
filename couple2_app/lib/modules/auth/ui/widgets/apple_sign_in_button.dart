@@ -7,7 +7,7 @@ const bool kAppleSignInEnabled = false;
 
 /// "Entrar com Apple" button. Sign-in still runs through Firebase Auth.
 ///
-/// Flutter web misses taps on [ElevatedButton.icon] and that control does not
+/// Flutter web misses taps on a Material icon button and that control does not
 /// show up as a button in the accessibility tree. This target is one opaque,
 /// full-width button with explicit button semantics. Children cannot take the tap.
 class AppleSignInButton extends StatelessWidget {
@@ -28,11 +28,9 @@ class AppleSignInButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final active = isLoading || onPressed != null;
     final enabled = !isLoading && onPressed != null;
-    final background = active
-        ? scheme.inverseSurface
-        : scheme.surfaceContainerHighest;
+    final background = active ? scheme.primary : disabledFill;
     final foreground = active
-        ? scheme.onInverseSurface
+        ? scheme.onPrimary
         : scheme.onSurface.withValues(alpha: 0.38);
     return Semantics(
       button: true,

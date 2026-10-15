@@ -35,7 +35,7 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: AppText(needsPairing ? 'Parear' : 'Home'),
+        title: AppText(needsPairing ? 'Parear' : 'Início'),
         leading: sessionAsync.when(
           data: (session) => _AvatarButton(
             pictureUrl: session?.picture,
@@ -143,10 +143,10 @@ class HomePage extends ConsumerWidget {
                 ],
                 const SizedBox(height: 24),
                 Center(
-                  child: ElevatedButton.icon(
+                  child: FilledButton.icon(
                     onPressed: () => context.push(ListsRoutes.lists),
                     icon: const Icon(Icons.list),
-                    label: const Text('Our Lists'),
+                    label: const Text('Nossas listas'),
                   ),
                 ),
               ],
@@ -188,7 +188,7 @@ class _NeedsPairingBody extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
+              FilledButton(
                 onPressed: () => context.go(PairingRoutes.hub),
                 child: const Text('Ir para o pareamento'),
               ),

@@ -34,6 +34,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -136,8 +137,11 @@ class _EmojiChoice extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: selected ? color.primaryContainer : color.surface.withValues(alpha: 0),
+            color: selected ? color.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? color.primary : color.outline,
+            ),
           ),
           child: Text(level.emoji, style: const TextStyle(fontSize: 36)),
         ),

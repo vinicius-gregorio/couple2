@@ -81,6 +81,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final anniversary = _anniversary;
     if (anniversary == null) {
       setState(() => _error = 'Escolha a data em que vocês começaram');
@@ -172,13 +173,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AppText(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
+          MutationErrorBanner(message: _error),
           const SizedBox(height: 24),
           LoadingButton(
             loading: _saving,

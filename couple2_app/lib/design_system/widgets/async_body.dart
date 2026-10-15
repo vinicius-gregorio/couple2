@@ -84,6 +84,30 @@ class AsyncValueView<T> extends StatelessWidget {
   }
 }
 
+/// Inline PT-BR failure for a mutation that should stay on screen.
+class MutationErrorBanner extends StatelessWidget {
+  const MutationErrorBanner({super.key, this.message});
+
+  static const bannerKey = Key('mutation-error');
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = message;
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Text(
+        text,
+        key: bannerKey,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      ),
+    );
+  }
+}
+
 class ErrorView extends StatelessWidget {
   const ErrorView({
     super.key,

@@ -18,9 +18,13 @@ class UnpairButton extends ConsumerStatefulWidget {
 
 class _UnpairButtonState extends ConsumerState<UnpairButton> {
   var _busy = false;
+  var _confirming = false;
   String? _error;
 
   Future<void> _confirm() async {
+    if (_busy || _confirming) return;
+    _confirming = true;
+    setState(() => _error = null);
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -43,9 +47,14 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
         );
       },
     );
-    if (accepted != true || !mounted) return;
+    if (!mounted) return;
+    if (accepted != true) {
+      setState(() => _confirming = false);
+      return;
+    }
 
     setState(() {
+      _confirming = false;
       _busy = true;
       _error = null;
     });
@@ -81,8 +90,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
           key: const Key('unpair-button'),
           variant: LoadingButtonVariant.outlined,
           loading: _busy,
-          foregroundColor: theme.colorScheme.error,
-          onPressed: _busy
+          onPressed: _busy || _confirming
               ? null
               : () {
                   _confirm();

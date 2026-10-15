@@ -482,11 +482,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    ElevatedButton submit() {
-      return tester.widget<ElevatedButton>(
+    FilledButton submit() {
+      return tester.widget<FilledButton>(
         find.descendant(
           of: find.byKey(const Key('submit-partner-code')),
-          matching: find.byType(ElevatedButton),
+          matching: find.byType(FilledButton),
         ),
       );
     }

@@ -61,6 +61,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     final validation = validatePartnerCode(_controller.text, myCode: _myCode);
     if (validation != null) {
       setState(() => _error = validation);

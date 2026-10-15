@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum LoadingButtonVariant { elevated, filled, outlined, text }
+enum LoadingButtonVariant { filled, outlined, text }
 
 /// Button that shows a spinner and ignores taps while a request is in flight.
 ///
@@ -12,9 +12,10 @@ class LoadingButton extends StatefulWidget {
     required this.onPressed,
     required this.child,
     this.loading = false,
-    this.variant = LoadingButtonVariant.elevated,
+    this.variant = LoadingButtonVariant.filled,
     this.icon,
     this.foregroundColor,
+    this.onLongPress,
   });
 
   /// Sync or async. A returned [Future] keeps the control busy until it ends.
@@ -24,6 +25,7 @@ class LoadingButton extends StatefulWidget {
   final Widget child;
   final Widget? icon;
   final Color? foregroundColor;
+  final VoidCallback? onLongPress;
 
   static const spinnerKey = Key('loadingButtonSpinner');
 
@@ -79,24 +81,23 @@ class _LoadingButtonState extends State<LoadingButton> {
     );
     final style = _style(scheme, accent);
 
+    final longPress = enabled ? widget.onLongPress : null;
     return switch (widget.variant) {
-      LoadingButtonVariant.elevated => ElevatedButton(
-        onPressed: callback,
-        style: style,
-        child: label,
-      ),
       LoadingButtonVariant.filled => FilledButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
       LoadingButtonVariant.outlined => OutlinedButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
       LoadingButtonVariant.text => TextButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
@@ -113,9 +114,7 @@ class _LoadingButtonState extends State<LoadingButton> {
 
   ButtonStyle? _style(ColorScheme scheme, Color? accent) {
     if (_showSpinner) {
-      final filled =
-          widget.variant == LoadingButtonVariant.elevated ||
-          widget.variant == LoadingButtonVariant.filled;
+      final filled = widget.variant == LoadingButtonVariant.filled;
       final foreground = filled ? scheme.onPrimary : (accent ?? scheme.primary);
       final background = filled ? scheme.primary : Colors.transparent;
       return ButtonStyle(

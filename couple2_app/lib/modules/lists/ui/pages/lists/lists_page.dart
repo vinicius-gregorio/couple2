@@ -19,10 +19,10 @@ const _listTypes = [
 ];
 
 const _typeLabels = {
-  'SHOPPING_CART': 'Shopping Cart',
-  'MOVIES': 'Movies',
-  'MILESTONES': 'Milestones',
-  'TRAVEL': 'Travel',
+  'SHOPPING_CART': 'Carrinho',
+  'MOVIES': 'Filmes',
+  'MILESTONES': 'Marcos',
+  'TRAVEL': 'Viagem',
   'GIFT_IDEAS': 'Ideias de presente 🎁',
 };
 
@@ -72,7 +72,7 @@ class _ListsPageState extends ConsumerState<ListsPage>
     final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
     return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Our Lists')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Nossas listas')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateListSheet(context, ref, partnerName),
         child: const Icon(Icons.add),
@@ -96,15 +96,22 @@ class _ListsPageState extends ConsumerState<ListsPage>
       );
     }
 
-    return AsyncBody(
-      isLoading: state.isLoading,
-      hasData: state.lists.isNotEmpty,
-      error: state.errorMessage,
-      errorMessage: 'Não foi possível carregar as listas.',
-      onRetry: _refresh,
-      isEmpty: state.lists.isEmpty,
-      emptyMessage: 'No lists yet. Create one!',
-      child: _ListsBody(state: state),
+    return Column(
+      children: [
+        MutationErrorBanner(message: state.actionError),
+        Expanded(
+          child: AsyncBody(
+            isLoading: state.isLoading,
+            hasData: state.lists.isNotEmpty,
+            error: state.errorMessage,
+            errorMessage: 'Não foi possível carregar as listas.',
+            onRetry: _refresh,
+            isEmpty: state.lists.isEmpty,
+            emptyMessage: 'Nenhuma lista ainda. Crie uma!',
+            child: _ListsBody(state: state),
+          ),
+        ),
+      ],
     );
   }
 
@@ -182,7 +189,7 @@ class _ListCard extends ConsumerWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppText('$label · $done/$total done'),
+            AppText('$label · $done/$total feitos'),
             if (isPrivate) const AppText('🔒 Só você vê'),
           ],
         ),
@@ -191,9 +198,18 @@ class _ListCard extends ConsumerWidget {
           children: [
             LoadingIconButton(
               tooltip: 'Excluir lista',
+              loading: ref.watch(listsViewModelProvider).deletingListIds.contains(
+                list.id,
+              ),
               icon: const Icon(Icons.delete_outline),
-              onPressed: () =>
-                  ref.read(listsViewModelProvider.notifier).deleteList(list.id),
+              onPressed:
+                  ref.watch(listsViewModelProvider).deletingListIds.contains(
+                    list.id,
+                  )
+                  ? null
+                  : () => ref
+                        .read(listsViewModelProvider.notifier)
+                        .deleteList(list.id),
             ),
             const Icon(Icons.chevron_right),
           ],
@@ -213,7 +229,7 @@ class _ListCard extends ConsumerWidget {
 class _CreateListSheet extends StatefulWidget {
   const _CreateListSheet({required this.onConfirm, required this.partnerName});
 
-  final Future<bool> Function(String type, String name, String? visibility)
+  final Future<String?> Function(String type, String name, String? visibility)
   onConfirm;
   final String? partnerName;
 
@@ -224,6 +240,7 @@ class _CreateListSheet extends StatefulWidget {
 class _CreateListSheetState extends State<_CreateListSheet> {
   String _selectedType = _listTypes.first;
   bool _hideFromPartner = true;
+  String? _error;
   final _nameController = TextEditingController();
 
   @override
@@ -263,7 +280,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppText('New List', style: Theme.of(context).textTheme.titleLarge),
+          AppText('Nova lista', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedType,
@@ -279,12 +296,12 @@ class _CreateListSheetState extends State<_CreateListSheet> {
               _selectedType = v!;
               if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
             }),
-            decoration: const InputDecoration(labelText: 'Type'),
+            decoration: const InputDecoration(labelText: 'Tipo'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
+            decoration: const InputDecoration(labelText: 'Nome'),
             autofocus: true,
           ),
           if (isGift) ...[
@@ -300,6 +317,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             ),
           ],
           const SizedBox(height: 16),
+          MutationErrorBanner(message: _error),
           LoadingButton(
             onPressed: _nameController.text.trim().isEmpty
                 ? null
@@ -308,14 +326,19 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                     final visibility = isGift
                         ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
                         : null;
-                    final created = await widget.onConfirm(
+                    final message = await widget.onConfirm(
                       _selectedType,
                       name,
                       visibility,
                     );
-                    if (created && context.mounted) Navigator.of(context).pop();
+                    if (!context.mounted) return;
+                    if (message == null) {
+                      Navigator.of(context).pop();
+                      return;
+                    }
+                    setState(() => _error = message);
                   },
-            child: const Text('Create'),
+            child: const Text('Criar'),
           ),
         ],
       ),

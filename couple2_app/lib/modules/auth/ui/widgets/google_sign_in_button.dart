@@ -5,7 +5,7 @@ import 'google_logo.dart';
 
 /// "Entrar com Google" button.
 ///
-/// On Flutter web the canvas hit test misses [ElevatedButton] taps, and a
+/// On Flutter web the canvas hit test misses a Material button, and a
 /// [SelectableText] label wins the gesture arena so the press never fires.
 /// This target is one opaque, full-width control. Children cannot take the tap.
 /// Colors come from the app [ColorScheme] so the label stays onPrimary.

@@ -33,7 +33,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const AppText('Login')),
+      appBar: AppBar(title: const AppText('Entrar')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: SingleChildScrollView(

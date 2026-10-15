@@ -79,12 +79,17 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
         leading: const AppBackButton(),
         title: const AppText('Histórico'),
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (state.items.isNotEmpty)
+            MutationErrorBanner(message: state.errorMessage),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: viewModel.refresh,
         child: AsyncBody(
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
-          error: state.errorMessage,
+          error: state.items.isEmpty ? state.errorMessage : null,
           errorMessage:
               state.errorMessage ?? 'Não foi possível carregar o histórico.',
           onRetry: viewModel.refresh,
@@ -113,6 +118,9 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
             },
           ),
         ),
+            ),
+          ),
+        ],
       ),
     );
   }

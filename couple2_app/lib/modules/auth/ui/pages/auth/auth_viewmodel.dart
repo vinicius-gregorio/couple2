@@ -23,12 +23,12 @@ class _Unset {
 
 /// User-visible auth failure in PT-BR. Firebase's English text stays off screen.
 String formatAuthError(Object error) {
-  if (error is CancelledGoogleRedirect) return 'Login cancelado';
+  if (error is CancelledGoogleRedirect) return 'Entrada cancelada';
   if (error is firebase_auth.FirebaseAuthException) {
     switch (error.code.trim()) {
       case 'popup-closed-by-user':
       case 'cancelled-popup-request':
-        return 'Login cancelado';
+        return 'Entrada cancelada';
       case 'network-request-failed':
         return 'Sem conexão. Verifique a internet e tente de novo.';
       case 'operation-not-allowed':
@@ -98,7 +98,7 @@ AuthState applyGoogleRedirectResume(
       }
       return state.copyWith(
         googleLoading: false,
-        errorMessage: 'Login cancelado',
+        errorMessage: 'Entrada cancelada',
       );
     case GoogleRedirectResume.failed:
       return state.copyWith(googleLoading: false);

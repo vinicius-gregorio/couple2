@@ -62,9 +62,10 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       metadata = draft.metadata;
     }
 
-    await ref
+    final saved = await ref
         .read(listsViewModelProvider.notifier)
         .addItem(list.id, content, metadata);
+    if (!saved || !mounted) return;
     _controller.clear();
     _priceController.clear();
     _urlController.clear();
@@ -99,7 +100,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     if (list == null) {
       return Scaffold(
         appBar: AppBar(leading: AppBackButton()),
-        body: const EmptyView(message: 'List not found'),
+        body: const EmptyView(message: 'Lista não encontrada'),
       );
     }
 
@@ -107,11 +108,12 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       appBar: AppBar(leading: const AppBackButton(), title: AppText(list.name)),
       body: Column(
         children: [
+          MutationErrorBanner(message: state.actionError),
           if (list.visibility == 'PRIVATE_FROM_PARTNER')
             const ListTile(dense: true, title: Text('🔒 Só você vê')),
           Expanded(
             child: list.items.isEmpty
-                ? const EmptyView(message: 'No items yet.')
+                ? const EmptyView(message: 'Nenhum item ainda.')
                 : ListView.builder(
                     itemCount: list.items.length,
                     itemBuilder: (context, index) {
@@ -133,6 +135,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
             bought: _bought,
             onOccasion: (value) => setState(() => _occasion = value),
             onBought: (value) => setState(() => _bought = value),
+            busy: state.addingListIds.contains(list.id),
             onAdd: () => _addItem(list),
           ),
         ],
@@ -156,43 +159,53 @@ class _ItemTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.read(listsViewModelProvider.notifier);
 
-    return Dismissible(
-      key: Key(item.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
-      ),
-      onDismissed: (_) => vm.deleteItem(listId, item.id),
-      child: ListTile(
-        leading: Checkbox(
-          value: item.isCompleted,
-          onChanged: (_) => vm.toggleItem(listId, item.id),
-        ),
-        title: Text(
-          item.content,
-          style: item.isCompleted
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
-        ),
-        subtitle: _buildSubtitle(item, listType),
-        trailing: listTypeSupportsDatePlan(listType)
-            ? TextButton(
-                onPressed: () {
-                  final query = Uri(
-                    path: DatePlanRoutes.create,
-                    queryParameters: {
-                      'sourceListItemId': item.id,
-                      'title': item.content,
-                    },
-                  ).toString();
-                  context.push(query);
-                },
-                child: const Text('Planejar date'),
-              )
+    return ListTile(
+      key: Key('list-item-${item.id}'),
+      leading: item.pending
+          ? const SizedBox(
+              key: Key('item-pending'),
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Checkbox(
+              value: item.isCompleted,
+              onChanged: (_) => vm.toggleItem(listId, item.id),
+            ),
+      title: Text(
+        item.content,
+        style: item.isCompleted
+            ? const TextStyle(decoration: TextDecoration.lineThrough)
             : null,
+      ),
+      subtitle: item.pending
+          ? const Text('Salvando…')
+          : _buildSubtitle(item, listType),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (listTypeSupportsDatePlan(listType) && !item.pending)
+            TextButton(
+              onPressed: () {
+                final query = Uri(
+                  path: DatePlanRoutes.create,
+                  queryParameters: {
+                    'sourceListItemId': item.id,
+                    'title': item.content,
+                  },
+                ).toString();
+                context.push(query);
+              },
+              child: const Text('Planejar date'),
+            ),
+          LoadingIconButton(
+            key: Key('delete-item-${item.id}'),
+            tooltip: 'Excluir item',
+            loading: item.pending,
+            onPressed: item.pending ? null : () => vm.deleteItem(listId, item.id),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
       ),
     );
   }
@@ -205,7 +218,7 @@ class _ItemTile extends ConsumerWidget {
     switch (type) {
       case 'SHOPPING_CART':
         final qty = meta['quantity'];
-        if (qty != null) return Text('Qty: $qty');
+        if (qty != null) return Text('Qtd: $qty');
       case 'MOVIES':
         final platform = meta['platform'];
         if (platform != null) return Chip(label: Text(platform.toString()));
@@ -277,6 +290,7 @@ class _AddItemBar extends StatefulWidget {
     required this.onOccasion,
     required this.onBought,
     required this.onAdd,
+    required this.busy,
   });
 
   final String listType;
@@ -288,6 +302,7 @@ class _AddItemBar extends StatefulWidget {
   final ValueChanged<String?> onOccasion;
   final ValueChanged<bool> onBought;
   final Future<void> Function() onAdd;
+  final bool busy;
 
   @override
   State<_AddItemBar> createState() => _AddItemBarState();
@@ -417,19 +432,22 @@ class _AddItemBarState extends State<_AddItemBar> {
                 Expanded(
                   child: TextField(
                     controller: widget.controller,
+                    enabled: !widget.busy,
                     decoration: const InputDecoration(
-                      hintText: 'Add item...',
+                      hintText: 'Adicionar item...',
                       isDense: true,
                     ),
                     onSubmitted: (_) {
-                      if (_canAdd) widget.onAdd();
+                      if (_canAdd && !widget.busy) widget.onAdd();
                     },
                   ),
                 ),
                 const SizedBox(width: 8),
                 LoadingIconButton(
+                  key: const Key('add-item'),
                   tooltip: 'Adicionar',
-                  onPressed: _canAdd ? widget.onAdd : null,
+                  loading: widget.busy,
+                  onPressed: _canAdd && !widget.busy ? widget.onAdd : null,
                   icon: const Icon(Icons.add),
                 ),
               ],

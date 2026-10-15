@@ -151,8 +151,6 @@ class _ButtonsPreview extends StatelessWidget {
         children: [
           const Text('Enabled'),
           const SizedBox(height: 8),
-          ElevatedButton(onPressed: () {}, child: const Text('Elevated')),
-          const SizedBox(height: 8),
           FilledButton(onPressed: () {}, child: const Text('Filled')),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: () {}, child: const Text('Outlined')),
@@ -160,8 +158,6 @@ class _ButtonsPreview extends StatelessWidget {
           TextButton(onPressed: () {}, child: const Text('Text')),
           const SizedBox(height: 24),
           const Text('Disabled'),
-          const SizedBox(height: 8),
-          const ElevatedButton(onPressed: null, child: Text('Elevated')),
           const SizedBox(height: 8),
           const FilledButton(onPressed: null, child: Text('Filled')),
           const SizedBox(height: 8),

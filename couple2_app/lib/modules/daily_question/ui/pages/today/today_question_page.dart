@@ -82,10 +82,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                   onRetry: viewModel.load,
                 )
               else if (state.errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: AppText(state.errorMessage!),
-                ),
+                MutationErrorBanner(message: state.errorMessage),
               if (question == null && state.errorMessage == null)
                 const EmptyView(
                   message: 'Não foi possível carregar a pergunta.',

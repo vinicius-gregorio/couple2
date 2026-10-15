@@ -71,7 +71,10 @@ class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
       ref.invalidate(todayQuestionProvider);
       return true;
     } catch (error) {
-      state = state.copyWith(isSaving: false, errorMessage: error.toString());
+      state = state.copyWith(
+        isSaving: false,
+        errorMessage: 'Não foi possível enviar a resposta.',
+      );
       return false;
     }
   }

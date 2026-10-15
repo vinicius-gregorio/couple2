@@ -44,7 +44,7 @@ class _NotificationPreferencesPageState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = 'Não foi possível carregar as notificações.';
         _loading = false;
       });
     }
@@ -64,7 +64,7 @@ class _NotificationPreferencesPageState
       if (!mounted) return;
       setState(() {
         _prefs = previous;
-        _error = error.toString();
+        _error = 'Não foi possível salvar as notificações.';
       });
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -100,13 +100,11 @@ class _NotificationPreferencesPageState
             )
           : ListView(
               children: [
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: AppText(_error!),
-                  ),
+                if (_saving)
+                  const LinearProgressIndicator(key: LoadingButton.spinnerKey),
+                MutationErrorBanner(message: _error),
                 SwitchListTile(
-                  title: const Text('Push'),
+                  title: const Text('Alertas'),
                   value: prefs.pushEnabled,
                   onChanged: _saving
                       ? null

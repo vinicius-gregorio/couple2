@@ -84,6 +84,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
       _toast('Dê um título ao date.');

@@ -126,7 +126,7 @@ class PairingCodePage extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 24),
-          ElevatedButton(
+          FilledButton(
             key: const Key('enter-partner-code'),
             onPressed: () => context.push(PairingRoutes.enter),
             child: const Text('Digitar o código do meu par'),

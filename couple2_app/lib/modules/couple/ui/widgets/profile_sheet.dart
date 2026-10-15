@@ -39,6 +39,8 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
+    final previous = _birthDate;
     setState(() {
       _saving = true;
       _error = null;
@@ -52,7 +54,10 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível salvar o aniversário');
+        setState(() {
+          _birthDate = previous;
+          _error = 'Não foi possível salvar o aniversário';
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -89,10 +94,11 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            AppText(_error!),
+            MutationErrorBanner(message: _error),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(
+          LoadingButton(
+            loading: _saving,
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),

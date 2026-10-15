@@ -119,7 +119,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: const AppText('Dates'),
+        title: const AppText('Nossos dates'),
         bottom: TabBar(
           controller: _tabs,
           tabs: const [

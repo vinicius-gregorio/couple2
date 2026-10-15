@@ -12,32 +12,20 @@ TextStyle appTextButtonTextStyle() {
   return appTextStyle(fontWeight: FontWeight.w600, fontSize: 14);
 }
 
+/// Disabled label is 38% of [ColorScheme.onSurface]. The fill is [disabledFill].
 Color disabledForeground(ColorScheme scheme) {
   return scheme.onSurface.withValues(alpha: 0.38);
 }
 
-ElevatedButtonThemeData elevatedButtonTheme(ColorScheme scheme) {
-  return ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: scheme.primary,
-      foregroundColor: scheme.onPrimary,
-      disabledBackgroundColor: scheme.surfaceContainerHighest,
-      disabledForegroundColor: disabledForeground(scheme),
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      minimumSize: const Size(64, 48),
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.largeRadius),
-      textStyle: appButtonTextStyle(),
-    ),
-  );
-}
+/// Gray fill for disabled primary controls. Never a blush or tonal pink.
+const Color disabledFill = Color(0xFFE4DEE1);
 
 FilledButtonThemeData filledButtonTheme(ColorScheme scheme) {
   return FilledButtonThemeData(
     style: FilledButton.styleFrom(
       backgroundColor: scheme.primary,
       foregroundColor: scheme.onPrimary,
-      disabledBackgroundColor: scheme.surfaceContainerHighest,
+      disabledBackgroundColor: disabledFill,
       disabledForegroundColor: disabledForeground(scheme),
       elevation: 0,
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -64,10 +52,7 @@ OutlinedButtonThemeData outlinedButtonTheme(ColorScheme scheme) {
         ).copyWith(
           side: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
-              return BorderSide(
-                color: scheme.onSurface.withValues(alpha: 0.12),
-                width: 1.5,
-              );
+              return const BorderSide(color: disabledFill, width: 1.5);
             }
             return BorderSide(color: scheme.primary, width: 1.5);
           }),
@@ -98,5 +83,36 @@ FloatingActionButtonThemeData floatingActionButtonTheme(ColorScheme scheme) {
     foregroundColor: scheme.onPrimary,
     elevation: 2,
     shape: RoundedRectangleBorder(borderRadius: AppRadius.largeRadius),
+  );
+}
+
+/// Selected chips use the primary fill and white label. Unselected chips stay
+/// transparent with a primary border so they never fall back to a blush fill.
+ChipThemeData appChipTheme(ColorScheme scheme) {
+  return ChipThemeData(
+    backgroundColor: Colors.transparent,
+    disabledColor: disabledFill,
+    selectedColor: scheme.primary,
+    checkmarkColor: scheme.onPrimary,
+    side: BorderSide(color: scheme.primary),
+    labelStyle: TextStyle(
+      color: WidgetStateColor.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return disabledForeground(scheme);
+        }
+        if (states.contains(WidgetState.selected)) return scheme.onPrimary;
+        return scheme.primary;
+      }),
+      fontWeight: FontWeight.w600,
+    ),
+    secondaryLabelStyle: TextStyle(
+      color: scheme.onPrimary,
+      fontWeight: FontWeight.w600,
+    ),
+    color: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) return disabledFill;
+      if (states.contains(WidgetState.selected)) return scheme.primary;
+      return Colors.transparent;
+    }),
   );
 }

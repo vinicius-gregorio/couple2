@@ -15,14 +15,16 @@ void main() {
     expect(scheme.onPrimary, const Color(0xFFFFFFFF));
     expect(scheme.primary.computeLuminance(), lessThan(0.2));
 
-    final enabled = lightTheme.elevatedButtonTheme.style!.backgroundColor!
+    final enabled = lightTheme.filledButtonTheme.style!.backgroundColor!
         .resolve(const <WidgetState>{});
-    final disabled = lightTheme.elevatedButtonTheme.style!.backgroundColor!
+    final disabled = lightTheme.filledButtonTheme.style!.backgroundColor!
         .resolve(const <WidgetState>{WidgetState.disabled});
-    final enabledLabel = lightTheme.elevatedButtonTheme.style!.foregroundColor!
+    final enabledLabel = lightTheme.filledButtonTheme.style!.foregroundColor!
         .resolve(const <WidgetState>{});
-    final disabledLabel = lightTheme.elevatedButtonTheme.style!.foregroundColor!
+    final disabledLabel = lightTheme.filledButtonTheme.style!.foregroundColor!
         .resolve(const <WidgetState>{WidgetState.disabled});
+    expect(disabled, const Color(0xFFE4DEE1));
+    expect(disabledLabel, scheme.onSurface.withValues(alpha: 0.38));
 
     expect(enabled, scheme.primary);
     expect(enabledLabel, scheme.onPrimary);

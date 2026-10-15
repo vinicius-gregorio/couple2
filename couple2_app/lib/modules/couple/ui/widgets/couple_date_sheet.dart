@@ -33,7 +33,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
   void initState() {
     super.initState();
     _title = TextEditingController(text: widget.existing?.title ?? '');
-    _date = parseDateOnly(widget.existing?.date);
+    _date = parseDateOnly(widget.existing?.date) ?? DateTime.now();
     _recurrence = widget.existing?.recurrence ?? 'YEARLY';
     _title.addListener(_onTitleChanged);
   }
@@ -98,7 +98,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
           ),
           const SizedBox(height: 8),
           const AppText(
-            'Datas recorrentes do casal. Conquistas continuam na lista Milestones.',
+            'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),
           const SizedBox(height: 16),
           TextField(
