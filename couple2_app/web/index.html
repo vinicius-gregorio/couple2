@@ -29,12 +29,6 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- Plus Jakarta Sans files google_fonts fetches (400, 600, 700). -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/80501e2c94323d8b8d48b29bc73aa042539f0a6e62c3afe318980de7b7b19267.ttf">
-  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/ba0432c50b99a58d041dc19291e1ff0a3c0e17fa254fe58510a96248426718d6.ttf">
-  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/dbf8d18a2d1c11f9b68005f52aaefe3974273175b1048047d662a13858c1e9e6.ttf">
-
   <title>couple2_app</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -59,9 +53,8 @@
       height: 72px;
       border-radius: 24px;
       background: #9D174D;
-      color: #FFFFFF;
-      font: 700 36px/72px sans-serif;
-      text-align: center;
+      padding: 16px;
+      box-sizing: border-box;
     }
     #flutter-splash .spinner {
       width: 36px;
@@ -77,18 +70,17 @@
   </style>
 </head>
 <body>
+  <!--
+    Heart and spinner are inline, so they paint before any font or network
+    asset. Dart removes the splash after the login frame is ready. Waiting
+    on the font only delays that removal.
+  -->
   <div id="flutter-splash" aria-label="Carregando">
-    <div class="mark">♥</div>
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#FFFFFF" d="M12 21s-6.7-4.4-9.3-8.2C.7 10.2 1.1 6.5 4.2 5 6.3 4 8.5 4.5 12 8.1 15.5 4.5 17.7 4 19.8 5c3.1 1.5 3.5 5.2 1.5 7.8C18.7 16.6 12 21 12 21z"/>
+    </svg>
     <div class="spinner"></div>
   </div>
-  <script>
-    // Dart removes #flutter-splash after the login font and Google mark are
-    // ready. This timeout is the backstop if that never happens.
-    setTimeout(function () {
-      var splash = document.getElementById('flutter-splash');
-      if (splash) splash.remove();
-    }, 4000);
-  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

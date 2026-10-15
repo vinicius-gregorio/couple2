@@ -50,7 +50,12 @@ void main() {
   test('popup failure keeps the Firebase error code', () async {
     await expectLater(
       signInWithGoogleOnWeb(
-        signInWithRedirect: () async => throw Exception('redirect down'),
+        signInWithRedirect: () async {
+          throw FirebaseAuthException(
+            code: 'operation-not-supported-in-this-environment',
+            message: 'Redirect is not available.',
+          );
+        },
         signInWithPopup: () async {
           throw FirebaseAuthException(
             code: 'popup-blocked',
@@ -69,26 +74,29 @@ void main() {
     );
   });
 
-  test('redirect Firebase code is kept when popup has none', () async {
+  test('a createAuthUri failure does not start a popup', () async {
+    var popupCalled = false;
+
     await expectLater(
       signInWithGoogleOnWeb(
         signInWithRedirect: () async {
           throw FirebaseAuthException(
-            code: 'unauthorized-domain',
-            message: 'Domain is not authorized.',
+            code: 'network-request-failed',
+            message: 'createAuthUri failed',
           );
         },
-        signInWithPopup: () async => throw Exception('popup failed'),
+        signInWithPopup: () async => popupCalled = true,
         hasCurrentUser: () => false,
       ),
       throwsA(
         isA<FirebaseAuthException>().having(
           (error) => error.code,
           'code',
-          'unauthorized-domain',
+          'network-request-failed',
         ),
       ),
     );
+    expect(popupCalled, isFalse);
   });
 
   test('redirect result with a user exchanges the ID token', () async {
@@ -178,48 +186,70 @@ void main() {
     expect(reported, isFalse);
   });
 
-  test('null redirect result while a redirect is pending cancels login', () async {
-    var logins = 0;
-    var cleared = false;
-
-    final decision = await resolveGoogleRedirect(
-      redirectResultHasUser: () async => false,
-      hasCurrentUser: () => false,
-      pageRestored: false,
-      redirectPending: true,
-      completeLogin: () async => logins++,
-      onCancelled: () => cleared = true,
-    );
-
-    expect(decision, GoogleRedirectResume.cancelled);
-    expect(logins, 0);
-    expect(cleared, isTrue);
-  });
-
-  test('restored page with a null redirect result cancels login', () async {
-    var logins = 0;
-
-    final decision = await resolveGoogleRedirect(
-      redirectResultHasUser: () async => false,
-      hasCurrentUser: () => false,
-      pageRestored: true,
-      redirectPending: false,
-      completeLogin: () async => logins++,
-    );
-
-    expect(decision, GoogleRedirectResume.cancelled);
-    expect(logins, 0);
-  });
-
-  test('null redirect result on a normal visit stays idle', () {
+  test('no pending flag means no message', () {
     expect(
       redirectResume(
+        redirectPending: false,
         redirectResultHasUser: false,
         hasCurrentUser: false,
-        pageRestored: false,
-        redirectPending: false,
+        redirectFailed: false,
       ),
       GoogleRedirectResume.idle,
+    );
+    expect(
+      redirectResume(
+        redirectPending: false,
+        redirectResultHasUser: false,
+        hasCurrentUser: false,
+        redirectFailed: true,
+      ),
+      GoogleRedirectResume.idle,
+    );
+  });
+
+  test('flag plus a null redirect result means cancelado', () async {
+    var logins = 0;
+    var settled = false;
+
+    final decision = await resolveGoogleRedirect(
+      probe: () async => const GoogleRedirectProbe(hasUser: false),
+      hasCurrentUser: () => false,
+      redirectPending: true,
+      completeLogin: () async => logins++,
+      onSettled: () => settled = true,
+    );
+
+    expect(decision, GoogleRedirectResume.cancelled);
+    expect(logins, 0);
+    expect(settled, isTrue);
+  });
+
+  test('flag plus a redirect error uses the mapped message', () async {
+    final error = FirebaseAuthException(
+      code: 'network-request-failed',
+      message: 'createAuthUri failed',
+    );
+    var settled = false;
+
+    await expectLater(
+      resolveGoogleRedirect(
+        probe: () async => GoogleRedirectProbe(hasUser: false, error: error),
+        hasCurrentUser: () => false,
+        redirectPending: true,
+        completeLogin: () async {},
+        onSettled: () => settled = true,
+      ),
+      throwsA(same(error)),
+    );
+    expect(settled, isTrue);
+    expect(
+      redirectResume(
+        redirectPending: true,
+        redirectResultHasUser: false,
+        hasCurrentUser: false,
+        redirectFailed: true,
+      ),
+      GoogleRedirectResume.failed,
     );
   });
 
@@ -227,9 +257,8 @@ void main() {
     var logins = 0;
 
     final decision = await resolveGoogleRedirect(
-      redirectResultHasUser: () async => false,
+      probe: () async => const GoogleRedirectProbe(hasUser: false),
       hasCurrentUser: () => true,
-      pageRestored: false,
       redirectPending: false,
       completeLogin: () async => logins++,
     );

@@ -13,55 +13,69 @@ class CancelledGoogleRedirect implements Exception {
 }
 
 /// What to do after [FirebaseAuth.getRedirectResult].
-enum GoogleRedirectResume { complete, cancelled, idle }
+enum GoogleRedirectResume { complete, cancelled, failed, idle }
 
-/// A redirect return with a Firebase user finishes login.
-///
-/// No user while a redirect is in progress, or when the browser restored the
-/// page from the back-forward cache, is a cancelled login. A normal visit
-/// with neither signal stays quiet so the login screen does not say the user
-/// cancelled a sign-in they never started.
-GoogleRedirectResume redirectResume({
-  required bool redirectResultHasUser,
-  required bool hasCurrentUser,
-  required bool pageRestored,
-  required bool redirectPending,
-}) {
-  if (redirectResultHasUser) return GoogleRedirectResume.complete;
-  if (hasCurrentUser) {
-    // Mobile web can leave currentUser set when getRedirectResult is empty.
-    // A restored page that did not start Google keeps that session as-is.
-    if (pageRestored && !redirectPending) return GoogleRedirectResume.idle;
-    return GoogleRedirectResume.complete;
-  }
-  if (pageRestored || redirectPending) return GoogleRedirectResume.cancelled;
-  return GoogleRedirectResume.idle;
+/// Result of reading the redirect, including a thrown [getRedirectResult].
+class GoogleRedirectProbe {
+  const GoogleRedirectProbe({required this.hasUser, this.error});
+
+  final bool hasUser;
+  final Object? error;
 }
 
-/// Applies [redirectResume] and runs [completeLogin] only for a real return.
+/// Decides a Google redirect from the pending-redirect flag only.
+///
+/// No flag means no message, including when the browser restores the page.
+/// The flag plus a null result and no error is a cancel. The flag plus an
+/// error is a failure, so the screen can show the mapped message instead.
+GoogleRedirectResume redirectResume({
+  required bool redirectPending,
+  required bool redirectResultHasUser,
+  required bool hasCurrentUser,
+  required bool redirectFailed,
+}) {
+  if (redirectPending && redirectFailed) return GoogleRedirectResume.failed;
+  if (redirectResultHasUser || hasCurrentUser) {
+    return GoogleRedirectResume.complete;
+  }
+  if (!redirectPending) return GoogleRedirectResume.idle;
+  return GoogleRedirectResume.cancelled;
+}
+
+/// Applies [redirectResume]. [onSettled] runs when the pending flag is consumed.
+///
+/// A failed probe throws [GoogleRedirectProbe.error] after the flag is cleared.
 Future<GoogleRedirectResume> resolveGoogleRedirect({
-  required Future<bool> Function() redirectResultHasUser,
+  required Future<GoogleRedirectProbe> Function() probe,
   required bool Function() hasCurrentUser,
-  required bool pageRestored,
   required bool redirectPending,
   required Future<void> Function() completeLogin,
-  void Function()? onCancelled,
+  void Function()? onSettled,
 }) async {
+  final probed = await probe();
   final decision = redirectResume(
-    redirectResultHasUser: await redirectResultHasUser(),
-    hasCurrentUser: hasCurrentUser(),
-    pageRestored: pageRestored,
     redirectPending: redirectPending,
+    redirectResultHasUser: probed.hasUser,
+    hasCurrentUser: hasCurrentUser(),
+    redirectFailed: probed.error != null,
   );
-  switch (decision) {
-    case GoogleRedirectResume.complete:
-      await completeLogin();
-    case GoogleRedirectResume.cancelled:
-      onCancelled?.call();
-    case GoogleRedirectResume.idle:
-      break;
+  if (decision == GoogleRedirectResume.idle) return decision;
+  onSettled?.call();
+  if (decision == GoogleRedirectResume.failed) {
+    throw probed.error!;
+  }
+  if (decision == GoogleRedirectResume.complete) {
+    await completeLogin();
   }
   return decision;
+}
+
+/// Popup is only for environments where redirect cannot start.
+///
+/// A createAuthUri or network failure must not start a second sign-in.
+bool redirectCanFallBackToPopup(Object error) {
+  return error is FirebaseAuthException &&
+      error.code.trim() == 'operation-not-supported-in-this-environment';
 }
 
 /// A Google redirect that failed before Flutter could show UI.
@@ -97,6 +111,7 @@ Future<void> signInWithGoogleOnWeb({
   try {
     await signInWithRedirect();
   } catch (redirectError) {
+    if (!redirectCanFallBackToPopup(redirectError)) rethrow;
     try {
       await signInWithPopup();
     } catch (popupError) {

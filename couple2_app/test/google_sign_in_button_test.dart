@@ -239,10 +239,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text(message), findsWidgets);
+    expect(find.text(message), findsOneWidget);
     expect(find.textContaining('Popup blocked'), findsNothing);
     expect(find.textContaining('popup-blocked'), findsNothing);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
   });
 
@@ -287,9 +287,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Login cancelado'), findsWidgets);
+    expect(find.text('Login cancelado'), findsOneWidget);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('a startup redirect error is visible', (tester) async {
@@ -312,9 +312,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Não foi possível entrar. Tente de novo.'), findsWidgets);
+    expect(find.text('Não foi possível entrar. Tente de novo.'), findsOneWidget);
     expect(find.textContaining('Storage is blocked'), findsNothing);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 }
 
@@ -358,8 +358,6 @@ class _ScriptedAuthRepository implements IAuthRepository {
   void publishLoggedIn(bool loggedIn) => authStateNotifier.publish(loggedIn);
 
   @override
-  Future<GoogleRedirectResume> resumeGoogleRedirect({
-    required bool pageRestored,
-    bool googleLoading = false,
-  }) async => GoogleRedirectResume.idle;
+  Future<GoogleRedirectResume> resumeGoogleRedirect() async =>
+      GoogleRedirectResume.idle;
 }

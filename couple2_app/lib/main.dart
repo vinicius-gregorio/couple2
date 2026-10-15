@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,8 @@ void main() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
+  // Plus Jakarta Sans ships in assets/fonts. Do not fetch fonts.gstatic.com.
+  GoogleFonts.config.allowRuntimeFetching = false;
   await bootstrap();
   if (canRegisterPush) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

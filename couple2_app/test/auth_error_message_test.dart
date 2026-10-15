@@ -38,6 +38,18 @@ void main() {
     );
   });
 
+  test('a redirect failure is not called cancelado', () {
+    final message = formatAuthError(
+      FirebaseAuthException(
+        code: 'network-request-failed',
+        message: 'createAuthUri failed',
+      ),
+    );
+
+    expect(message, 'Sem conexão. Verifique a internet e tente de novo.');
+    expect(message, isNot('Login cancelado'));
+  });
+
   test('a cancelled Google redirect clears the spinner', () {
     const spinning = AuthState(googleLoading: true);
     final next = applyGoogleRedirectResume(

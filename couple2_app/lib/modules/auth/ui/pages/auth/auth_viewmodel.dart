@@ -100,6 +100,8 @@ AuthState applyGoogleRedirectResume(
         googleLoading: false,
         errorMessage: 'Login cancelado',
       );
+    case GoogleRedirectResume.failed:
+      return state.copyWith(googleLoading: false);
     case GoogleRedirectResume.idle:
       return state;
   }
@@ -132,11 +134,11 @@ class AuthViewModel extends Notifier<AuthState> {
 
   Future<void> _onPageRestored() async {
     try {
-      final resume = await _authRepository.resumeGoogleRedirect(
-        pageRestored: true,
-        googleLoading: state.googleLoading,
-      );
-      state = applyGoogleRedirectResume(state, resume);
+      final resume = await _authRepository.resumeGoogleRedirect();
+      final next = applyGoogleRedirectResume(state, resume);
+      state = resume == GoogleRedirectResume.idle && state.googleLoading
+          ? next.copyWith(googleLoading: false)
+          : next;
     } catch (error) {
       state = state.copyWith(
         googleLoading: false,

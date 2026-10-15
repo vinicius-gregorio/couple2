@@ -30,14 +30,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
 
-    ref.listen(authViewModelProvider, (previous, next) {
-      final message = next.errorMessage;
-      if (message == null || message == previous?.errorMessage) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    });
-
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
