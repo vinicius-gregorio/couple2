@@ -38,6 +38,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       );
     });
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
       appBar: AppBar(title: const AppText('Login')),
       body: Padding(
@@ -47,17 +49,19 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.favorite, size: 80, color: Colors.pink),
+              Icon(Icons.favorite, size: 80, color: scheme.primary),
               const SizedBox(height: 24),
-              const AppText(
+              AppText(
                 'Couple App',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const AppText(
+              AppText(
                 'Conecte-se com seu parceiro',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -75,13 +79,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: scheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
+                    border: Border.all(color: scheme.error),
                   ),
                   child: AppText(
                     authState.errorMessage!,
-                    style: TextStyle(color: Colors.red.shade900),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onErrorContainer,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),

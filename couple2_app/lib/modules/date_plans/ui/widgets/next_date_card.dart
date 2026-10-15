@@ -16,30 +16,11 @@ class NextDateCard extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return next.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        child: LinearProgressIndicator(),
-      ),
-      error: (_, __) => Card(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppText('Próximo date', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 8),
-              const AppText('Não consegui carregar os dates.'),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: () => ref.invalidate(nextDateProvider),
-                  child: const Text('Tentar de novo'),
-                ),
-              ),
-            ],
-          ),
-        ),
+      loading: () => const CardSkeleton(lines: 2),
+      error: (_, __) => ErrorView(
+        message: 'Não consegui carregar os dates.',
+        compact: true,
+        onRetry: () => ref.invalidate(nextDateProvider),
       ),
       data: (plan) {
         if (plan == null) {

@@ -118,7 +118,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
             },
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+          LoadingButton(
             onPressed: _submit,
             child: Text(editing ? 'Salvar' : 'Adicionar'),
           ),

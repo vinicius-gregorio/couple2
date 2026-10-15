@@ -79,14 +79,10 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
     final theme = Theme.of(context);
     final statusAsync = ref.watch(pairingStatusProvider);
     if (statusAsync.isLoading && !statusAsync.hasValue) {
-      return const PairingScaffold(
+      return PairingScaffold(
         step: 2,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ],
+        onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
+        children: const [CardSkeleton(lines: 2)],
       );
     }
 
@@ -128,8 +124,9 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
           AppText(_error!, style: TextStyle(color: theme.colorScheme.error)),
         ],
         const SizedBox(height: 24),
-        ElevatedButton(
+        LoadingButton(
           key: const Key('submit-partner-code'),
+          loading: _submitting,
           onPressed: _submitting ? null : _submit,
           child: Text(_submitting ? 'Enviando...' : 'Enviar pedido'),
         ),

@@ -53,26 +53,22 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
       appBar: AppBar(title: const AppText('Humor')),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: _loading && history == null
-            ? const Center(child: CircularProgressIndicator())
-            : history == null
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  const SizedBox(height: 48),
-                  AppText(
-                    _error == null
-                        ? 'Quando vocês quiserem, os check-ins aparecem aqui.'
-                        : 'Não foi possível carregar o histórico.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              )
-            : _HistoryList(
-                history: history,
-                currentUserId: session?.id,
-                partnerName: session?.partnerName,
-              ),
+        child: AsyncBody(
+          isLoading: _loading,
+          hasData: history != null && history.items.isNotEmpty,
+          error: _error,
+          errorMessage: 'Não foi possível carregar o histórico.',
+          onRetry: _load,
+          isEmpty: history == null || history.items.isEmpty,
+          emptyMessage: 'Quando vocês quiserem, os check-ins aparecem aqui.',
+          child: history == null
+              ? const SizedBox.shrink()
+              : _HistoryList(
+                  history: history,
+                  currentUserId: session?.id,
+                  partnerName: session?.partnerName,
+                ),
+        ),
       ),
     );
   }

@@ -196,32 +196,20 @@ class _DateList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading && items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const ListSkeleton();
     }
     if (error != null && items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppText('Não consegui carregar os dates.'),
-            TextButton(
-              onPressed: onRefresh,
-              child: const Text('Tentar de novo'),
-            ),
-          ],
-        ),
+      return ErrorView(
+        message: 'Não consegui carregar os dates.',
+        onRetry: () {
+          onRefresh();
+        },
       );
     }
     if (items.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            const SizedBox(height: 80),
-            Center(child: AppText(empty)),
-          ],
-        ),
+        child: EmptyView(message: empty),
       );
     }
 
@@ -234,7 +222,9 @@ class _DateList extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           if (index >= items.length) {
-            return TextButton(
+            return LoadingButton(
+              variant: LoadingButtonVariant.text,
+              loading: loading,
               onPressed: loading ? null : onMore,
               child: const Text('Carregar mais'),
             );

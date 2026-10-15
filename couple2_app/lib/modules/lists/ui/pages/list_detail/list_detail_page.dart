@@ -40,7 +40,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     }
   }
 
-  void _addItem(PartnerList list) {
+  Future<void> _addItem(PartnerList list) async {
     final content = _controller.text.trim();
     if (content.isEmpty) return;
 
@@ -61,7 +61,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       metadata = draft.metadata;
     }
 
-    ref
+    await ref
         .read(listsViewModelProvider.notifier)
         .addItem(list.id, content, metadata);
     _controller.clear();
@@ -78,10 +78,27 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final state = ref.watch(listsViewModelProvider);
     final list = _getList(state);
 
+    if (list == null && state.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const AppText('Lista')),
+        body: const ListSkeleton(),
+      );
+    }
+
+    if (list == null && state.errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: ErrorView(
+          message: 'Não foi possível carregar a lista.',
+          onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+        ),
+      );
+    }
+
     if (list == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: AppText('List not found')),
+        body: const EmptyView(message: 'List not found'),
       );
     }
 
@@ -93,7 +110,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
             const ListTile(dense: true, title: Text('🔒 Só você vê')),
           Expanded(
             child: list.items.isEmpty
-                ? const Center(child: AppText('No items yet.'))
+                ? const EmptyView(message: 'No items yet.')
                 : ListView.builder(
                     itemCount: list.items.length,
                     itemBuilder: (context, index) {
@@ -142,10 +159,13 @@ class _ItemTile extends ConsumerWidget {
       key: Key(item.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(
+          Icons.delete,
+          color: Theme.of(context).colorScheme.onError,
+        ),
       ),
       onDismissed: (_) => vm.deleteItem(listId, item.id),
       child: ListTile(
@@ -269,7 +289,7 @@ class _AddItemBar extends StatelessWidget {
   final bool bought;
   final ValueChanged<String?> onOccasion;
   final ValueChanged<bool> onBought;
-  final VoidCallback onAdd;
+  final Future<void> Function() onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +313,6 @@ class _AddItemBar extends StatelessWidget {
                 ),
                 decoration: const InputDecoration(
                   hintText: 'Preço (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -303,7 +322,6 @@ class _AddItemBar extends StatelessWidget {
                 keyboardType: TextInputType.url,
                 decoration: const InputDecoration(
                   hintText: 'Link (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -313,7 +331,6 @@ class _AddItemBar extends StatelessWidget {
                 initialValue: occasion,
                 decoration: const InputDecoration(
                   labelText: 'Ocasião (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
                 items: [
@@ -343,14 +360,14 @@ class _AddItemBar extends StatelessWidget {
                     controller: controller,
                     decoration: const InputDecoration(
                       hintText: 'Add item...',
-                      border: OutlineInputBorder(),
                       isDense: true,
                     ),
                     onSubmitted: (_) => onAdd(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(
+                LoadingIconButton(
+                  tooltip: 'Adicionar',
                   onPressed: onAdd,
                   icon: const Icon(Icons.add),
                 ),

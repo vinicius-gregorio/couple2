@@ -219,7 +219,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   Widget build(BuildContext context) {
     final plan = _plan;
     if (_loading && plan == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: ListSkeleton(rows: 4));
     }
     if (plan == null) {
       final missing =
@@ -227,11 +227,12 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
           (_error! as CPLHttpException).response?.statusCode == 404;
       return Scaffold(
         appBar: AppBar(),
-        body: Center(
-          child: AppText(
-            missing ? 'Date não encontrado' : 'Não consegui carregar o date.',
-          ),
-        ),
+        body: missing
+            ? const EmptyView(message: 'Date não encontrado')
+            : ErrorView(
+                message: 'Não consegui carregar o date.',
+                onRetry: _load,
+              ),
       );
     }
 
@@ -310,43 +311,55 @@ class _Actions extends StatelessWidget {
   final DatePlan plan;
   final String me;
   final bool busy;
-  final VoidCallback onAccept;
-  final VoidCallback onDecline;
-  final VoidCallback onCounter;
-  final VoidCallback onEdit;
-  final VoidCallback onCancel;
-  final VoidCallback onDone;
+  final Future<void> Function() onAccept;
+  final Future<void> Function() onDecline;
+  final Future<void> Function() onCounter;
+  final Future<void> Function() onEdit;
+  final Future<void> Function() onCancel;
+  final Future<void> Function() onDone;
 
   @override
   Widget build(BuildContext context) {
     final buttons = <Widget>[
       if (plan.canAccept(me))
-        FilledButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.filled,
+          loading: busy,
           onPressed: busy ? null : onAccept,
           child: const Text('Aceitar'),
         ),
       if (plan.canDecline(me))
-        OutlinedButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.outlined,
+          loading: busy,
           onPressed: busy ? null : onDecline,
           child: const Text('Recusar'),
         ),
       if (plan.canCounter(me))
-        TextButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.text,
+          loading: busy,
           onPressed: busy ? null : onCounter,
           child: const Text('Sugerir outro horário'),
         ),
       if (plan.canEdit(me))
-        FilledButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.filled,
+          loading: busy,
           onPressed: busy ? null : onEdit,
           child: const Text('Editar'),
         ),
       if (plan.canCancel(me))
-        OutlinedButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.outlined,
+          loading: busy,
           onPressed: busy ? null : onCancel,
           child: const Text('Cancelar'),
         ),
       if (plan.canDone(me))
-        FilledButton(
+        LoadingButton(
+          variant: LoadingButtonVariant.filled,
+          loading: busy,
           onPressed: busy ? null : onDone,
           child: const Text('Marcar como feito'),
         ),

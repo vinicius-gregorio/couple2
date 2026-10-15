@@ -30,19 +30,30 @@ class FeedPreview extends ConsumerWidget {
               onTap: onOpen,
             ),
             preview.when(
+              skipLoadingOnReload: true,
               loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Shimmer(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonBox(height: 14),
+                      SizedBox(height: 10),
+                      SkeletonBox(height: 14, width: 180),
+                    ],
+                  ),
+                ),
               ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: AppText('Não foi possível carregar o feed'),
+              error: (error, _) => ErrorView(
+                message: 'Não foi possível carregar o feed',
+                compact: true,
+                onRetry: () => ref.invalidate(feedPreviewProvider),
               ),
               data: (items) {
                 if (items.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: AppText('Nada por aqui ainda.'),
+                  return const EmptyView(
+                    message: 'Nada por aqui ainda.',
+                    compact: true,
                   );
                 }
                 return Column(

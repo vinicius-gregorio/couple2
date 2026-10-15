@@ -69,7 +69,7 @@ class HomePage extends ConsumerWidget {
       body: sessionAsync.when(
         data: (session) {
           if (session == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton(rows: 4);
           }
 
           if (sessionNeedsPairing(session)) {
@@ -124,13 +124,11 @@ class HomePage extends ConsumerWidget {
                         onOpenDates: () => context.push(CoupleRoutes.dates),
                       );
                     },
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                    error: (error, _) => Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: AppText('Erro ao carregar o casal: $error'),
+                    loading: () => const CardSkeleton(),
+                    error: (error, _) => ErrorView(
+                      message: 'Erro ao carregar o casal',
+                      compact: true,
+                      onRetry: () => ref.invalidate(coupleProvider),
                     ),
                   ),
                 if (session.coupleId != null) ...[
@@ -155,9 +153,11 @@ class HomePage extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: AppText('Erro ao carregar usuário: $error')),
+        loading: () => const ListSkeleton(rows: 4),
+        error: (error, _) => ErrorView(
+          message: 'Erro ao carregar usuário',
+          onRetry: () => ref.read(sessionProvider.notifier).refresh(),
+        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../modules/mood/data/mood_providers.dart';
 import '../modules/notifications/push_service.dart';
 import '../modules/notifications/push_service_provider.dart';
 import 'routing/router.dart';
+import 'routing/session_redirect.dart';
 import 'session_provider.dart';
 export 'bootstrap.dart';
 
@@ -100,6 +101,8 @@ class _CoupleAppState extends ConsumerState<CoupleApp>
     });
 
     final router = ref.watch(routerProvider);
+    final gate = ref.watch(authGateProvider);
+    final session = ref.watch(sessionProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -108,6 +111,23 @@ class _CoupleAppState extends ConsumerState<CoupleApp>
       darkTheme: darkTheme,
       themeMode: ThemeMode.light,
       routerConfig: router,
+      builder: (context, child) {
+        return ListenableBuilder(
+          listenable: gate,
+          builder: (context, _) {
+            final booting = showSessionSplash(
+              loggedIn: gate.loggedIn,
+              session: session,
+            );
+            return Stack(
+              children: [
+                if (child != null) child,
+                if (booting) const SessionSplash(),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -81,66 +81,29 @@ class _ListsPageState extends ConsumerState<ListsPage>
   }
 
   Widget _buildBody(BuildContext context, ListsState state) {
-    if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     if (state.needsPairing) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppText(
-                'Você precisa estar pareado para ver as listas.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () async {
-                  await ref.read(sessionProvider.notifier).refresh();
-                  if (!context.mounted) return;
-                  context.go(PairingRoutes.hub);
-                },
-                child: const Text('Ir para o pareamento'),
-              ),
-            ],
-          ),
+      return EmptyView(
+        message: 'Você precisa estar pareado para ver as listas.',
+        action: LoadingButton(
+          onPressed: () async {
+            await ref.read(sessionProvider.notifier).refresh();
+            if (!context.mounted) return;
+            context.go(PairingRoutes.hub);
+          },
+          child: const Text('Ir para o pareamento'),
         ),
       );
     }
 
-    if (state.errorMessage != null) {
-      return Center(child: AppText('Error: ${state.errorMessage}'));
-    }
-
-    if (state.lists.isEmpty) {
-      return const Center(child: AppText('No lists yet. Create one!'));
-    }
-
-    final privateLists = state.lists
-        .where((list) => list.visibility == 'PRIVATE_FROM_PARTNER')
-        .toList();
-    final sharedLists = state.lists
-        .where((list) => list.visibility != 'PRIVATE_FROM_PARTNER')
-        .toList();
-
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        for (final list in sharedLists) _ListCard(list: list),
-        if (privateLists.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(4, 12, 4, 8),
-            child: AppText(
-              'Minhas listas privadas',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          for (final list in privateLists) _ListCard(list: list),
-        ],
-      ],
+    return AsyncBody(
+      isLoading: state.isLoading,
+      hasData: state.lists.isNotEmpty,
+      error: state.errorMessage,
+      errorMessage: 'Não foi possível carregar as listas.',
+      onRetry: _refresh,
+      isEmpty: state.lists.isEmpty,
+      emptyMessage: 'No lists yet. Create one!',
+      child: _ListsBody(state: state),
     );
   }
 
@@ -155,11 +118,45 @@ class _ListsPageState extends ConsumerState<ListsPage>
       builder: (ctx) => _CreateListSheet(
         partnerName: partnerName,
         onConfirm: (type, name, visibility) {
-          ref
+          return ref
               .read(listsViewModelProvider.notifier)
               .createList(type, name, visibility: visibility);
         },
       ),
+    );
+  }
+}
+
+class _ListsBody extends StatelessWidget {
+  const _ListsBody({required this.state});
+
+  final ListsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final privateLists = state.lists
+        .where((list) => list.visibility == 'PRIVATE_FROM_PARTNER')
+        .toList();
+    final sharedLists = state.lists
+        .where((list) => list.visibility != 'PRIVATE_FROM_PARTNER')
+        .toList();
+    final theme = Theme.of(context);
+
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final list in sharedLists) _ListCard(list: list),
+        if (privateLists.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+            child: AppText(
+              'Minhas listas privadas',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          for (final list in privateLists) _ListCard(list: list),
+        ],
+      ],
     );
   }
 }
@@ -191,7 +188,8 @@ class _ListCard extends ConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
+            LoadingIconButton(
+              tooltip: 'Excluir lista',
               icon: const Icon(Icons.delete_outline),
               onPressed: () =>
                   ref.read(listsViewModelProvider.notifier).deleteList(list.id),
@@ -214,7 +212,8 @@ class _ListCard extends ConsumerWidget {
 class _CreateListSheet extends StatefulWidget {
   const _CreateListSheet({required this.onConfirm, required this.partnerName});
 
-  final void Function(String type, String name, String? visibility) onConfirm;
+  final Future<bool> Function(String type, String name, String? visibility)
+  onConfirm;
   final String? partnerName;
 
   @override
@@ -252,9 +251,9 @@ class _CreateListSheetState extends State<_CreateListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppText(
+          AppText(
             'New List',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
@@ -292,15 +291,19 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             ),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
+          LoadingButton(
+            onPressed: () async {
               final name = _nameController.text.trim();
               if (name.isEmpty) return;
               final visibility = isGift
                   ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
                   : null;
-              widget.onConfirm(_selectedType, name, visibility);
-              Navigator.of(context).pop();
+              final created = await widget.onConfirm(
+                _selectedType,
+                name,
+                visibility,
+              );
+              if (created && context.mounted) Navigator.of(context).pop();
             },
             child: const Text('Create'),
           ),

@@ -18,6 +18,7 @@ class _NotificationPreferencesPageState
   NotificationPreferences? _prefs;
   String? _error;
   bool _loading = true;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -48,7 +49,9 @@ class _NotificationPreferencesPageState
   }
 
   Future<void> _patch(Map<String, dynamic> patch) async {
+    if (_saving) return;
     final previous = _prefs;
+    setState(() => _saving = true);
     try {
       final next = await ref
           .read(notificationsRepositoryProvider)
@@ -61,6 +64,8 @@ class _NotificationPreferencesPageState
         _prefs = previous;
         _error = error.toString();
       });
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -85,10 +90,13 @@ class _NotificationPreferencesPageState
     final prefs = _prefs;
     return Scaffold(
       appBar: AppBar(title: const AppText('Notificações')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
+      body: _loading && prefs == null
+          ? const FormSkeleton()
           : prefs == null
-              ? Center(child: AppText(_error ?? 'Não foi possível carregar'))
+              ? ErrorView(
+                  message: _error ?? 'Não foi possível carregar',
+                  onRetry: _load,
+                )
               : ListView(
                   children: [
                     if (_error != null)
@@ -99,37 +107,39 @@ class _NotificationPreferencesPageState
                     SwitchListTile(
                       title: const Text('Push'),
                       value: prefs.pushEnabled,
-                      onChanged: (value) => _patch({'pushEnabled': value}),
+                      onChanged: _saving
+                          ? null
+                          : (value) => _patch({'pushEnabled': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Listas'),
                       value: prefs.lists,
-                      onChanged: (value) => _patch({'lists': value}),
+                      onChanged: _saving ? null : (value) => _patch({'lists': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Datas importantes'),
                       value: prefs.importantDates,
-                      onChanged: (value) => _patch({'importantDates': value}),
+                      onChanged: _saving ? null : (value) => _patch({'importantDates': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Pergunta do dia'),
                       value: prefs.dailyQuestion,
-                      onChanged: (value) => _patch({'dailyQuestion': value}),
+                      onChanged: _saving ? null : (value) => _patch({'dailyQuestion': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Humor'),
                       value: prefs.mood,
-                      onChanged: (value) => _patch({'mood': value}),
+                      onChanged: _saving ? null : (value) => _patch({'mood': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Carinhos'),
                       value: prefs.nudges,
-                      onChanged: (value) => _patch({'nudges': value}),
+                      onChanged: _saving ? null : (value) => _patch({'nudges': value}),
                     ),
                     SwitchListTile(
                       title: const Text('Planos de date'),
                       value: prefs.datePlans,
-                      onChanged: (value) => _patch({'datePlans': value}),
+                      onChanged: _saving ? null : (value) => _patch({'datePlans': value}),
                     ),
                     const Divider(),
                     ListTile(
@@ -139,7 +149,7 @@ class _NotificationPreferencesPageState
                             ? 'Desligado'
                             : formatQuietMinutes(prefs.quietStartMin!),
                       ),
-                      onTap: () => _pickQuiet(start: true),
+                      onTap: _saving ? null : () => _pickQuiet(start: true),
                     ),
                     ListTile(
                       title: const Text('Silêncio termina'),
@@ -148,14 +158,18 @@ class _NotificationPreferencesPageState
                             ? 'Desligado'
                             : formatQuietMinutes(prefs.quietEndMin!),
                       ),
-                      onTap: () => _pickQuiet(start: false),
+                      onTap: _saving ? null : () => _pickQuiet(start: false),
                     ),
                     if (prefs.quietStartMin != null || prefs.quietEndMin != null)
-                      TextButton(
-                        onPressed: () => _patch({
-                          'quietStartMin': null,
-                          'quietEndMin': null,
-                        }),
+                      LoadingButton(
+                        variant: LoadingButtonVariant.text,
+                        loading: _saving,
+                        onPressed: _saving
+                            ? null
+                            : () => _patch({
+                                'quietStartMin': null,
+                                'quietEndMin': null,
+                              }),
                         child: const Text('Limpar horário de silêncio'),
                       ),
                   ],

@@ -129,7 +129,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
                   : 'Pareados com $partnerName. Abrindo a Home…',
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
+            LoadingButton(
               onPressed: _refresh,
               child: const Text('Ir para a Home'),
             ),
@@ -139,8 +139,10 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
             AppText(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ],
           const SizedBox(height: 24),
-          OutlinedButton(
+          LoadingButton(
             key: const Key('cancel-pairing-request'),
+            variant: LoadingButtonVariant.outlined,
+            loading: _cancelling,
             onPressed: _cancelling ? null : _cancel,
             child: Text(_cancelling ? 'Cancelando...' : 'Cancelar pedido'),
           ),

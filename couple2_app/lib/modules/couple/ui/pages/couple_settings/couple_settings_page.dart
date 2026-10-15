@@ -119,6 +119,22 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
         coupleAsync.asData!.value!.timezone,
     }.toList();
 
+    if (coupleAsync.isLoading && !coupleAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(title: const AppText('Nosso começo')),
+        body: const FormSkeleton(),
+      );
+    }
+    if (coupleAsync.hasError && !coupleAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(title: const AppText('Nosso começo')),
+        body: ErrorView(
+          message: 'Não foi possível carregar o casal.',
+          onRetry: () => ref.invalidate(coupleProvider),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const AppText('Nosso começo')),
       body: ListView(
@@ -149,9 +165,16 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          if (_error != null) ...[const SizedBox(height: 12), AppText(_error!)],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            AppText(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
           const SizedBox(height: 24),
-          ElevatedButton(
+          LoadingButton(
+            loading: _saving,
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),

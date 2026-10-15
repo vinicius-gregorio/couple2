@@ -151,10 +151,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
           TextField(
             controller: _title,
             maxLength: 80,
-            decoration: const InputDecoration(
-              labelText: 'Título',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Título'),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -168,10 +165,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
           TextField(
             controller: _location,
             maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'Local (opcional)',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Local (opcional)'),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -181,11 +175,12 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
             maxLines: 6,
             decoration: const InputDecoration(
               labelText: 'Descrição (opcional)',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          LoadingButton(
+            variant: LoadingButtonVariant.filled,
+            loading: _saving,
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),

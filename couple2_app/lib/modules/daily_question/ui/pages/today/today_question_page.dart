@@ -60,19 +60,25 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
           padding: const EdgeInsets.all(24),
           children: [
             if (state.isLoading && question == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const CardSkeleton(lines: 4)
             else ...[
-              if (state.errorMessage != null)
+              if (state.errorMessage != null && question == null)
+                ErrorView(
+                  message: 'Não foi possível carregar a pergunta.',
+                  compact: true,
+                  onRetry: viewModel.load,
+                )
+              else if (state.errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: AppText(state.errorMessage!),
                 ),
-              if (question == null)
-                const AppText('Não foi possível carregar a pergunta.')
-              else ...[
+              if (question == null && state.errorMessage == null)
+                const EmptyView(
+                  message: 'Não foi possível carregar a pergunta.',
+                  compact: true,
+                )
+              else if (question != null) ...[
                 AppText(
                   questionCategoryLabel(question.question.category),
                   style: Theme.of(context).textTheme.labelLarge,
@@ -104,14 +110,15 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                     enabled: !state.isSaving,
                     decoration: const InputDecoration(
                       hintText: 'Sua resposta',
-                      border: OutlineInputBorder(),
                       alignLabelWithHint: true,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: FilledButton(
+                    child: LoadingButton(
+                      variant: LoadingButtonVariant.filled,
+                      loading: state.isSaving,
                       onPressed: state.isSaving
                           ? null
                           : () => viewModel.submit(_controller.text),

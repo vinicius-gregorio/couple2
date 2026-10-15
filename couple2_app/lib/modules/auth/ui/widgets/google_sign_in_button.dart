@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 /// On Flutter web the canvas hit test misses [ElevatedButton] taps, and a
 /// [SelectableText] label wins the gesture arena so the press never fires.
 /// This target is one opaque, full-width control. Children cannot take the tap.
+/// Colors come from the app [ColorScheme] so the label stays onPrimary.
 class GoogleSignInButton extends StatelessWidget {
   const GoogleSignInButton({
     super.key,
@@ -17,22 +18,26 @@ class GoogleSignInButton extends StatelessWidget {
   final bool isLoading;
 
   static const loadingIndicatorKey = Key('googleSignInLoading');
-
-  /// Dark rose on white text is about 8:1. The theme pink (#EDBAC7) is not.
-  static const Color backgroundColor = Color(0xFF9D174D);
-  static const Color foregroundColor = Color(0xFFFFFFFF);
-  static const Color borderColor = Color(0xFF4A0A24);
   static const double minHeight = 48;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = isLoading || onPressed != null;
     final enabled = !isLoading && onPressed != null;
+    final background = active ? scheme.primary : scheme.surfaceContainerHighest;
+    final foreground = active
+        ? scheme.onPrimary
+        : scheme.onSurface.withValues(alpha: 0.38);
+    final border = active
+        ? Color.alphaBlend(const Color(0x59000000), scheme.primary)
+        : scheme.outline.withValues(alpha: 0.45);
     return Material(
-      color: backgroundColor,
+      color: background,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: borderColor, width: 2),
+        side: BorderSide(color: border, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
       child: GestureDetector(
@@ -48,12 +53,12 @@ class GoogleSignInButton extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _leading(),
+                    _leading(foreground),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Entrar com Google',
                       style: TextStyle(
-                        color: foregroundColor,
+                        color: foreground,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         height: 1.2,
@@ -69,15 +74,15 @@ class GoogleSignInButton extends StatelessWidget {
     );
   }
 
-  Widget _leading() {
+  Widget _leading(Color foreground) {
     if (isLoading) {
-      return const SizedBox(
+      return SizedBox(
         key: loadingIndicatorKey,
         width: 24,
         height: 24,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: foregroundColor,
+          color: foreground,
         ),
       );
     }
@@ -86,7 +91,7 @@ class GoogleSignInButton extends StatelessWidget {
       width: 24,
       height: 24,
       errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.login, size: 24, color: foregroundColor);
+        return Icon(Icons.login, size: 24, color: foreground);
       },
     );
   }

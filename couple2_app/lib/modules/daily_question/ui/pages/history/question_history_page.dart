@@ -71,9 +71,15 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
       appBar: AppBar(title: const AppText('Histórico')),
       body: RefreshIndicator(
         onRefresh: viewModel.refresh,
-        child: state.isLoading && state.items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : ListView.separated(
+        child: AsyncBody(
+          isLoading: state.isLoading,
+          hasData: state.items.isNotEmpty,
+          error: state.errorMessage,
+          errorMessage: state.errorMessage ?? 'Não foi possível carregar o histórico.',
+          onRetry: viewModel.refresh,
+          isEmpty: state.items.isEmpty,
+          emptyMessage: 'Nenhuma pergunta ainda.',
+          child: ListView.separated(
                 controller: _scroll,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -95,6 +101,7 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
                   );
                 },
               ),
+        ),
       ),
     );
   }
@@ -117,7 +124,7 @@ class _HistoryTile extends StatelessWidget {
   final bool saving;
   final TextEditingController draft;
   final VoidCallback onAnswer;
-  final VoidCallback onSubmit;
+  final Future<void> Function() onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -169,12 +176,13 @@ class _HistoryTile extends StatelessWidget {
                 enabled: !saving,
                 decoration: const InputDecoration(
                   hintText: 'Sua resposta',
-                  border: OutlineInputBorder(),
                 ),
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: FilledButton(
+                child: LoadingButton(
+                  variant: LoadingButtonVariant.filled,
+                  loading: saving,
                   onPressed: saving ? null : onSubmit,
                   child: Text(showAnswer ? 'Enviar' : 'Editar'),
                 ),
@@ -196,20 +204,10 @@ class _HistoryFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (state.errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: AppText(state.errorMessage!),
-          ),
-        if (state.items.isEmpty && state.errorMessage == null)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: AppText('Nenhuma pergunta ainda.'),
-          ),
         if (state.isLoadingMore)
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
+            child: Shimmer(child: SkeletonBox(height: 48, radius: 12)),
           )
         else
           const SizedBox(height: 24),

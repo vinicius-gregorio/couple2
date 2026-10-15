@@ -114,12 +114,24 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
       appBar: AppBar(title: const AppText('Carinhos')),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: _loading && _items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
+        child: AsyncBody(
+          isLoading: _loading,
+          hasData: _items.isNotEmpty,
+          error: _error,
+          errorMessage: 'Não foi possível carregar os carinhos.',
+          onRetry: _refresh,
+          isEmpty: _items.isEmpty,
+          emptyMessage: 'Os carinhos que você receber aparecem aqui.',
+          child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
+                  if (_error != null)
+                    ErrorView(
+                      message: 'Não foi possível atualizar os carinhos.',
+                      compact: true,
+                      onRetry: _refresh,
+                    ),
                   if (_celebrate)
                     ScaleTransition(
                       scale: CurvedAnimation(
@@ -132,24 +144,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
                         style: TextStyle(fontSize: 72),
                       ),
                     ),
-                  if (_error != null && _items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: AppText(
-                        'Não foi possível carregar os carinhos.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else if (_items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: AppText(
-                        'Os carinhos que você receber aparecem aqui.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else
-                    for (final item in _items)
+                  for (final item in _items)
                       ListTile(
                         leading: Text(
                           item.kind.emoji,
@@ -166,12 +161,15 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
                         ),
                       ),
                   if (_cursor != null)
-                    TextButton(
+                    LoadingButton(
+                      variant: LoadingButtonVariant.text,
+                      loading: _loadingMore,
                       onPressed: _loadingMore ? null : _loadMore,
                       child: Text(_loadingMore ? 'Carregando…' : 'Ver mais'),
                     ),
                 ],
               ),
+        ),
       ),
     );
   }

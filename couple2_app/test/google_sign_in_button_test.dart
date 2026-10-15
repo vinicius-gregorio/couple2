@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:couple2_app/core/core.dart';
+import 'package:couple2_app/design_system/design_system.dart';
 import 'package:couple2_app/modules/auth/data/auth_providers.dart';
 import 'package:couple2_app/modules/auth/data/auth_repository.dart';
 import 'package:couple2_app/modules/auth/data/google_web_sign_in.dart';
@@ -115,8 +116,9 @@ void main() {
 
   testWidgets('Google button is a full-width opaque target', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: GoogleSignInButton(onPressed: _noop)),
+      MaterialApp(
+        theme: lightTheme,
+        home: const Scaffold(body: GoogleSignInButton(onPressed: _noop)),
       ),
     );
 
@@ -138,18 +140,15 @@ void main() {
         matching: find.byType(Material),
       ),
     );
-    expect(material.color, GoogleSignInButton.backgroundColor);
+    final scheme = lightColorScheme;
+    expect(material.color, scheme.primary);
     final border = material.shape! as RoundedRectangleBorder;
-    expect(border.side.color, GoogleSignInButton.borderColor);
     expect(border.side.width, 2);
+    expect(scheme.primary.computeLuminance(), lessThan(0.15));
+    expect(scheme.onPrimary, const Color(0xFFFFFFFF));
     expect(
-      GoogleSignInButton.backgroundColor.computeLuminance(),
-      lessThan(0.15),
-    );
-    expect(GoogleSignInButton.foregroundColor, const Color(0xFFFFFFFF));
-    expect(
-      GoogleSignInButton.borderColor.computeLuminance(),
-      lessThan(GoogleSignInButton.backgroundColor.computeLuminance()),
+      border.side.color.computeLuminance(),
+      lessThan(scheme.primary.computeLuminance()),
     );
     expect(find.byType(SelectableText), findsNothing);
   });

@@ -9,13 +9,21 @@ class AppleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.apple, size: 24),
       label: const AppText('Entrar com Apple'),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: enabled
+            ? scheme.inverseSurface
+            : scheme.surfaceContainerHighest,
+        foregroundColor: enabled
+            ? scheme.onInverseSurface
+            : scheme.onSurface.withValues(alpha: 0.38),
+        disabledBackgroundColor: scheme.surfaceContainerHighest,
+        disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         textStyle: const TextStyle(fontSize: 16),
       ),
