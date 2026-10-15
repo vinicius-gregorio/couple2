@@ -50,12 +50,18 @@ class PairingCodePage extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           if (statusAsync.isLoading && shown.code == null)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const CardSkeleton(lines: 2)
           else ...[
-            if (statusAsync.hasError)
+            if (statusAsync.hasError && shown.code == null)
+              ErrorView(
+                message: pairingErrorMessage(
+                  statusAsync.error!,
+                  action: PairingAction.status,
+                ),
+                compact: true,
+                onRetry: () => _reload(ref),
+              )
+            else if (statusAsync.hasError)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: AppText(

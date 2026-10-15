@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../core/core.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
@@ -43,6 +44,11 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
     _location = TextEditingController(text: existing?.location ?? '');
     _description = TextEditingController(text: existing?.description ?? '');
     _when = existing?.scheduledAt.toLocal() ?? _defaultWhen();
+    _title.addListener(_onTitleChanged);
+  }
+
+  void _onTitleChanged() {
+    if (mounted) setState(() {});
   }
 
   DateTime _defaultWhen() {
@@ -52,6 +58,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
 
   @override
   void dispose() {
+    _title.removeListener(_onTitleChanged);
     _title.dispose();
     _location.dispose();
     _description.dispose();
@@ -143,6 +150,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: AppText(_editing ? 'Editar date' : 'Planejar um date'),
       ),
       body: ListView(
@@ -151,10 +159,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
           TextField(
             controller: _title,
             maxLength: 80,
-            decoration: const InputDecoration(
-              labelText: 'Título',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Título'),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -168,10 +173,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
           TextField(
             controller: _location,
             maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'Local (opcional)',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Local (opcional)'),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -181,12 +183,13 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
             maxLines: 6,
             decoration: const InputDecoration(
               labelText: 'Descrição (opcional)',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
+          LoadingButton(
+            variant: LoadingButtonVariant.filled,
+            loading: _saving,
+            onPressed: _saving || _title.text.trim().isEmpty ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),
         ],

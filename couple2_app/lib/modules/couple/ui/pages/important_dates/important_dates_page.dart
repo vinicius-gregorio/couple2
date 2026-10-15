@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/couple_date_sheet.dart';
@@ -132,7 +133,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
     return Scaffold(
-      appBar: AppBar(title: const AppText('Datas importantes')),
+      appBar: AppBar(
+        leading: AppBackButton(),
+        title: AppText('Datas importantes'),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openSheet(),
         child: const Icon(Icons.add),
@@ -179,12 +183,23 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (_error != null) ...[AppText(_error!), const SizedBox(height: 8)],
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
+          if (_loading && _dates.isEmpty && _error == null)
+            const SizedBox(height: 240, child: ListSkeleton(rows: 3))
+          else if (_error != null && _dates.isEmpty)
+            ErrorView(message: _error!, compact: true, onRetry: _load)
           else if (_dates.isEmpty)
-            const AppText('Nenhuma data ainda. Adicione a primeira.')
-          else
+            const EmptyView(
+              message: 'Nenhuma data ainda. Adicione a primeira.',
+              compact: true,
+            )
+          else ...[
+            if (_error != null) ...[
+              AppText(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 8),
+            ],
             ..._dates.map(
               (date) => ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -212,6 +227,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
                 onTap: () => _openSheet(date),
               ),
             ),
+          ],
         ],
       ),
     );

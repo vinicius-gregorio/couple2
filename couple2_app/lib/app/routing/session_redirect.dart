@@ -4,6 +4,17 @@ import '../session.dart';
 import 'auth_redirect.dart';
 import 'pairing_redirect.dart';
 
+/// Cover Home and Login until we know who is signed in and, if they are,
+/// whether the couple session has landed.
+bool showSessionSplash({
+  required bool? loggedIn,
+  required AsyncValue<Session?> session,
+}) {
+  if (loggedIn == null) return true;
+  if (loggedIn != true) return false;
+  return session.isLoading && !session.hasValue && !session.hasError;
+}
+
 /// True once we know whether this login still needs a partner.
 ///
 /// A logged-in flag with a null session means `GET /auth/me` has not landed

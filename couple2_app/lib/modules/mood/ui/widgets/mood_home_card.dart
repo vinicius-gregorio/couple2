@@ -133,13 +133,11 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           ),
         );
       },
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        child: LinearProgressIndicator(),
-      ),
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: AppText('Não foi possível carregar o humor: $error'),
+      loading: () => const CardSkeleton(lines: 2),
+      error: (error, _) => ErrorView(
+        message: 'Não foi possível carregar o humor',
+        compact: true,
+        onRetry: () => ref.invalidate(currentMoodProvider),
       ),
     );
   }
@@ -207,8 +205,14 @@ class _CareButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
+    final background = sending
+        ? color.surfaceContainerHighest
+        : (caring ? color.primary : color.secondaryContainer);
+    final foreground = sending
+        ? color.onSurface.withValues(alpha: 0.38)
+        : (caring ? color.onPrimary : color.onSecondaryContainer);
     return Material(
-      color: caring ? color.primaryContainer : color.surfaceContainerHighest,
+      color: background,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: sending ? null : onTap,
@@ -216,10 +220,28 @@ class _CareButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          child: Text(
-            sending ? 'Enviando…' : '💗 Pensando em você',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (sending) ...[
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: foreground,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Text(
+                sending ? 'Enviando…' : '💗 Pensando em você',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: foreground,
+                ),
+              ),
+            ],
           ),
         ),
       ),

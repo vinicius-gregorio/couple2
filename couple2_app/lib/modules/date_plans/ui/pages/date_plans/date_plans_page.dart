@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -117,6 +118,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const AppText('Dates'),
         bottom: TabBar(
           controller: _tabs,
@@ -196,32 +198,20 @@ class _DateList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading && items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const ListSkeleton();
     }
     if (error != null && items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppText('Não consegui carregar os dates.'),
-            TextButton(
-              onPressed: onRefresh,
-              child: const Text('Tentar de novo'),
-            ),
-          ],
-        ),
+      return ErrorView(
+        message: 'Não consegui carregar os dates.',
+        onRetry: () {
+          onRefresh();
+        },
       );
     }
     if (items.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            const SizedBox(height: 80),
-            Center(child: AppText(empty)),
-          ],
-        ),
+        child: EmptyView(message: empty),
       );
     }
 
@@ -234,7 +224,9 @@ class _DateList extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           if (index >= items.length) {
-            return TextButton(
+            return LoadingButton(
+              variant: LoadingButtonVariant.text,
+              loading: loading,
               onPressed: loading ? null : onMore,
               child: const Text('Carregar mais'),
             );

@@ -1,110 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import 'app_font.dart';
 import 'theme.dart';
 
-/// Light text theme using Plus Jakarta Sans
-TextTheme lightTextTheme() {
-  return GoogleFonts.plusJakartaSansTextTheme().copyWith(
-    displayLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 32,
-      fontWeight: FontWeight.w700,
-      color: AppColors.headlineLight,
-      letterSpacing: -0.5,
-    ),
-    headlineLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 28,
-      fontWeight: FontWeight.w700,
-      color: AppColors.headlineLight,
-      letterSpacing: -0.5,
-    ),
-    headlineMedium: GoogleFonts.plusJakartaSans(
-      fontSize: 24,
-      fontWeight: FontWeight.w700,
-      color: AppColors.headlineLight,
-    ),
-    titleLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-      color: AppColors.headlineLight,
-    ),
-    titleMedium: GoogleFonts.plusJakartaSans(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      color: AppColors.softGray,
-    ),
-    bodyLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      color: AppColors.softGray,
-    ),
-    bodyMedium: GoogleFonts.plusJakartaSans(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      color: AppColors.softGray,
-    ),
-    labelLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: AppColors.softGray,
-    ),
-    labelSmall: GoogleFonts.plusJakartaSans(
-      fontSize: 12,
-      fontWeight: FontWeight.w500,
-      color: const Color(0xFF9CA3AF),
-      letterSpacing: 0.5,
-    ),
-  );
-}
+TextTheme lightTextTheme() => _textTheme(
+  headline: AppColors.headlineLight,
+  body: AppColors.onSurfaceLight,
+  muted: AppColors.onSurfaceVariantLight,
+);
 
-/// Dark text theme using Plus Jakarta Sans
-TextTheme darkTextTheme() {
-  return GoogleFonts.plusJakartaSansTextTheme().copyWith(
-    displayLarge: GoogleFonts.plusJakartaSans(
+TextTheme darkTextTheme() => _textTheme(
+  headline: AppColors.headlineDark,
+  body: AppColors.onSurfaceDark,
+  muted: AppColors.onSurfaceVariantDark,
+);
+
+TextTheme _textTheme({
+  required Color headline,
+  required Color body,
+  required Color muted,
+}) {
+  TextStyle style({
+    required double fontSize,
+    required FontWeight fontWeight,
+    required Color color,
+    double? letterSpacing,
+  }) {
+    return appTextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+    );
+  }
+
+  return TextTheme(
+    displayLarge: style(
       fontSize: 32,
       fontWeight: FontWeight.w700,
-      color: AppColors.headlineDark,
+      color: headline,
       letterSpacing: -0.5,
     ),
-    headlineLarge: GoogleFonts.plusJakartaSans(
+    headlineLarge: style(
       fontSize: 28,
       fontWeight: FontWeight.w700,
-      color: AppColors.headlineDark,
+      color: headline,
       letterSpacing: -0.5,
     ),
-    headlineMedium: GoogleFonts.plusJakartaSans(
+    headlineMedium: style(
       fontSize: 24,
       fontWeight: FontWeight.w700,
-      color: AppColors.headlineDark,
+      color: headline,
     ),
-    titleLarge: GoogleFonts.plusJakartaSans(
+    headlineSmall: style(
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      color: headline,
+    ),
+    titleLarge: style(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      color: AppColors.headlineDark,
+      color: headline,
     ),
-    titleMedium: GoogleFonts.plusJakartaSans(
+    titleMedium: style(
       fontSize: 16,
       fontWeight: FontWeight.w600,
-      color: Colors.grey.shade300,
+      color: body,
     ),
-    bodyLarge: GoogleFonts.plusJakartaSans(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      color: Colors.grey.shade300,
-    ),
-    bodyMedium: GoogleFonts.plusJakartaSans(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      color: Colors.grey.shade300,
-    ),
-    labelLarge: GoogleFonts.plusJakartaSans(
+    titleSmall: style(
       fontSize: 14,
       fontWeight: FontWeight.w600,
-      color: Colors.grey.shade300,
+      color: body,
     ),
-    labelSmall: GoogleFonts.plusJakartaSans(
+    bodyLarge: style(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      color: body,
+    ),
+    bodyMedium: style(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: body,
+    ),
+    bodySmall: style(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: muted,
+    ),
+    labelLarge: style(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: muted,
+    ),
+    labelSmall: style(
       fontSize: 12,
       fontWeight: FontWeight.w500,
-      color: Colors.grey.shade500,
+      color: muted,
       letterSpacing: 0.5,
     ),
   );

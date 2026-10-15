@@ -99,7 +99,9 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
           ),
           if (_error != null) ...[const SizedBox(height: 8), AppText(_error!)],
           const SizedBox(height: 12),
-          FilledButton(
+          LoadingButton(
+            variant: LoadingButtonVariant.filled,
+            loading: _saving,
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Guardando…' : 'Compartilhar'),
           ),
@@ -134,7 +136,7 @@ class _EmojiChoice extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: selected ? color.primaryContainer : Colors.transparent,
+            color: selected ? color.primaryContainer : color.surface.withValues(alpha: 0),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(level.emoji, style: const TextStyle(fontSize: 36)),

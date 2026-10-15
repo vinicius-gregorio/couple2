@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -20,7 +21,18 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
   String? _filledFor;
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onAnswerChanged);
+  }
+
+  void _onAnswerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _controller.removeListener(_onAnswerChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -44,6 +56,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const AppText('Pergunta do dia'),
         actions: [
           IconButton(
@@ -60,19 +73,25 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
           padding: const EdgeInsets.all(24),
           children: [
             if (state.isLoading && question == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const CardSkeleton(lines: 4)
             else ...[
-              if (state.errorMessage != null)
+              if (state.errorMessage != null && question == null)
+                ErrorView(
+                  message: 'Não foi possível carregar a pergunta.',
+                  compact: true,
+                  onRetry: viewModel.load,
+                )
+              else if (state.errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: AppText(state.errorMessage!),
                 ),
-              if (question == null)
-                const AppText('Não foi possível carregar a pergunta.')
-              else ...[
+              if (question == null && state.errorMessage == null)
+                const EmptyView(
+                  message: 'Não foi possível carregar a pergunta.',
+                  compact: true,
+                )
+              else if (question != null) ...[
                 AppText(
                   questionCategoryLabel(question.question.category),
                   style: Theme.of(context).textTheme.labelLarge,
@@ -104,15 +123,17 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                     enabled: !state.isSaving,
                     decoration: const InputDecoration(
                       hintText: 'Sua resposta',
-                      border: OutlineInputBorder(),
                       alignLabelWithHint: true,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: state.isSaving
+                    child: LoadingButton(
+                      variant: LoadingButtonVariant.filled,
+                      loading: state.isSaving,
+                      onPressed:
+                          state.isSaving || _controller.text.trim().isEmpty
                           ? null
                           : () => viewModel.submit(_controller.text),
                       child: Text(question.answeredByMe ? 'Editar' : 'Enviar'),

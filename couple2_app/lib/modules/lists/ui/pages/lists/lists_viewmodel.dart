@@ -59,7 +59,7 @@ class ListsViewModel extends Notifier<ListsState> {
 
   Future<void> refresh() => _fetchLists();
 
-  Future<void> createList(
+  Future<bool> createList(
     String type,
     String name, {
     String? visibility,
@@ -67,8 +67,10 @@ class ListsViewModel extends Notifier<ListsState> {
     try {
       final list = await _repo.createList(type, name, visibility: visibility);
       state = state.copyWith(lists: [list, ...state.lists]);
+      return true;
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      return false;
     }
   }
 

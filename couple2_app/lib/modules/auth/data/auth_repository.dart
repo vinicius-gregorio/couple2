@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart'
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'google_redirect_marker.dart';
 import 'google_web_sign_in.dart';
 
 /// [ValueNotifier] that still notifies when the logged-in flag does not change.
@@ -38,6 +39,12 @@ abstract class IAuthRepository {
 
   /// Publishes [loggedIn] and always notifies, even if the value is unchanged.
   void publishLoggedIn(bool loggedIn);
+
+  /// Re-reads [FirebaseAuth.getRedirectResult] after boot or a restored page.
+  ///
+  /// Off web, and in tests, this stays idle.
+  Future<GoogleRedirectResume> resumeGoogleRedirect() async =>
+      GoogleRedirectResume.idle;
 }
 
 class AuthRepository implements IAuthRepository {
@@ -78,37 +85,65 @@ class AuthRepository implements IAuthRepository {
     return _redirectSignIn ??= _completeRedirectSignIn();
   }
 
-  Future<void> _completeRedirectSignIn() {
-    return runGoogleRedirectBootstrap(
-      hasRedirectUser: () async {
-        final result = await _firebaseAuth.getRedirectResult();
-        // Mobile web can leave currentUser set when getRedirectResult is empty.
-        return redirectReturnedFirebaseUser(
-          redirectResultHasUser: result.user != null,
-          hasCurrentUser: _firebaseAuth.currentUser != null,
-        );
+  Future<void> _completeRedirectSignIn() async {
+    try {
+      final decision = await resumeGoogleRedirect();
+      if (decision == GoogleRedirectResume.cancelled) {
+        PendingGoogleAuthError.report(const CancelledGoogleRedirect());
+      }
+    } catch (error) {
+      PendingGoogleAuthError.report(error);
+    }
+  }
+
+  @override
+  Future<GoogleRedirectResume> resumeGoogleRedirect() {
+    if (!kIsWeb) {
+      return Future<GoogleRedirectResume>.value(GoogleRedirectResume.idle);
+    }
+    return resolveGoogleRedirect(
+      probe: () async {
+        try {
+          final result = await _firebaseAuth.getRedirectResult();
+          return GoogleRedirectProbe(hasUser: result.user != null);
+        } catch (error) {
+          return GoogleRedirectProbe(hasUser: false, error: error);
+        }
       },
-      completeLogin: () async {
-        await _completeLogin();
-      },
-      onError: PendingGoogleAuthError.report,
+      hasCurrentUser: () => _firebaseAuth.currentUser != null,
+      redirectPending: googleRedirectIsPending(),
+      completeLogin: _completeLogin,
+      onSettled: clearGoogleRedirectPending,
     );
   }
 
   @override
   Future<User> signInWithGoogle() async {
     if (kIsWeb) {
-      // Redirect first. Popup is only used when redirect throws before the
-      // browser leaves. A started redirect completes in [completeRedirectSignIn].
-      await signInWithGoogleOnWeb(
-        signInWithRedirect: () async {
-          await _firebaseAuth.signInWithRedirect(GoogleAuthProvider());
-        },
-        signInWithPopup: () async {
-          await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
-        },
-        hasCurrentUser: () => _firebaseAuth.currentUser != null,
-      );
+      // The flag is the only signal that this tap was a redirect. It is
+      // cleared on success, on a thrown error, and when the return is read.
+      markGoogleRedirectPending();
+      try {
+        // Wait until Auth persistence is ready. A redirect started before
+        // that calls createAuthUri too early and the handler reloads login.
+        await _firebaseAuth.setPersistence(Persistence.LOCAL);
+        // Redirect first. Popup is only used when redirect cannot start.
+        await signInWithGoogleOnWeb(
+          signInWithRedirect: () async {
+            await _firebaseAuth.signInWithRedirect(GoogleAuthProvider());
+          },
+          signInWithPopup: () async {
+            await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+          },
+          hasCurrentUser: () => _firebaseAuth.currentUser != null,
+        );
+        clearGoogleRedirectPending();
+      } on GoogleRedirectInProgress {
+        rethrow;
+      } catch (error) {
+        clearGoogleRedirectPending();
+        rethrow;
+      }
     } else {
       // Mobile/desktop: obtain a Google credential, exchange for a Firebase one.
       final googleSignIn = GoogleSignIn.instance;

@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:couple2_app/core/core.dart';
+import 'package:couple2_app/design_system/design_system.dart';
 import 'package:couple2_app/modules/auth/data/auth_providers.dart';
 import 'package:couple2_app/modules/auth/data/auth_repository.dart';
 import 'package:couple2_app/modules/auth/data/google_web_sign_in.dart';
 import 'package:couple2_app/modules/auth/ui/pages/auth/auth_page.dart';
 import 'package:couple2_app/modules/auth/ui/pages/auth/auth_viewmodel.dart';
+import 'package:couple2_app/modules/auth/ui/widgets/apple_sign_in_button.dart';
 import 'package:couple2_app/modules/auth/ui/widgets/google_sign_in_button.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:flutter/material.dart';
@@ -15,35 +17,30 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _LoadingAuth extends AuthViewModel {
   @override
-  AuthState build() => const AuthState(isLoading: true);
+  AuthState build() => const AuthState(googleLoading: true);
+}
+
+class _AppleLoadingAuth extends AuthViewModel {
+  @override
+  AuthState build() => const AuthState(appleLoading: true);
 }
 
 class _ErrorAuth extends AuthViewModel {
   @override
-  AuthState build() => const AuthState(
-    errorMessage: 'configuration-not-found: Firebase auth is not configured.',
-  );
+  AuthState build() =>
+      const AuthState(errorMessage: 'Não foi possível entrar. Tente de novo.');
 }
 
 void main() {
-  test('formatAuthError includes the Firebase error code', () {
-    final error = FirebaseAuthException(
-      code: 'configuration-not-found',
-      message: 'Firebase auth is not configured.',
-    );
-
-    expect(
-      formatAuthError(error),
-      'configuration-not-found: Firebase auth is not configured.',
-    );
-  });
-
   test('copyWith can clear a previous error', () {
-    const state = AuthState(errorMessage: 'popup-blocked: blocked');
+    const state = AuthState(
+      errorMessage: 'Não foi possível entrar. Tente de novo.',
+    );
 
-    final next = state.copyWith(isLoading: true, errorMessage: null);
+    final next = state.copyWith(googleLoading: true, errorMessage: null);
 
-    expect(next.isLoading, isTrue);
+    expect(next.googleLoading, isTrue);
+    expect(next.appleLoading, isFalse);
     expect(next.errorMessage, isNull);
   });
 
@@ -54,10 +51,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: GoogleSignInButton(
-            isLoading: true,
-            onPressed: () => taps++,
-          ),
+          body: GoogleSignInButton(isLoading: true, onPressed: () => taps++),
         ),
       ),
     );
@@ -92,9 +86,11 @@ void main() {
     );
 
     expect(
-      find.text('configuration-not-found: Firebase auth is not configured.'),
+      find.text('Não foi possível entrar. Tente de novo.'),
       findsOneWidget,
     );
+    expect(find.text('Entrar com Apple'), findsNothing);
+    expect(find.byType(AppleSignInButton), findsNothing);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
     expect(find.text('Entrar com Google'), findsOneWidget);
   });
@@ -111,12 +107,14 @@ void main() {
 
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsOneWidget);
     expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.byType(AppleSignInButton), findsNothing);
   });
 
   testWidgets('Google button is a full-width opaque target', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: GoogleSignInButton(onPressed: _noop)),
+      MaterialApp(
+        theme: lightTheme,
+        home: const Scaffold(body: GoogleSignInButton(onPressed: _noop)),
       ),
     );
 
@@ -138,20 +136,46 @@ void main() {
         matching: find.byType(Material),
       ),
     );
-    expect(material.color, GoogleSignInButton.backgroundColor);
+    final scheme = lightColorScheme;
+    expect(material.color, scheme.primary);
     final border = material.shape! as RoundedRectangleBorder;
-    expect(border.side.color, GoogleSignInButton.borderColor);
     expect(border.side.width, 2);
+    expect(scheme.primary.computeLuminance(), lessThan(0.15));
+    expect(scheme.onPrimary, const Color(0xFFFFFFFF));
     expect(
-      GoogleSignInButton.backgroundColor.computeLuminance(),
-      lessThan(0.15),
-    );
-    expect(GoogleSignInButton.foregroundColor, const Color(0xFFFFFFFF));
-    expect(
-      GoogleSignInButton.borderColor.computeLuminance(),
-      lessThan(GoogleSignInButton.backgroundColor.computeLuminance()),
+      border.side.color.computeLuminance(),
+      lessThan(scheme.primary.computeLuminance()),
     );
     expect(find.byType(SelectableText), findsNothing);
+  });
+
+  testWidgets('login hides Apple and keeps Google independent of it', (
+    tester,
+  ) async {
+    final repo = _ScriptedAuthRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repo),
+          authViewModelProvider.overrideWith(_AppleLoadingAuth.new),
+        ],
+        child: const MaterialApp(home: AuthPage()),
+      ),
+    );
+    await tester.pump();
+
+    expect(kAppleSignInEnabled, isFalse);
+    expect(find.byType(AppleSignInButton), findsNothing);
+    expect(find.text('Entrar com Apple'), findsNothing);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
+
+    await tester.tap(find.byType(GoogleSignInButton));
+    await tester.pump();
+
+    expect(repo.googleCalls, 1);
+    expect(repo.appleCalls, 0);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsOneWidget);
   });
 
   testWidgets('sets loading before Google sign-in finishes', (tester) async {
@@ -171,13 +195,14 @@ void main() {
       tester.element(find.byType(AuthPage)),
     );
     repo.onGoogle = () {
-      loadingWhenCalled = container.read(authViewModelProvider).isLoading;
+      loadingWhenCalled = container.read(authViewModelProvider).googleLoading;
       return pending.future;
     };
 
     await tester.tap(find.byType(GoogleSignInButton));
     expect(loadingWhenCalled, isTrue);
-    expect(container.read(authViewModelProvider).isLoading, isTrue);
+    expect(container.read(authViewModelProvider).googleLoading, isTrue);
+    expect(container.read(authViewModelProvider).appleLoading, isFalse);
     expect(pending.isCompleted, isFalse);
     expect(repo.googleCalls, 1);
 
@@ -189,10 +214,10 @@ void main() {
     expect(find.textContaining('popup-blocked'), findsNothing);
   });
 
-  testWidgets('failed Google sign-in shows the code inline and in a SnackBar', (
+  testWidgets('failed Google sign-in shows Portuguese and hides English', (
     tester,
   ) async {
-    const message = 'popup-blocked: Popup blocked';
+    const message = 'Não foi possível entrar. Tente de novo.';
     final repo = _ScriptedAuthRepository(
       onGoogle: () async {
         throw FirebaseAuthException(
@@ -214,8 +239,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text(message), findsWidgets);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text(message), findsOneWidget);
+    expect(find.textContaining('Popup blocked'), findsNothing);
+    expect(find.textContaining('popup-blocked'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
   });
 
@@ -243,6 +270,28 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  testWidgets('a cancelled redirect on boot says login cancelado', (
+    tester,
+  ) async {
+    PendingGoogleAuthError.report(const CancelledGoogleRedirect());
+    addTearDown(PendingGoogleAuthError.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(_ScriptedAuthRepository()),
+        ],
+        child: const MaterialApp(home: AuthPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Login cancelado'), findsOneWidget);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
   testWidgets('a startup redirect error is visible', (tester) async {
     PendingGoogleAuthError.report(
       FirebaseAuthException(
@@ -263,11 +312,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      find.text('web-storage-unsupported: Storage is blocked.'),
-      findsWidgets,
-    );
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text('Não foi possível entrar. Tente de novo.'), findsOneWidget);
+    expect(find.textContaining('Storage is blocked'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
   });
 }
 
@@ -277,8 +324,10 @@ class _ScriptedAuthRepository implements IAuthRepository {
   _ScriptedAuthRepository({this.onGoogle});
 
   Future<User> Function()? onGoogle;
+  Future<User> Function()? onApple;
   final Completer<User> _hanging = Completer<User>();
   int googleCalls = 0;
+  int appleCalls = 0;
 
   @override
   final AuthStateNotifier authStateNotifier = AuthStateNotifier();
@@ -295,11 +344,20 @@ class _ScriptedAuthRepository implements IAuthRepository {
   }
 
   @override
-  Future<User> signInWithApple() => _hanging.future;
+  Future<User> signInWithApple() {
+    appleCalls++;
+    final action = onApple;
+    if (action == null) return _hanging.future;
+    return action();
+  }
 
   @override
   Future<void> logOut() async {}
 
   @override
   void publishLoggedIn(bool loggedIn) => authStateNotifier.publish(loggedIn);
+
+  @override
+  Future<GoogleRedirectResume> resumeGoogleRedirect() async =>
+      GoogleRedirectResume.idle;
 }

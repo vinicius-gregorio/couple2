@@ -1,3 +1,4 @@
+import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,12 +77,16 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OutlinedButton(
+        LoadingButton(
           key: const Key('unpair-button'),
-          onPressed: _busy ? null : _confirm,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: theme.colorScheme.error,
-          ),
+          variant: LoadingButtonVariant.outlined,
+          loading: _busy,
+          foregroundColor: theme.colorScheme.error,
+          onPressed: _busy
+              ? null
+              : () {
+                  _confirm();
+                },
           child: Text(_busy ? 'Desfazendo...' : 'Desfazer o par'),
         ),
         if (_error != null) ...[

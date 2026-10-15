@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../design_system/design_system.dart';
 import '../../../../date_plans/domain/date_plan_copy.dart';
 import '../../../../date_plans/routing/routes.dart';
@@ -40,7 +41,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     }
   }
 
-  void _addItem(PartnerList list) {
+  Future<void> _addItem(PartnerList list) async {
     final content = _controller.text.trim();
     if (content.isEmpty) return;
 
@@ -61,7 +62,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       metadata = draft.metadata;
     }
 
-    ref
+    await ref
         .read(listsViewModelProvider.notifier)
         .addItem(list.id, content, metadata);
     _controller.clear();
@@ -78,22 +79,39 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final state = ref.watch(listsViewModelProvider);
     final list = _getList(state);
 
+    if (list == null && state.isLoading) {
+      return Scaffold(
+        appBar: AppBar(leading: AppBackButton(), title: AppText('Lista')),
+        body: const ListSkeleton(),
+      );
+    }
+
+    if (list == null && state.errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(leading: AppBackButton()),
+        body: ErrorView(
+          message: 'Não foi possível carregar a lista.',
+          onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+        ),
+      );
+    }
+
     if (list == null) {
       return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: AppText('List not found')),
+        appBar: AppBar(leading: AppBackButton()),
+        body: const EmptyView(message: 'List not found'),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: AppText(list.name)),
+      appBar: AppBar(leading: const AppBackButton(), title: AppText(list.name)),
       body: Column(
         children: [
           if (list.visibility == 'PRIVATE_FROM_PARTNER')
             const ListTile(dense: true, title: Text('🔒 Só você vê')),
           Expanded(
             child: list.items.isEmpty
-                ? const Center(child: AppText('No items yet.'))
+                ? const EmptyView(message: 'No items yet.')
                 : ListView.builder(
                     itemCount: list.items.length,
                     itemBuilder: (context, index) {
@@ -142,10 +160,10 @@ class _ItemTile extends ConsumerWidget {
       key: Key(item.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       onDismissed: (_) => vm.deleteItem(listId, item.id),
       child: ListTile(
@@ -248,7 +266,7 @@ class _ItemTile extends ConsumerWidget {
   }
 }
 
-class _AddItemBar extends StatelessWidget {
+class _AddItemBar extends StatefulWidget {
   const _AddItemBar({
     required this.listType,
     required this.controller,
@@ -269,11 +287,72 @@ class _AddItemBar extends StatelessWidget {
   final bool bought;
   final ValueChanged<String?> onOccasion;
   final ValueChanged<bool> onBought;
-  final VoidCallback onAdd;
+  final Future<void> Function() onAdd;
+
+  @override
+  State<_AddItemBar> createState() => _AddItemBarState();
+}
+
+class _AddItemBarState extends State<_AddItemBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+    widget.priceController.addListener(_rebuild);
+    widget.urlController.addListener(_rebuild);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AddItemBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_rebuild);
+      widget.controller.addListener(_rebuild);
+    }
+    if (oldWidget.priceController != widget.priceController) {
+      oldWidget.priceController.removeListener(_rebuild);
+      widget.priceController.addListener(_rebuild);
+    }
+    if (oldWidget.urlController != widget.urlController) {
+      oldWidget.urlController.removeListener(_rebuild);
+      widget.urlController.addListener(_rebuild);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_rebuild);
+    widget.priceController.removeListener(_rebuild);
+    widget.urlController.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _canAdd {
+    if (widget.controller.text.trim().isEmpty) return false;
+    if (widget.listType != 'GIFT_IDEAS') return true;
+    return buildGiftItemMetadata(
+      priceText: widget.priceController.text,
+      urlText: widget.urlController.text,
+      occasion: widget.occasion,
+      bought: widget.bought,
+    ).isValid;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isGift = listType == 'GIFT_IDEAS';
+    final isGift = widget.listType == 'GIFT_IDEAS';
+    final giftError = isGift && widget.controller.text.trim().isNotEmpty
+        ? buildGiftItemMetadata(
+            priceText: widget.priceController.text,
+            urlText: widget.urlController.text,
+            occasion: widget.occasion,
+            bought: widget.bought,
+          ).error
+        : null;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -287,33 +366,30 @@ class _AddItemBar extends StatelessWidget {
           children: [
             if (isGift) ...[
               TextField(
-                controller: priceController,
+                controller: widget.priceController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 decoration: const InputDecoration(
                   hintText: 'Preço (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
               const SizedBox(height: 8),
               TextField(
-                controller: urlController,
+                controller: widget.urlController,
                 keyboardType: TextInputType.url,
                 decoration: const InputDecoration(
                   hintText: 'Link (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
-                key: ValueKey(occasion),
-                initialValue: occasion,
+                key: ValueKey(widget.occasion),
+                initialValue: widget.occasion,
                 decoration: const InputDecoration(
                   labelText: 'Ocasião (opcional)',
-                  border: OutlineInputBorder(),
                   isDense: true,
                 ),
                 items: [
@@ -327,35 +403,44 @@ class _AddItemBar extends StatelessWidget {
                       child: Text(entry.value),
                     ),
                 ],
-                onChanged: onOccasion,
+                onChanged: widget.onOccasion,
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Já comprei'),
-                value: bought,
-                onChanged: onBought,
+                value: widget.bought,
+                onChanged: widget.onBought,
               ),
             ],
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: controller,
+                    controller: widget.controller,
                     decoration: const InputDecoration(
                       hintText: 'Add item...',
-                      border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    onSubmitted: (_) => onAdd(),
+                    onSubmitted: (_) {
+                      if (_canAdd) widget.onAdd();
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: onAdd,
+                LoadingIconButton(
+                  tooltip: 'Adicionar',
+                  onPressed: _canAdd ? widget.onAdd : null,
                   icon: const Icon(Icons.add),
                 ),
               ],
             ),
+            if (giftError != null) ...[
+              const SizedBox(height: 8),
+              AppText(
+                giftError,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
         ),
       ),

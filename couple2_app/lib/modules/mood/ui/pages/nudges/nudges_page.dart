@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/mood_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -111,67 +112,64 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const AppText('Carinhos')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Carinhos')),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: _loading && _items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  if (_celebrate)
-                    ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: _heart,
-                        curve: Curves.elasticOut,
-                      ),
-                      child: const Text(
-                        '💗',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 72),
-                      ),
-                    ),
-                  if (_error != null && _items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: AppText(
-                        'Não foi possível carregar os carinhos.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else if (_items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: AppText(
-                        'Os carinhos que você receber aparecem aqui.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else
-                    for (final item in _items)
-                      ListTile(
-                        leading: Text(
-                          item.kind.emoji,
-                          style: const TextStyle(fontSize: 28),
-                        ),
-                        title: AppText(item.kind.label),
-                        subtitle: AppText(
-                          [
-                            if (item.message != null &&
-                                item.message!.isNotEmpty)
-                              item.message!,
-                            moodAgeLabel(item.createdAt),
-                          ].join(' · '),
-                        ),
-                      ),
-                  if (_cursor != null)
-                    TextButton(
-                      onPressed: _loadingMore ? null : _loadMore,
-                      child: Text(_loadingMore ? 'Carregando…' : 'Ver mais'),
-                    ),
-                ],
-              ),
+        child: AsyncBody(
+          isLoading: _loading,
+          hasData: _items.isNotEmpty,
+          error: _error,
+          errorMessage: 'Não foi possível carregar os carinhos.',
+          onRetry: _refresh,
+          isEmpty: _items.isEmpty,
+          emptyMessage: 'Os carinhos que você receber aparecem aqui.',
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            children: [
+              if (_error != null)
+                ErrorView(
+                  message: 'Não foi possível atualizar os carinhos.',
+                  compact: true,
+                  onRetry: _refresh,
+                ),
+              if (_celebrate)
+                ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: _heart,
+                    curve: Curves.elasticOut,
+                  ),
+                  child: const Text(
+                    '💗',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 72),
+                  ),
+                ),
+              for (final item in _items)
+                ListTile(
+                  leading: Text(
+                    item.kind.emoji,
+                    style: const TextStyle(fontSize: 28),
+                  ),
+                  title: AppText(item.kind.label),
+                  subtitle: AppText(
+                    [
+                      if (item.message != null && item.message!.isNotEmpty)
+                        item.message!,
+                      moodAgeLabel(item.createdAt),
+                    ].join(' · '),
+                  ),
+                ),
+              if (_cursor != null)
+                LoadingButton(
+                  variant: LoadingButtonVariant.text,
+                  loading: _loadingMore,
+                  onPressed: _loadingMore ? null : _loadMore,
+                  child: Text(_loadingMore ? 'Carregando…' : 'Ver mais'),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

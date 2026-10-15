@@ -1,6 +1,8 @@
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
+import 'generate_pairing_code_button.dart';
+
 class PairingCodeCard extends StatelessWidget {
   const PairingCodeCard({
     super.key,
@@ -25,12 +27,11 @@ class PairingCodeCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           children: [
-            if (value == null)
-              const AppText(
-                'Sem código ainda. Saia e entre de novo para gerar um.',
-                textAlign: TextAlign.center,
-              )
-            else
+            if (value == null) ...[
+              const AppText('Sem código ainda.', textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              const GeneratePairingCodeButton(),
+            ] else
               Semantics(
                 label: 'Seu código de pareamento $value',
                 child: AppText(
@@ -41,7 +42,8 @@ class PairingCodeCard extends StatelessWidget {
                       (theme.textTheme.headlineMedium ??
                               const TextStyle(fontSize: 32))
                           .copyWith(
-                            fontFamily: 'monospace',
+                            fontFamily: kAppFontFamily,
+                            fontFamilyFallback: kAppFontFallbacks,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 8,
                           ),

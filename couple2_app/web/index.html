@@ -31,8 +31,90 @@
 
   <title>couple2_app</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #FDFBF8;
+    }
+    #flutter-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      background: #FDFBF8;
+    }
+    #flutter-splash .mark {
+      width: 72px;
+      height: 72px;
+      border-radius: 24px;
+      background: #9D174D;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    #flutter-splash .spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid #E4DEE1;
+      border-top-color: #9D174D;
+      animation: flutter-splash-spin 0.8s linear infinite;
+    }
+    #flutter-splash-failure {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    #flutter-splash-failure[hidden] {
+      display: none;
+    }
+    #flutter-splash .splash-message {
+      margin: 0;
+      max-width: 280px;
+      padding: 0 24px;
+      text-align: center;
+      font-family: sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      color: #1C1B1F;
+    }
+    #flutter-splash .splash-reload {
+      font-family: sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: #FFFFFF;
+      background: #9D174D;
+      border: 0;
+      border-radius: 24px;
+      padding: 12px 28px;
+      cursor: pointer;
+    }
+    @keyframes flutter-splash-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
+  <!--
+    Heart and spinner are inline, so they paint before any font or network
+    asset. Dart removes the splash after the login frame is ready. Waiting
+    on the font only delays that removal.
+  -->
+  <div id="flutter-splash" aria-label="Carregando">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#FFFFFF" d="M12 21s-6.7-4.4-9.3-8.2C.7 10.2 1.1 6.5 4.2 5 6.3 4 8.5 4.5 12 8.1 15.5 4.5 17.7 4 19.8 5c3.1 1.5 3.5 5.2 1.5 7.8C18.7 16.6 12 21 12 21z"/>
+    </svg>
+    <div class="spinner"></div>
+    <div id="flutter-splash-failure" hidden>
+      <p class="splash-message">Não foi possível carregar. Verifique a conexão e tente de novo.</p>
+      <button type="button" class="splash-reload" onclick="location.reload()">Recarregar</button>
+    </div>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

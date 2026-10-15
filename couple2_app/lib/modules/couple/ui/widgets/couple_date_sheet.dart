@@ -35,10 +35,21 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
     _title = TextEditingController(text: widget.existing?.title ?? '');
     _date = parseDateOnly(widget.existing?.date);
     _recurrence = widget.existing?.recurrence ?? 'YEARLY';
+    _title.addListener(_onTitleChanged);
+  }
+
+  void _onTitleChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _canSubmit {
+    final title = _title.text.trim();
+    return title.isNotEmpty && title.length <= 60 && _date != null;
   }
 
   @override
   void dispose() {
+    _title.removeListener(_onTitleChanged);
     _title.dispose();
     super.dispose();
   }
@@ -118,8 +129,8 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
             },
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _submit,
+          LoadingButton(
+            onPressed: _canSubmit ? _submit : null,
             child: Text(editing ? 'Salvar' : 'Adicionar'),
           ),
         ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/routing/pop_or_go.dart';
 import '../../../../../app/routing/routes.dart';
 import '../../../../pairing/ui/widgets/unpair_button.dart';
@@ -119,8 +120,30 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
         coupleAsync.asData!.value!.timezone,
     }.toList();
 
+    if (coupleAsync.isLoading && !coupleAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: AppBackButton(),
+          title: AppText('Nosso começo'),
+        ),
+        body: const FormSkeleton(),
+      );
+    }
+    if (coupleAsync.hasError && !coupleAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: AppBackButton(),
+          title: AppText('Nosso começo'),
+        ),
+        body: ErrorView(
+          message: 'Não foi possível carregar o casal.',
+          onRetry: () => ref.invalidate(coupleProvider),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const AppText('Nosso começo')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Nosso começo')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -149,10 +172,17 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          if (_error != null) ...[const SizedBox(height: 12), AppText(_error!)],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            AppText(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _saving ? null : _save,
+          LoadingButton(
+            loading: _saving,
+            onPressed: _saving || _anniversary == null ? null : _save,
             child: Text(_saving ? 'Salvando...' : 'Salvar'),
           ),
           const SizedBox(height: 48),

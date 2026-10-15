@@ -46,9 +46,9 @@ class TodayQuestionCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       if (today.isLoading && question == null)
-                        const LinearProgressIndicator()
+                        const SkeletonBox(height: 14)
                       else if (today.hasError)
-                        AppText(
+                        const AppText(
                           'Não foi possível carregar a pergunta. Toque para abrir.',
                         )
                       else if (copy != null)

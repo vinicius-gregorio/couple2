@@ -6,7 +6,7 @@ import '../../../../app/providers.dart';
 
 const _stepLabels = ['Seu código', 'Código do par', 'Confirmação'];
 
-class PairingScaffold extends ConsumerWidget {
+class PairingScaffold extends ConsumerStatefulWidget {
   const PairingScaffold({
     super.key,
     required this.step,
@@ -20,7 +20,28 @@ class PairingScaffold extends ConsumerWidget {
   final Future<void> Function()? onRefresh;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PairingScaffold> createState() => _PairingScaffoldState();
+}
+
+class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
+  var _refreshing = false;
+
+  Future<void> _refresh() async {
+    final action = widget.onRefresh;
+    if (action == null || _refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final step = widget.step;
+    final children = widget.children;
+    final onRefresh = widget.onRefresh;
     final body = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -47,9 +68,17 @@ class PairingScaffold extends ConsumerWidget {
         actions: [
           if (onRefresh != null)
             IconButton(
+              key: const Key('pairing-refresh'),
               tooltip: 'Atualizar',
-              onPressed: () => onRefresh!(),
-              icon: const Icon(Icons.refresh),
+              onPressed: _refreshing ? null : _refresh,
+              icon: _refreshing
+                  ? const SizedBox(
+                      key: Key('pairingRefreshSpinner'),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
             ),
           IconButton(
             tooltip: 'Sair',
@@ -60,7 +89,7 @@ class PairingScaffold extends ConsumerWidget {
       ),
       body: onRefresh == null
           ? body
-          : RefreshIndicator(onRefresh: onRefresh!, child: body),
+          : RefreshIndicator(onRefresh: _refresh, child: body),
     );
   }
 }

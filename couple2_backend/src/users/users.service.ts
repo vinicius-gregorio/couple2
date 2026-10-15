@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { calendarDateToUtc, toDateOnlyString } from '../common/calendar-date';
@@ -43,14 +44,12 @@ export class UsersService {
   }
 
   /**
-   * Generates a unique 6-character alphanumeric pairing code.
-   * Retries if the generated code already exists.
+   * Draws a 6-character code from a CSPRNG. Ambiguous characters are omitted.
    */
   private generatePairingCode(): string {
     let code = '';
     for (let i = 0; i < PAIRING_CODE_LENGTH; i++) {
-      const randomIndex = Math.floor(Math.random() * PAIRING_CODE_CHARS.length);
-      code += PAIRING_CODE_CHARS[randomIndex];
+      code += PAIRING_CODE_CHARS[crypto.randomInt(PAIRING_CODE_CHARS.length)];
     }
     return code;
   }
@@ -58,36 +57,38 @@ export class UsersService {
   /**
    * Creates a new pairing code for a user.
    * Sets expiration to 30 days from now.
+   * Skips codes that already belong to someone else, with a bounded retry.
    */
   async generatePairingCodeForUser(userId: string) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + PAIRING_CODE_TTL_DAYS);
-
-    // Try to generate a unique code (retry if collision)
-    let attempts = 0;
     const maxAttempts = 10;
 
-    while (attempts < maxAttempts) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const code = this.generatePairingCode();
+      const existing = await this.prisma.user.findUnique({
+        where: { pairingCode: code },
+      });
+      if (existing && existing.id !== userId) {
+        continue;
+      }
 
       try {
-        const user = await this.prisma.user.update({
+        return await this.prisma.user.update({
           where: { id: userId },
           data: {
             pairingCode: code,
             pairingCodeExpiresAt: expiresAt,
           },
         });
-        return user;
       } catch (error: unknown) {
-        // Pairing codes are unique; retry when Postgres rejects a collision.
+        // A concurrent insert can still win the unique index.
         const uniqueViolation =
           (error instanceof Prisma.PrismaClientKnownRequestError &&
             error.code === 'P2002') ||
           (error instanceof Error &&
             error.message.includes('Unique constraint'));
         if (uniqueViolation) {
-          attempts++;
           continue;
         }
         throw error;
