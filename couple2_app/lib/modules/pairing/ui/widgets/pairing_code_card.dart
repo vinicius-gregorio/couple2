@@ -42,7 +42,8 @@ class PairingCodeCard extends StatelessWidget {
                       (theme.textTheme.headlineMedium ??
                               const TextStyle(fontSize: 32))
                           .copyWith(
-                            fontFamily: 'monospace',
+                            fontFamily: kAppFontFamily,
+                            fontFamilyFallback: kAppFontFallbacks,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 8,
                           ),

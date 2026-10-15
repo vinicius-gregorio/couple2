@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import 'app_font.dart';
 import 'theme.dart';
 
 /// Label style without a color so [ColorScheme.onPrimary] wins.
 TextStyle appButtonTextStyle() {
-  return GoogleFonts.plusJakartaSans(
-    fontWeight: FontWeight.w700,
-    fontSize: 16,
-    color: null,
-  );
+  return appTextStyle(fontWeight: FontWeight.w700, fontSize: 16);
 }
 
 TextStyle appTextButtonTextStyle() {
-  return GoogleFonts.plusJakartaSans(
-    fontWeight: FontWeight.w600,
-    fontSize: 14,
-    color: null,
-  );
+  return appTextStyle(fontWeight: FontWeight.w600, fontSize: 14);
 }
 
 Color disabledForeground(ColorScheme scheme) {

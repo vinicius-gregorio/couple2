@@ -1,28 +1,21 @@
-import 'package:couple2_app/design_system/design_system.dart';
 import 'package:couple2_app/modules/auth/ui/widgets/google_logo.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
-/// Starts the login font and Google mark while the HTML splash is still up.
+/// Loads the login font files and Google mark while the HTML splash is up.
 ///
-/// Call this after the first frame so the asset bundle can serve the mark and
-/// [GoogleFonts.pendingFonts] can finish Plus Jakarta Sans. A failed fetch
-/// does not throw: the splash timeout still uncovers the screen.
+/// The engine already registered Plus Jakarta Sans from the font manifest.
+/// Reading the files here keeps the splash until those bytes and the logo
+/// are in memory. A failure does not throw: the splash still uncovers.
 Future<void> warmLoginFirstFrame() async {
   try {
-    final theme = lightTextTheme();
-    final button = appButtonTextStyle();
-    await GoogleFonts.pendingFonts([
-      theme.headlineMedium,
-      theme.bodyMedium,
-      theme.bodyLarge,
-      button,
+    await Future.wait<Object?>([
+      rootBundle.load('assets/fonts/PlusJakartaSans-Regular.ttf'),
+      rootBundle.load('assets/fonts/PlusJakartaSans-Medium.ttf'),
+      rootBundle.load('assets/fonts/PlusJakartaSans-SemiBold.ttf'),
+      rootBundle.load('assets/fonts/PlusJakartaSans-Bold.ttf'),
+      kGoogleLogoLoader.loadBytes(null),
     ]);
   } catch (_) {
-    // The splash must not wait on a font host that never answers.
-  }
-  try {
-    await kGoogleLogoLoader.loadBytes(null);
-  } catch (_) {
-    // The button paints its own copy of the inlined mark if this misses.
+    // A missing file must not leave the splash up after the first frame.
   }
 }

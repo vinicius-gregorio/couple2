@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_bar_theme.dart';
+import 'app_font.dart';
 import 'button_themes.dart';
 import 'card_theme.dart';
 import 'divider_theme.dart';
@@ -162,10 +163,15 @@ final ThemeData darkTheme = _theme(darkColorScheme, Brightness.dark);
 
 ThemeData _theme(ColorScheme scheme, Brightness brightness) {
   final isLight = brightness == Brightness.light;
+  final text = isLight ? lightTextTheme() : darkTextTheme();
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
+    fontFamily: kAppFontFamily,
+    fontFamilyFallback: kAppFontFallbacks,
+    textTheme: text,
+    primaryTextTheme: text,
     scaffoldBackgroundColor: isLight
         ? AppColors.backgroundLight
         : AppColors.backgroundDark,
@@ -180,7 +186,6 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),
     dividerTheme: isLight ? lightDividerTheme() : darkDividerTheme(),
-    textTheme: isLight ? lightTextTheme() : darkTextTheme(),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: scheme.primary,

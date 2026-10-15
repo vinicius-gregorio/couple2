@@ -1,4 +1,5 @@
 export 'theme/app_bar_theme.dart';
+export 'theme/app_font.dart';
 export 'theme/button_themes.dart';
 export 'theme/card_theme.dart';
 export 'theme/divider_theme.dart';
