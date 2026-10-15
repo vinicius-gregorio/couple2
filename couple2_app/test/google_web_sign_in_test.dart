@@ -177,4 +177,64 @@ void main() {
     expect(logins, 0);
     expect(reported, isFalse);
   });
+
+  test('null redirect result while a redirect is pending cancels login', () async {
+    var logins = 0;
+    var cleared = false;
+
+    final decision = await resolveGoogleRedirect(
+      redirectResultHasUser: () async => false,
+      hasCurrentUser: () => false,
+      pageRestored: false,
+      redirectPending: true,
+      completeLogin: () async => logins++,
+      onCancelled: () => cleared = true,
+    );
+
+    expect(decision, GoogleRedirectResume.cancelled);
+    expect(logins, 0);
+    expect(cleared, isTrue);
+  });
+
+  test('restored page with a null redirect result cancels login', () async {
+    var logins = 0;
+
+    final decision = await resolveGoogleRedirect(
+      redirectResultHasUser: () async => false,
+      hasCurrentUser: () => false,
+      pageRestored: true,
+      redirectPending: false,
+      completeLogin: () async => logins++,
+    );
+
+    expect(decision, GoogleRedirectResume.cancelled);
+    expect(logins, 0);
+  });
+
+  test('null redirect result on a normal visit stays idle', () {
+    expect(
+      redirectResume(
+        redirectResultHasUser: false,
+        hasCurrentUser: false,
+        pageRestored: false,
+        redirectPending: false,
+      ),
+      GoogleRedirectResume.idle,
+    );
+  });
+
+  test('empty redirect result with a current user still completes login', () async {
+    var logins = 0;
+
+    final decision = await resolveGoogleRedirect(
+      redirectResultHasUser: () async => false,
+      hasCurrentUser: () => true,
+      pageRestored: false,
+      redirectPending: false,
+      completeLogin: () async => logins++,
+    );
+
+    expect(decision, GoogleRedirectResume.complete);
+    expect(logins, 1);
+  });
 }

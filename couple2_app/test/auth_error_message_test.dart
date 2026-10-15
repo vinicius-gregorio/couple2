@@ -1,3 +1,4 @@
+import 'package:couple2_app/modules/auth/data/google_web_sign_in.dart';
 import 'package:couple2_app/modules/auth/ui/pages/auth/auth_viewmodel.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +36,18 @@ void main() {
       ),
       'Este tipo de login não está disponível.',
     );
+  });
+
+  test('a cancelled Google redirect clears the spinner', () {
+    const spinning = AuthState(googleLoading: true);
+    final next = applyGoogleRedirectResume(
+      spinning,
+      GoogleRedirectResume.cancelled,
+    );
+
+    expect(next.googleLoading, isFalse);
+    expect(next.errorMessage, 'Login cancelado');
+    expect(formatAuthError(const CancelledGoogleRedirect()), next.errorMessage);
   });
 
   test('other auth failures use a portuguese fallback', () {

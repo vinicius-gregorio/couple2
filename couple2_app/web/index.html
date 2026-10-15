@@ -29,6 +29,12 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!-- Plus Jakarta Sans files google_fonts fetches (400, 600, 700). -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/80501e2c94323d8b8d48b29bc73aa042539f0a6e62c3afe318980de7b7b19267.ttf">
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/ba0432c50b99a58d041dc19291e1ff0a3c0e17fa254fe58510a96248426718d6.ttf">
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/a/dbf8d18a2d1c11f9b68005f52aaefe3974273175b1048047d662a13858c1e9e6.ttf">
+
   <title>couple2_app</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -76,10 +82,12 @@
     <div class="spinner"></div>
   </div>
   <script>
-    window.addEventListener('flutter-first-frame', function () {
+    // Dart removes #flutter-splash after the login font and Google mark are
+    // ready. This timeout is the backstop if that never happens.
+    setTimeout(function () {
       var splash = document.getElementById('flutter-splash');
       if (splash) splash.remove();
-    });
+    }, 4000);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

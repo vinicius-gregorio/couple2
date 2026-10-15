@@ -270,6 +270,28 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  testWidgets('a cancelled redirect on boot says login cancelado', (
+    tester,
+  ) async {
+    PendingGoogleAuthError.report(const CancelledGoogleRedirect());
+    addTearDown(PendingGoogleAuthError.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(_ScriptedAuthRepository()),
+        ],
+        child: const MaterialApp(home: AuthPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Login cancelado'), findsWidgets);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
+
   testWidgets('a startup redirect error is visible', (tester) async {
     PendingGoogleAuthError.report(
       FirebaseAuthException(
@@ -334,4 +356,10 @@ class _ScriptedAuthRepository implements IAuthRepository {
 
   @override
   void publishLoggedIn(bool loggedIn) => authStateNotifier.publish(loggedIn);
+
+  @override
+  Future<GoogleRedirectResume> resumeGoogleRedirect({
+    required bool pageRestored,
+    bool googleLoading = false,
+  }) async => GoogleRedirectResume.idle;
 }

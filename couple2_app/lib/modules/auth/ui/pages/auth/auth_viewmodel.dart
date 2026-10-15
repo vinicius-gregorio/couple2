@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/page_lifecycle.dart';
 import '../../../../../core/core.dart';
 import '../../../data/auth_providers.dart';
 import '../../../data/auth_repository.dart';
@@ -19,6 +23,7 @@ class _Unset {
 
 /// User-visible auth failure in PT-BR. Firebase's English text stays off screen.
 String formatAuthError(Object error) {
+  if (error is CancelledGoogleRedirect) return 'Login cancelado';
   if (error is firebase_auth.FirebaseAuthException) {
     switch (error.code.trim()) {
       case 'popup-closed-by-user':
@@ -72,12 +77,72 @@ class AuthState {
   }
 }
 
+/// Clears a Google redirect that came back with no Firebase user.
+///
+/// The spinner stops and the login screen says the sign-in was cancelled.
+/// An already authenticated session only drops the spinner.
+AuthState applyGoogleRedirectResume(
+  AuthState state,
+  GoogleRedirectResume resume,
+) {
+  switch (resume) {
+    case GoogleRedirectResume.complete:
+      return state.copyWith(
+        googleLoading: false,
+        isAuthenticated: true,
+        errorMessage: null,
+      );
+    case GoogleRedirectResume.cancelled:
+      if (state.isAuthenticated) {
+        return state.copyWith(googleLoading: false);
+      }
+      return state.copyWith(
+        googleLoading: false,
+        errorMessage: 'Login cancelado',
+      );
+    case GoogleRedirectResume.idle:
+      return state;
+  }
+}
+
 /// ViewModel para gerenciar o estado de autenticação
 class AuthViewModel extends Notifier<AuthState> {
+  static bool _pageShowListening = false;
+  Future<void>? _pageRestore;
+
   @override
   AuthState build() {
     _checkAuthStatus();
+    _ensurePageShowListener();
     return const AuthState();
+  }
+
+  /// Back from accounts.google.com restores this document from bfcache with
+  /// the spinner still on. [getRedirectResult] did not run again, so read it
+  /// when `pageshow` reports `persisted`.
+  void _ensurePageShowListener() {
+    if (_pageShowListening || !kIsWeb) return;
+    _pageShowListening = true;
+    listenForRestoredPage(() {
+      _pageRestore ??= _onPageRestored().whenComplete(
+        () => _pageRestore = null,
+      );
+    });
+  }
+
+  Future<void> _onPageRestored() async {
+    try {
+      final resume = await _authRepository.resumeGoogleRedirect(
+        pageRestored: true,
+        googleLoading: state.googleLoading,
+      );
+      state = applyGoogleRedirectResume(state, resume);
+    } catch (error) {
+      state = state.copyWith(
+        googleLoading: false,
+        errorMessage: formatAuthError(error),
+      );
+    }
   }
 
   IAuthRepository get _authRepository => ref.read(authRepositoryProvider);
@@ -91,14 +156,19 @@ class AuthViewModel extends Notifier<AuthState> {
       final startupError = pendingRedirectError == null
           ? null
           : formatAuthError(pendingRedirectError);
+      final cancelled = pendingRedirectError is CancelledGoogleRedirect;
       state = state.copyWith(
+        googleLoading: cancelled ? false : state.googleLoading,
         isAuthenticated: isLoggedIn,
         errorMessage: state.errorMessage ?? startupError,
       );
     } catch (e) {
+      final error = pendingRedirectError ?? e;
       state = state.copyWith(
-        errorMessage:
-            state.errorMessage ?? formatAuthError(pendingRedirectError ?? e),
+        googleLoading: error is CancelledGoogleRedirect
+            ? false
+            : state.googleLoading,
+        errorMessage: state.errorMessage ?? formatAuthError(error),
       );
     }
   }

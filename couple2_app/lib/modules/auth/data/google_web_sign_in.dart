@@ -6,6 +6,64 @@ class GoogleRedirectInProgress implements Exception {
   const GoogleRedirectInProgress();
 }
 
+/// The user left Google without a Firebase user (browser Back, or a redirect
+/// result that came back empty).
+class CancelledGoogleRedirect implements Exception {
+  const CancelledGoogleRedirect();
+}
+
+/// What to do after [FirebaseAuth.getRedirectResult].
+enum GoogleRedirectResume { complete, cancelled, idle }
+
+/// A redirect return with a Firebase user finishes login.
+///
+/// No user while a redirect is in progress, or when the browser restored the
+/// page from the back-forward cache, is a cancelled login. A normal visit
+/// with neither signal stays quiet so the login screen does not say the user
+/// cancelled a sign-in they never started.
+GoogleRedirectResume redirectResume({
+  required bool redirectResultHasUser,
+  required bool hasCurrentUser,
+  required bool pageRestored,
+  required bool redirectPending,
+}) {
+  if (redirectResultHasUser) return GoogleRedirectResume.complete;
+  if (hasCurrentUser) {
+    // Mobile web can leave currentUser set when getRedirectResult is empty.
+    // A restored page that did not start Google keeps that session as-is.
+    if (pageRestored && !redirectPending) return GoogleRedirectResume.idle;
+    return GoogleRedirectResume.complete;
+  }
+  if (pageRestored || redirectPending) return GoogleRedirectResume.cancelled;
+  return GoogleRedirectResume.idle;
+}
+
+/// Applies [redirectResume] and runs [completeLogin] only for a real return.
+Future<GoogleRedirectResume> resolveGoogleRedirect({
+  required Future<bool> Function() redirectResultHasUser,
+  required bool Function() hasCurrentUser,
+  required bool pageRestored,
+  required bool redirectPending,
+  required Future<void> Function() completeLogin,
+  void Function()? onCancelled,
+}) async {
+  final decision = redirectResume(
+    redirectResultHasUser: await redirectResultHasUser(),
+    hasCurrentUser: hasCurrentUser(),
+    pageRestored: pageRestored,
+    redirectPending: redirectPending,
+  );
+  switch (decision) {
+    case GoogleRedirectResume.complete:
+      await completeLogin();
+    case GoogleRedirectResume.cancelled:
+      onCancelled?.call();
+    case GoogleRedirectResume.idle:
+      break;
+  }
+  return decision;
+}
+
 /// A Google redirect that failed before Flutter could show UI.
 ///
 /// [take] hands the error to the login screen so it is not dropped.

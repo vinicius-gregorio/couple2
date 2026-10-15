@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'google_logo.dart';
+
 /// "Entrar com Google" button.
 ///
 /// On Flutter web the canvas hit test misses [ElevatedButton] taps, and a
@@ -86,8 +88,8 @@ class GoogleSignInButton extends StatelessWidget {
         ),
       );
     }
-    return SvgPicture.asset(
-      'assets/images/google_logo.svg',
+    return SvgPicture(
+      kGoogleLogoLoader,
       width: 24,
       height: 24,
       errorBuilder: (context, error, stackTrace) {
