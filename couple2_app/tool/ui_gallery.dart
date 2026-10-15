@@ -11,7 +11,14 @@ import 'package:couple2_app/modules/date_plans/data/date_plans_providers.dart';
 import 'package:couple2_app/modules/date_plans/domain/domain.dart';
 import 'package:couple2_app/modules/feed/data/feed_providers.dart';
 import 'package:couple2_app/modules/feed/domain/domain.dart';
+import 'package:couple2_app/modules/daily_question/ui/pages/today/today_question_page.dart';
+import 'package:couple2_app/modules/daily_question/ui/pages/today/today_question_viewmodel.dart';
+import 'package:couple2_app/modules/date_plans/data/date_plans_repository.dart';
+import 'package:couple2_app/modules/date_plans/ui/pages/date_plans/date_plans_page.dart';
+import 'package:couple2_app/modules/lists/domain/domain.dart';
+import 'package:couple2_app/modules/lists/ui/pages/list_detail/list_detail_page.dart';
 import 'package:couple2_app/modules/lists/ui/pages/lists/lists_page.dart';
+import 'package:couple2_app/modules/pairing/ui/pages/enter_code/enter_code_page.dart';
 import 'package:couple2_app/modules/lists/ui/pages/lists/lists_viewmodel.dart';
 import 'package:couple2_app/modules/mood/data/mood_providers.dart';
 import 'package:couple2_app/modules/mood/domain/domain.dart';
@@ -23,7 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Local screenshot harness. Not part of the product routes.
-/// Open `/?screen=login|login-loading|pairing|home|lists-loading|lists-error|lists-empty|buttons`.
+/// Open `/?screen=login|login-loading|pairing|enter-code|home|lists-loading|lists-error|lists-empty|lists-ready|gifts|question|dates|buttons`.
 final String galleryScreen = Uri.base.queryParameters['screen'] ?? 'login';
 
 void main() {
@@ -41,6 +48,8 @@ void main() {
         todayQuestionProvider.overrideWith((ref) async => _question),
         currentMoodProvider.overrideWith((ref) async => _mood),
         nextDateProvider.overrideWith((ref) async => _plan),
+        datePlansRepositoryProvider.overrideWithValue(_GalleryDates()),
+        todayQuestionViewModelProvider.overrideWith(_GalleryQuestion.new),
         listsViewModelProvider.overrideWith(_GalleryLists.new),
       ],
       child: const GalleryApp(),
@@ -58,8 +67,15 @@ class GalleryApp extends StatelessWidget {
       theme: lightTheme,
       home: switch (galleryScreen) {
         'pairing' => const PairingCodePage(),
+        'enter-code' => const EnterCodePage(),
         'home' => const HomePage(),
-        'lists-loading' || 'lists-error' || 'lists-empty' => const ListsPage(),
+        'lists-loading' ||
+        'lists-error' ||
+        'lists-empty' ||
+        'lists-ready' => const ListsPage(),
+        'gifts' => const ListDetailPage(listId: 'gifts'),
+        'question' => const TodayQuestionPage(),
+        'dates' => const DatePlansPage(),
         'buttons' => const _ButtonsPreview(),
         _ => const AuthPage(),
       },
@@ -98,11 +114,12 @@ class _GalleryLists extends ListsViewModel {
   ListsState build() {
     switch (galleryScreen) {
       case 'lists-error':
-        return const ListsState(
-          errorMessage: 'Sem conexão com o servidor',
-        );
+        return const ListsState(errorMessage: 'Sem conexão com o servidor');
       case 'lists-empty':
         return const ListsState();
+      case 'gifts':
+      case 'lists-ready':
+        return ListsState(lists: [_giftList]);
       default:
         return const ListsState(isLoading: true);
     }
@@ -208,6 +225,78 @@ final _question = CoupleQuestion(
   partnerAnswered: false,
   answerable: true,
 );
+
+final _giftList = PartnerList(
+  id: 'gifts',
+  type: 'GIFT_IDEAS',
+  name: 'Presentes',
+  ownerId: 'user-a',
+  items: const [],
+  createdAt: DateTime.utc(2026, 1, 1),
+);
+
+class _GalleryQuestion extends TodayQuestionViewModel {
+  @override
+  TodayQuestionState build() => TodayQuestionState(question: _question);
+
+  @override
+  Future<void> load() async {}
+}
+
+class _GalleryDates implements IDatePlansRepository {
+  @override
+  Future<DatePlanPage> list({required String scope, String? cursor}) async {
+    return DatePlanPage(items: scope == 'upcoming' ? [_plan] : const []);
+  }
+
+  @override
+  Future<DatePlan> get(String id) async => _plan;
+
+  @override
+  Future<DatePlan> create({
+    required String title,
+    required DateTime scheduledAt,
+    String? location,
+    String? description,
+    String? sourceListItemId,
+  }) => Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> update(
+    String id, {
+    String? title,
+    DateTime? scheduledAt,
+    String? location,
+    String? description,
+    String? sourceListItemId,
+    bool clearLocation = false,
+    bool clearDescription = false,
+    bool clearSource = false,
+  }) => Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> accept(String id) =>
+      Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> decline(String id, {String? note}) =>
+      Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> counter(
+    String id, {
+    required DateTime scheduledAt,
+    String? note,
+  }) => Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> cancel(String id, {String? note}) =>
+      Future<DatePlan>.error(UnimplementedError());
+
+  @override
+  Future<DatePlan> done(String id) =>
+      Future<DatePlan>.error(UnimplementedError());
+}
 
 final _feed = [
   ActivityEvent(

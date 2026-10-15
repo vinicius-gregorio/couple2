@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -20,7 +21,18 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
   String? _filledFor;
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onAnswerChanged);
+  }
+
+  void _onAnswerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _controller.removeListener(_onAnswerChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -44,6 +56,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const AppText('Pergunta do dia'),
         actions: [
           IconButton(
@@ -119,7 +132,8 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                     child: LoadingButton(
                       variant: LoadingButtonVariant.filled,
                       loading: state.isSaving,
-                      onPressed: state.isSaving
+                      onPressed:
+                          state.isSaving || _controller.text.trim().isEmpty
                           ? null
                           : () => viewModel.submit(_controller.text),
                       child: Text(question.answeredByMe ? 'Editar' : 'Enviar'),

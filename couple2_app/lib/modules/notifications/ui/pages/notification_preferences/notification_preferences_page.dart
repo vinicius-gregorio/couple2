@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/notifications_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -32,8 +33,9 @@ class _NotificationPreferencesPageState
       _error = null;
     });
     try {
-      final prefs =
-          await ref.read(notificationsRepositoryProvider).getPreferences();
+      final prefs = await ref
+          .read(notificationsRepositoryProvider)
+          .getPreferences();
       if (!mounted) return;
       setState(() {
         _prefs = prefs;
@@ -72,8 +74,7 @@ class _NotificationPreferencesPageState
   Future<void> _pickQuiet({required bool start}) async {
     final current = _prefs;
     if (current == null) return;
-    final initialMinutes =
-        start ? current.quietStartMin : current.quietEndMin;
+    final initialMinutes = start ? current.quietStartMin : current.quietEndMin;
     final picked = await showTimePicker(
       context: context,
       initialTime: _timeOf(initialMinutes ?? (start ? 23 * 60 : 7 * 60)),
@@ -89,91 +90,103 @@ class _NotificationPreferencesPageState
   Widget build(BuildContext context) {
     final prefs = _prefs;
     return Scaffold(
-      appBar: AppBar(title: const AppText('Notificações')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Notificações')),
       body: _loading && prefs == null
           ? const FormSkeleton()
           : prefs == null
-              ? ErrorView(
-                  message: _error ?? 'Não foi possível carregar',
-                  onRetry: _load,
-                )
-              : ListView(
-                  children: [
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: AppText(_error!),
-                      ),
-                    SwitchListTile(
-                      title: const Text('Push'),
-                      value: prefs.pushEnabled,
-                      onChanged: _saving
-                          ? null
-                          : (value) => _patch({'pushEnabled': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Listas'),
-                      value: prefs.lists,
-                      onChanged: _saving ? null : (value) => _patch({'lists': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Datas importantes'),
-                      value: prefs.importantDates,
-                      onChanged: _saving ? null : (value) => _patch({'importantDates': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Pergunta do dia'),
-                      value: prefs.dailyQuestion,
-                      onChanged: _saving ? null : (value) => _patch({'dailyQuestion': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Humor'),
-                      value: prefs.mood,
-                      onChanged: _saving ? null : (value) => _patch({'mood': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Carinhos'),
-                      value: prefs.nudges,
-                      onChanged: _saving ? null : (value) => _patch({'nudges': value}),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Planos de date'),
-                      value: prefs.datePlans,
-                      onChanged: _saving ? null : (value) => _patch({'datePlans': value}),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      title: const Text('Silêncio começa'),
-                      subtitle: Text(
-                        prefs.quietStartMin == null
-                            ? 'Desligado'
-                            : formatQuietMinutes(prefs.quietStartMin!),
-                      ),
-                      onTap: _saving ? null : () => _pickQuiet(start: true),
-                    ),
-                    ListTile(
-                      title: const Text('Silêncio termina'),
-                      subtitle: Text(
-                        prefs.quietEndMin == null
-                            ? 'Desligado'
-                            : formatQuietMinutes(prefs.quietEndMin!),
-                      ),
-                      onTap: _saving ? null : () => _pickQuiet(start: false),
-                    ),
-                    if (prefs.quietStartMin != null || prefs.quietEndMin != null)
-                      LoadingButton(
-                        variant: LoadingButtonVariant.text,
-                        loading: _saving,
-                        onPressed: _saving
-                            ? null
-                            : () => _patch({
-                                'quietStartMin': null,
-                                'quietEndMin': null,
-                              }),
-                        child: const Text('Limpar horário de silêncio'),
-                      ),
-                  ],
+          ? ErrorView(
+              message: _error ?? 'Não foi possível carregar',
+              onRetry: _load,
+            )
+          : ListView(
+              children: [
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: AppText(_error!),
+                  ),
+                SwitchListTile(
+                  title: const Text('Push'),
+                  value: prefs.pushEnabled,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'pushEnabled': value}),
                 ),
+                SwitchListTile(
+                  title: const Text('Listas'),
+                  value: prefs.lists,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'lists': value}),
+                ),
+                SwitchListTile(
+                  title: const Text('Datas importantes'),
+                  value: prefs.importantDates,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'importantDates': value}),
+                ),
+                SwitchListTile(
+                  title: const Text('Pergunta do dia'),
+                  value: prefs.dailyQuestion,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'dailyQuestion': value}),
+                ),
+                SwitchListTile(
+                  title: const Text('Humor'),
+                  value: prefs.mood,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'mood': value}),
+                ),
+                SwitchListTile(
+                  title: const Text('Carinhos'),
+                  value: prefs.nudges,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'nudges': value}),
+                ),
+                SwitchListTile(
+                  title: const Text('Planos de date'),
+                  value: prefs.datePlans,
+                  onChanged: _saving
+                      ? null
+                      : (value) => _patch({'datePlans': value}),
+                ),
+                const Divider(),
+                ListTile(
+                  title: const Text('Silêncio começa'),
+                  subtitle: Text(
+                    prefs.quietStartMin == null
+                        ? 'Desligado'
+                        : formatQuietMinutes(prefs.quietStartMin!),
+                  ),
+                  onTap: _saving ? null : () => _pickQuiet(start: true),
+                ),
+                ListTile(
+                  title: const Text('Silêncio termina'),
+                  subtitle: Text(
+                    prefs.quietEndMin == null
+                        ? 'Desligado'
+                        : formatQuietMinutes(prefs.quietEndMin!),
+                  ),
+                  onTap: _saving ? null : () => _pickQuiet(start: false),
+                ),
+                if (prefs.quietStartMin != null || prefs.quietEndMin != null)
+                  LoadingButton(
+                    variant: LoadingButtonVariant.text,
+                    loading: _saving,
+                    onPressed: _saving
+                        ? null
+                        : () => _patch({
+                            'quietStartMin': null,
+                            'quietEndMin': null,
+                          }),
+                    child: const Text('Limpar horário de silêncio'),
+                  ),
+              ],
+            ),
     );
   }
 }

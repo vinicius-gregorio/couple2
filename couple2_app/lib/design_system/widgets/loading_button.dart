@@ -113,7 +113,8 @@ class _LoadingButtonState extends State<LoadingButton> {
 
   ButtonStyle? _style(ColorScheme scheme, Color? accent) {
     if (_showSpinner) {
-      final filled = widget.variant == LoadingButtonVariant.elevated ||
+      final filled =
+          widget.variant == LoadingButtonVariant.elevated ||
           widget.variant == LoadingButtonVariant.filled;
       final foreground = filled ? scheme.onPrimary : (accent ?? scheme.primary);
       final background = filled ? scheme.primary : Colors.transparent;
@@ -166,6 +167,23 @@ class LoadingIconButton extends StatefulWidget {
   State<LoadingIconButton> createState() => _LoadingIconButtonState();
 }
 
+Widget _tinted(Widget icon, Color color) {
+  if (icon is Icon) {
+    return Icon(
+      icon.icon,
+      key: icon.key,
+      size: icon.size,
+      color: color,
+      semanticLabel: icon.semanticLabel,
+      textDirection: icon.textDirection,
+    );
+  }
+  return IconTheme.merge(
+    data: IconThemeData(color: color),
+    child: icon,
+  );
+}
+
 class _LoadingIconButtonState extends State<LoadingIconButton> {
   var _busy = false;
 
@@ -186,17 +204,22 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final enabled = widget.onPressed != null && !_showSpinner;
+    final background = enabled || _showSpinner
+        ? scheme.primary
+        : scheme.surfaceContainerHighest;
+    final foreground = enabled || _showSpinner
+        ? scheme.onPrimary
+        : scheme.onSurface.withValues(alpha: 0.38);
     return IconButton.filled(
       tooltip: widget.tooltip,
-      onPressed: widget.onPressed == null || _showSpinner ? null : _press,
-      style: _showSpinner
-          ? IconButton.styleFrom(
-              backgroundColor: scheme.primary,
-              foregroundColor: scheme.onPrimary,
-              disabledBackgroundColor: scheme.primary,
-              disabledForegroundColor: scheme.onPrimary,
-            )
-          : null,
+      onPressed: enabled ? _press : null,
+      style: IconButton.styleFrom(
+        backgroundColor: background,
+        foregroundColor: foreground,
+        disabledBackgroundColor: background,
+        disabledForegroundColor: foreground,
+      ),
       icon: _showSpinner
           ? SizedBox(
               key: LoadingButton.spinnerKey,
@@ -207,7 +230,7 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
                 color: scheme.onPrimary,
               ),
             )
-          : widget.icon,
+          : _tinted(widget.icon, foreground),
     );
   }
 }

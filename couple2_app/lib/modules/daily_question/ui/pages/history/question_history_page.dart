@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import 'question_history_viewmodel.dart';
@@ -22,6 +23,7 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
   @override
   void initState() {
     super.initState();
+    _draft.addListener(_onDraftChanged);
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
       final position = _scroll.position;
@@ -31,8 +33,13 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
     });
   }
 
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _draft.removeListener(_onDraftChanged);
     _scroll.dispose();
     _draft.dispose();
     super.dispose();
@@ -68,39 +75,43 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
         : partnerRaw;
 
     return Scaffold(
-      appBar: AppBar(title: const AppText('Histórico')),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const AppText('Histórico'),
+      ),
       body: RefreshIndicator(
         onRefresh: viewModel.refresh,
         child: AsyncBody(
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
           error: state.errorMessage,
-          errorMessage: state.errorMessage ?? 'Não foi possível carregar o histórico.',
+          errorMessage:
+              state.errorMessage ?? 'Não foi possível carregar o histórico.',
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nenhuma pergunta ainda.',
           child: ListView.separated(
-                controller: _scroll,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: state.items.length + 1,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  if (index == state.items.length) {
-                    return _HistoryFooter(state: state);
-                  }
-                  final question = state.items[index];
-                  return _HistoryTile(
-                    question: question,
-                    partnerName: partner,
-                    editing: _editingId == question.id,
-                    saving: state.isSaving && _editingId == question.id,
-                    draft: _draft,
-                    onAnswer: () => _openComposer(question),
-                    onSubmit: () => _submit(question),
-                  );
-                },
-              ),
+            controller: _scroll,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: state.items.length + 1,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              if (index == state.items.length) {
+                return _HistoryFooter(state: state);
+              }
+              final question = state.items[index];
+              return _HistoryTile(
+                question: question,
+                partnerName: partner,
+                editing: _editingId == question.id,
+                saving: state.isSaving && _editingId == question.id,
+                draft: _draft,
+                onAnswer: () => _openComposer(question),
+                onSubmit: () => _submit(question),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -174,16 +185,16 @@ class _HistoryTile extends StatelessWidget {
                 minLines: 2,
                 maxLines: 6,
                 enabled: !saving,
-                decoration: const InputDecoration(
-                  hintText: 'Sua resposta',
-                ),
+                decoration: const InputDecoration(hintText: 'Sua resposta'),
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: LoadingButton(
                   variant: LoadingButtonVariant.filled,
                   loading: saving,
-                  onPressed: saving ? null : onSubmit,
+                  onPressed: saving || draft.text.trim().isEmpty
+                      ? null
+                      : onSubmit,
                   child: Text(showAnswer ? 'Enviar' : 'Editar'),
                 ),
               ),

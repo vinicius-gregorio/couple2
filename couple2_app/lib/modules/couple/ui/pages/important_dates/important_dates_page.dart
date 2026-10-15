@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/couple_date_sheet.dart';
@@ -132,7 +133,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
     return Scaffold(
-      appBar: AppBar(title: const AppText('Datas importantes')),
+      appBar: AppBar(
+        leading: AppBackButton(),
+        title: AppText('Datas importantes'),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openSheet(),
         child: const Icon(Icons.add),
@@ -182,11 +186,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           if (_loading && _dates.isEmpty && _error == null)
             const SizedBox(height: 240, child: ListSkeleton(rows: 3))
           else if (_error != null && _dates.isEmpty)
-            ErrorView(
-              message: _error!,
-              compact: true,
-              onRetry: _load,
-            )
+            ErrorView(message: _error!, compact: true, onRetry: _load)
           else if (_dates.isEmpty)
             const EmptyView(
               message: 'Nenhuma data ainda. Adicione a primeira.',

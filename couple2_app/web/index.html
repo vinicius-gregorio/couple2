@@ -31,8 +31,56 @@
 
   <title>couple2_app</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #FDFBF8;
+    }
+    #flutter-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      background: #FDFBF8;
+    }
+    #flutter-splash .mark {
+      width: 72px;
+      height: 72px;
+      border-radius: 24px;
+      background: #9D174D;
+      color: #FFFFFF;
+      font: 700 36px/72px sans-serif;
+      text-align: center;
+    }
+    #flutter-splash .spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid #E4DEE1;
+      border-top-color: #9D174D;
+      animation: flutter-splash-spin 0.8s linear infinite;
+    }
+    @keyframes flutter-splash-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
+  <div id="flutter-splash" aria-label="Carregando">
+    <div class="mark">♥</div>
+    <div class="spinner"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('flutter-splash');
+      if (splash) splash.remove();
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

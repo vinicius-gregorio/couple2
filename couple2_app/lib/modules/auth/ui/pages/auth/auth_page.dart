@@ -33,9 +33,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     ref.listen(authViewModelProvider, (previous, next) {
       final message = next.errorMessage;
       if (message == null || message == previous?.errorMessage) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     });
 
     final theme = Theme.of(context);
@@ -72,6 +72,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               const SizedBox(height: 16),
               AppleSignInButton(
                 onPressed: authState.isLoading ? null : _handleAppleSignIn,
+                isLoading: authState.isLoading,
               ),
 
               if (authState.errorMessage != null) ...[

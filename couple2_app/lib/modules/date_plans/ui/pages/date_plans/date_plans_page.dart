@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -117,6 +118,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const AppText('Dates'),
         bottom: TabBar(
           controller: _tabs,

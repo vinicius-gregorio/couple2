@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../../../core/core.dart';
 import '../../../../feed/data/feed_providers.dart';
@@ -219,14 +220,17 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   Widget build(BuildContext context) {
     final plan = _plan;
     if (_loading && plan == null) {
-      return const Scaffold(body: ListSkeleton(rows: 4));
+      return Scaffold(
+        appBar: AppBar(leading: AppBackButton()),
+        body: ListSkeleton(rows: 4),
+      );
     }
     if (plan == null) {
       final missing =
           _error is CPLHttpException &&
           (_error! as CPLHttpException).response?.statusCode == 404;
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(leading: AppBackButton()),
         body: missing
             ? const EmptyView(message: 'Date não encontrado')
             : ErrorView(
@@ -239,7 +243,10 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final me = ref.watch(sessionProvider).asData?.value?.id;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: AppText(plan.title)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: AppText(plan.title),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

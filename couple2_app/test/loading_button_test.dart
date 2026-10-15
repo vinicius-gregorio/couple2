@@ -31,7 +31,10 @@ void main() {
 
     expect(taps, 1);
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
-    expect(tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed, isNull);
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNull,
+    );
 
     await tester.tap(find.text('Salvar'));
     await tester.pump();
@@ -40,7 +43,10 @@ void main() {
     gate.complete();
     await tester.pump();
     expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
-    expect(tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed, isNotNull);
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNotNull,
+    );
   });
 
   testWidgets('external loading disables the button before a second tap', (
@@ -83,10 +89,12 @@ void main() {
 
     Color? fillOf(String label) {
       final material = tester.widget<Material>(
-        find.descendant(
-          of: find.widgetWithText(ElevatedButton, label),
-          matching: find.byType(Material),
-        ).first,
+        find
+            .descendant(
+              of: find.widgetWithText(ElevatedButton, label),
+              matching: find.byType(Material),
+            )
+            .first,
       );
       return material.color;
     }
@@ -96,5 +104,59 @@ void main() {
     expect(enabled, lightColorScheme.primary);
     expect(disabled, lightColorScheme.surfaceContainerHighest);
     expect(enabled, isNot(disabled));
+  });
+
+  testWidgets('delete icon on a filled button is onPrimary', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lightTheme,
+        home: Scaffold(
+          body: LoadingIconButton(
+            tooltip: 'Excluir lista',
+            onPressed: () {},
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.delete_outline));
+    final theme = IconTheme.of(
+      tester.element(find.byIcon(Icons.delete_outline)),
+    );
+    expect(icon.color ?? theme.color, lightColorScheme.onPrimary);
+
+    final material = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(LoadingIconButton),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(material.color, lightColorScheme.primary);
+  });
+
+  testWidgets('a disabled filled icon uses the disabled fill', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lightTheme,
+        home: const Scaffold(
+          body: LoadingIconButton(onPressed: null, icon: Icon(Icons.add)),
+        ),
+      ),
+    );
+
+    final button = tester.widget<IconButton>(find.byType(IconButton));
+    expect(button.onPressed, isNull);
+    final material = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(LoadingIconButton),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(material.color, lightColorScheme.surfaceContainerHighest);
   });
 }

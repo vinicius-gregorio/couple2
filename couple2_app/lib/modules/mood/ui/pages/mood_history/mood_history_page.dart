@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../data/mood_providers.dart';
 import '../../../domain/domain.dart';
@@ -50,7 +51,7 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
     final history = _history;
     final session = ref.watch(sessionProvider).asData?.value;
     return Scaffold(
-      appBar: AppBar(title: const AppText('Humor')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Humor')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: AsyncBody(

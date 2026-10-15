@@ -1,5 +1,8 @@
+import 'dart:async';
+
+import 'package:couple2_app/app/providers.dart';
 import 'package:couple2_app/app/session.dart';
-import 'package:couple2_app/app/session_provider.dart';
+import 'package:couple2_app/design_system/design_system.dart';
 import 'package:couple2_app/core/external/http_client/cpl_http_response.dart';
 import 'package:couple2_app/core/external/http_client/exceptions/cpl_http_bad_request_exception.dart';
 import 'package:couple2_app/modules/pairing/data/pairing_providers.dart';
@@ -9,6 +12,7 @@ import 'package:couple2_app/modules/pairing/routing/routes.dart';
 import 'package:couple2_app/modules/pairing/ui/pages/enter_code/enter_code_page.dart';
 import 'package:couple2_app/modules/pairing/ui/pages/pairing_code/pairing_code_page.dart';
 import 'package:couple2_app/modules/pairing/ui/pages/waiting/waiting_page.dart';
+import 'package:couple2_app/modules/pairing/ui/widgets/pairing_scaffold.dart';
 import 'package:couple2_app/modules/pairing/ui/widgets/unpair_button.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -222,6 +226,7 @@ void main() {
       find.byKey(const Key('partner-code-field')),
       'xyz789',
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pumpAndSettle();
 
@@ -251,6 +256,7 @@ void main() {
       find.byKey(const Key('partner-code-field')),
       'ABC123',
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
     expect(
@@ -271,6 +277,7 @@ void main() {
       find.byKey(const Key('partner-code-field')),
       'XYZ789',
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
     expect(
@@ -316,6 +323,7 @@ void main() {
       find.byKey(const Key('partner-code-field')),
       'XYZ789',
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pumpAndSettle();
 
@@ -409,5 +417,103 @@ void main() {
 
     expect(repo.unpairs, 1);
     expect(find.text('hub-screen'), findsOneWidget);
+  });
+
+  testWidgets('enviar pedido stays disabled until the code is valid', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(
+        phase: PairingPhase.unpaired,
+        pairingCode: 'ABC123',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => _Session(_unpaired)),
+          pairingRepositoryProvider.overrideWithValue(repo),
+          pairingPollIntervalProvider.overrideWithValue(null),
+        ],
+        child: MaterialApp(theme: lightTheme, home: const EnterCodePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    ElevatedButton submit() {
+      return tester.widget<ElevatedButton>(
+        find.descendant(
+          of: find.byKey(const Key('submit-partner-code')),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+    }
+
+    Color? fill() {
+      return tester
+          .widget<Material>(
+            find
+                .descendant(
+                  of: find.byKey(const Key('submit-partner-code')),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color;
+    }
+
+    expect(submit().onPressed, isNull);
+    expect(fill(), lightColorScheme.surfaceContainerHighest);
+
+    await tester.enterText(find.byKey(const Key('partner-code-field')), 'AB');
+    await tester.pump();
+    expect(submit().onPressed, isNull);
+    expect(fill(), lightColorScheme.surfaceContainerHighest);
+
+    await tester.tap(find.byKey(const Key('submit-partner-code')));
+    await tester.pump();
+    expect(repo.lastCode, isNull);
+
+    await tester.enterText(
+      find.byKey(const Key('partner-code-field')),
+      'XYZ789',
+    );
+    await tester.pump();
+    expect(submit().onPressed, isNotNull);
+    expect(fill(), lightColorScheme.primary);
+  });
+
+  testWidgets('pairing refresh ignores a second tap while in flight', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    var calls = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [logoutActionProvider.overrideWithValue(() async {})],
+        child: MaterialApp(
+          theme: lightTheme,
+          home: PairingScaffold(
+            step: 1,
+            onRefresh: () {
+              calls++;
+              return gate.future;
+            },
+            children: const [Text('código')],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('pairing-refresh')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pairing-refresh')));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.byKey(const Key('pairingRefreshSpinner')), findsOneWidget);
+
+    gate.complete();
+    await tester.pump();
+    expect(calls, 1);
   });
 }

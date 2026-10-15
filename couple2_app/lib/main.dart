@@ -5,6 +5,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 
 import 'app/app.dart';
+import 'app/web_splash.dart';
 import 'modules/notifications/push_service.dart';
 
 void main() async {
@@ -18,4 +19,5 @@ void main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
   runApp(const ProviderScope(child: CoupleApp()));
+  WidgetsBinding.instance.addPostFrameCallback((_) => removeWebSplash());
 }

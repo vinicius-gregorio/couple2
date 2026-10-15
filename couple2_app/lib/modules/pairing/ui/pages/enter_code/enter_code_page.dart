@@ -26,9 +26,32 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onCodeChanged);
+  }
+
+  void _onCodeChanged() {
+    if (mounted) setState(() => _error = null);
+  }
+
+  @override
   void dispose() {
+    _controller.removeListener(_onCodeChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  bool get _canSubmit =>
+      !_submitting &&
+      validatePartnerCode(_controller.text, myCode: _myCode) == null;
+
+  /// Format and self-code errors show once the field has 6 characters.
+  /// Shorter input stays quiet and the button stays disabled.
+  String? get _shownError {
+    if (_error != null) return _error;
+    if (normalizePairingCode(_controller.text).length < 6) return null;
+    return validatePartnerCode(_controller.text, myCode: _myCode);
   }
 
   String? get _myCode {
@@ -116,18 +139,21 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
             counterText: '',
           ),
           onSubmitted: (_) {
-            if (!_submitting) _submit();
+            if (_canSubmit) _submit();
           },
         ),
-        if (_error != null) ...[
+        if (_shownError != null) ...[
           const SizedBox(height: 12),
-          AppText(_error!, style: TextStyle(color: theme.colorScheme.error)),
+          AppText(
+            _shownError!,
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 24),
         LoadingButton(
           key: const Key('submit-partner-code'),
           loading: _submitting,
-          onPressed: _submitting ? null : _submit,
+          onPressed: _canSubmit ? _submit : null,
           child: Text(_submitting ? 'Enviando...' : 'Enviar pedido'),
         ),
         const SizedBox(height: 8),

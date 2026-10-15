@@ -176,7 +176,7 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
     filledButtonTheme: filledButtonTheme(scheme),
     outlinedButtonTheme: outlinedButtonTheme(scheme),
     textButtonTheme: textButtonTheme(scheme),
-    iconButtonTheme: iconButtonTheme(scheme),
+    iconButtonTheme: iconButtonTheme(),
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),
     dividerTheme: isLight ? lightDividerTheme() : darkDividerTheme(),

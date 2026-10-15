@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../data/mood_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -111,7 +112,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const AppText('Carinhos')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Carinhos')),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: AsyncBody(
@@ -123,52 +124,51 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
           isEmpty: _items.isEmpty,
           emptyMessage: 'Os carinhos que você receber aparecem aqui.',
           child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  if (_error != null)
-                    ErrorView(
-                      message: 'Não foi possível atualizar os carinhos.',
-                      compact: true,
-                      onRetry: _refresh,
-                    ),
-                  if (_celebrate)
-                    ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: _heart,
-                        curve: Curves.elasticOut,
-                      ),
-                      child: const Text(
-                        '💗',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 72),
-                      ),
-                    ),
-                  for (final item in _items)
-                      ListTile(
-                        leading: Text(
-                          item.kind.emoji,
-                          style: const TextStyle(fontSize: 28),
-                        ),
-                        title: AppText(item.kind.label),
-                        subtitle: AppText(
-                          [
-                            if (item.message != null &&
-                                item.message!.isNotEmpty)
-                              item.message!,
-                            moodAgeLabel(item.createdAt),
-                          ].join(' · '),
-                        ),
-                      ),
-                  if (_cursor != null)
-                    LoadingButton(
-                      variant: LoadingButtonVariant.text,
-                      loading: _loadingMore,
-                      onPressed: _loadingMore ? null : _loadMore,
-                      child: Text(_loadingMore ? 'Carregando…' : 'Ver mais'),
-                    ),
-                ],
-              ),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            children: [
+              if (_error != null)
+                ErrorView(
+                  message: 'Não foi possível atualizar os carinhos.',
+                  compact: true,
+                  onRetry: _refresh,
+                ),
+              if (_celebrate)
+                ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: _heart,
+                    curve: Curves.elasticOut,
+                  ),
+                  child: const Text(
+                    '💗',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 72),
+                  ),
+                ),
+              for (final item in _items)
+                ListTile(
+                  leading: Text(
+                    item.kind.emoji,
+                    style: const TextStyle(fontSize: 28),
+                  ),
+                  title: AppText(item.kind.label),
+                  subtitle: AppText(
+                    [
+                      if (item.message != null && item.message!.isNotEmpty)
+                        item.message!,
+                      moodAgeLabel(item.createdAt),
+                    ].join(' · '),
+                  ),
+                ),
+              if (_cursor != null)
+                LoadingButton(
+                  variant: LoadingButtonVariant.text,
+                  loading: _loadingMore,
+                  onPressed: _loadingMore ? null : _loadMore,
+                  child: Text(_loadingMore ? 'Carregando…' : 'Ver mais'),
+                ),
+            ],
+          ),
         ),
       ),
     );

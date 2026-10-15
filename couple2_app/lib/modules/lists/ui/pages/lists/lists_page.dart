@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../../../design_system/design_system.dart';
 import '../../../../pairing/routing/routes.dart';
@@ -71,7 +72,7 @@ class _ListsPageState extends ConsumerState<ListsPage>
     final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
     return Scaffold(
-      appBar: AppBar(title: const AppText('Our Lists')),
+      appBar: AppBar(leading: AppBackButton(), title: AppText('Our Lists')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateListSheet(context, ref, partnerName),
         child: const Icon(Icons.add),
@@ -226,7 +227,18 @@ class _CreateListSheetState extends State<_CreateListSheet> {
   final _nameController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     super.dispose();
   }
@@ -251,10 +263,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppText(
-            'New List',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          AppText('New List', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedType,
@@ -292,19 +301,20 @@ class _CreateListSheetState extends State<_CreateListSheet> {
           ],
           const SizedBox(height: 16),
           LoadingButton(
-            onPressed: () async {
-              final name = _nameController.text.trim();
-              if (name.isEmpty) return;
-              final visibility = isGift
-                  ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
-                  : null;
-              final created = await widget.onConfirm(
-                _selectedType,
-                name,
-                visibility,
-              );
-              if (created && context.mounted) Navigator.of(context).pop();
-            },
+            onPressed: _nameController.text.trim().isEmpty
+                ? null
+                : () async {
+                    final name = _nameController.text.trim();
+                    final visibility = isGift
+                        ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
+                        : null;
+                    final created = await widget.onConfirm(
+                      _selectedType,
+                      name,
+                      visibility,
+                    );
+                    if (created && context.mounted) Navigator.of(context).pop();
+                  },
             child: const Text('Create'),
           ),
         ],

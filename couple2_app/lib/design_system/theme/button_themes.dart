@@ -58,27 +58,28 @@ FilledButtonThemeData filledButtonTheme(ColorScheme scheme) {
 
 OutlinedButtonThemeData outlinedButtonTheme(ColorScheme scheme) {
   return OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      foregroundColor: scheme.primary,
-      disabledForegroundColor: disabledForeground(scheme),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      minimumSize: const Size(64, 48),
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.largeRadius),
-      textStyle: appButtonTextStyle(),
-      side: BorderSide(color: scheme.primary, width: 1.5),
-    ).copyWith(
-      side: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) {
-          return BorderSide(
-            color: scheme.onSurface.withValues(alpha: 0.12),
-            width: 1.5,
-          );
-        }
-        return BorderSide(color: scheme.primary, width: 1.5);
-      }),
-    ),
+    style:
+        OutlinedButton.styleFrom(
+          foregroundColor: scheme.primary,
+          disabledForegroundColor: disabledForeground(scheme),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          minimumSize: const Size(64, 48),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.largeRadius),
+          textStyle: appButtonTextStyle(),
+          side: BorderSide(color: scheme.primary, width: 1.5),
+        ).copyWith(
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return BorderSide(
+                color: scheme.onSurface.withValues(alpha: 0.12),
+                width: 1.5,
+              );
+            }
+            return BorderSide(color: scheme.primary, width: 1.5);
+          }),
+        ),
   );
 }
 
@@ -93,13 +94,10 @@ TextButtonThemeData textButtonTheme(ColorScheme scheme) {
   );
 }
 
-IconButtonThemeData iconButtonTheme(ColorScheme scheme) {
-  return IconButtonThemeData(
-    style: IconButton.styleFrom(
-      foregroundColor: scheme.onSurface,
-      disabledForegroundColor: disabledForeground(scheme),
-    ),
-  );
+/// Leave filled icon buttons on the Material default ([ColorScheme.onPrimary]).
+/// A theme-wide foreground paints delete icons dark on the primary circle.
+IconButtonThemeData iconButtonTheme() {
+  return const IconButtonThemeData();
 }
 
 FloatingActionButtonThemeData floatingActionButtonTheme(ColorScheme scheme) {

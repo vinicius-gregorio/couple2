@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/routing/app_back_button.dart';
 import '../../../../notifications/routing/routes.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/activity_icon.dart';
@@ -15,7 +16,8 @@ class FeedPage extends ConsumerStatefulWidget {
   ConsumerState<FeedPage> createState() => _FeedPageState();
 }
 
-class _FeedPageState extends ConsumerState<FeedPage> with WidgetsBindingObserver {
+class _FeedPageState extends ConsumerState<FeedPage>
+    with WidgetsBindingObserver {
   final _scroll = ScrollController();
 
   @override
@@ -52,6 +54,7 @@ class _FeedPageState extends ConsumerState<FeedPage> with WidgetsBindingObserver
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const AppText('O que rolou'),
         actions: [
           IconButton(
@@ -67,31 +70,32 @@ class _FeedPageState extends ConsumerState<FeedPage> with WidgetsBindingObserver
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
           error: state.errorMessage,
-          errorMessage: state.errorMessage ?? 'Não foi possível carregar o feed.',
+          errorMessage:
+              state.errorMessage ?? 'Não foi possível carregar o feed.',
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nada por aqui ainda.',
           child: ListView.separated(
-                controller: _scroll,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: state.items.length + 1,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  if (index == state.items.length) {
-                    return _Footer(state: state, onRetry: viewModel.refresh);
-                  }
-                  final event = state.items[index];
-                  return _ActivityTile(
-                    event: event,
-                    actor: viewModel.actorLabel(event),
-                    onTap: () {
-                      final route = activityRoute(event.type, event.payload);
-                      if (route != null) context.push(route);
-                    },
-                  );
+            controller: _scroll,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: state.items.length + 1,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              if (index == state.items.length) {
+                return _Footer(state: state, onRetry: viewModel.refresh);
+              }
+              final event = state.items[index];
+              return _ActivityTile(
+                event: event,
+                actor: viewModel.actorLabel(event),
+                onTap: () {
+                  final route = activityRoute(event.type, event.payload);
+                  if (route != null) context.push(route);
                 },
-              ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -116,9 +120,7 @@ class _Footer extends StatelessWidget {
     if (state.isLoadingMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Shimmer(
-          child: SkeletonBox(height: 48, radius: 12),
-        ),
+        child: Shimmer(child: SkeletonBox(height: 48, radius: 12)),
       );
     }
     return const SizedBox(height: 24);
