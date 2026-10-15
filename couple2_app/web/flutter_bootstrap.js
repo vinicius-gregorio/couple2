@@ -8,10 +8,6 @@
   var settled = false;
   var timer = 0;
 
-  function fallbackBaseUrl() {
-    return new URL('fallback_fonts/', document.baseURI).href;
-  }
-
   function settle() {
     settled = true;
     if (timer) {
@@ -61,11 +57,9 @@
   watchEntrypointErrors();
   timer = setTimeout(showSplashFailure, kSplashLimitMs);
 
-  var config = { fontFallbackBaseUrl: fallbackBaseUrl() };
   var loading = _flutter.loader.load({
-    config: config,
     onEntrypointLoaded: function (engineInitializer) {
-      Promise.resolve(engineInitializer.initializeEngine(config))
+      Promise.resolve(engineInitializer.initializeEngine())
         .then(function (appRunner) {
           return appRunner.runApp();
         })

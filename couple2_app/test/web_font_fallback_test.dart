@@ -35,36 +35,20 @@ void main() {
     expect(appTextButtonTextStyle().fontFamily, kAppFontFamily);
   });
 
-  test('bootstrap hosts fallback fonts and fails the splash open', () {
+  test('bootstrap leaves font fallback to the engine and fails the splash open', () {
     final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
     final html = File('web/index.html').readAsStringSync();
 
-    expect(bootstrap, contains('fontFallbackBaseUrl'));
-    expect(bootstrap, contains("new URL('fallback_fonts/', document.baseURI)"));
+    expect(bootstrap, isNot(contains('fontFallbackBaseUrl')));
+    expect(bootstrap, isNot(contains('fallback_fonts')));
     expect(bootstrap, contains('initializeEngine'));
     expect(bootstrap, contains('180000'));
     expect(bootstrap, contains("addEventListener('error', showSplashFailure)"));
-    expect(bootstrap, isNot(contains('fonts.gstatic.com')));
-    expect(bootstrap, isNot(contains('fonts.googleapis.com')));
 
     expect(html, contains('Recarregar'));
     expect(html, contains('Não foi possível carregar'));
     expect(html, contains('<svg class="mark"'));
-    expect(html, isNot(contains('fonts.gstatic.com')));
     expect(html, isNot(contains('setTimeout')));
-
-    expect(
-      File(
-        'web/fallback_fonts/roboto/v32/KFOmCnqEu92Fr1Me4GZLCzYlKw.woff2',
-      ).existsSync(),
-      isTrue,
-    );
-    expect(
-      File(
-        'web/fallback_fonts/notosans/v37/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyD9A99Y41P6zHtY.woff2',
-      ).existsSync(),
-      isTrue,
-    );
-    expect(File('assets/fonts/Roboto-Regular.ttf').existsSync(), isTrue);
+    expect(Directory('web/fallback_fonts').existsSync(), isFalse);
   });
 }
