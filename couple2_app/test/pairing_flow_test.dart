@@ -84,6 +84,9 @@ class _FakePairing implements IPairingRepository {
   String? lastCode;
   int cancels = 0;
   int unpairs = 0;
+  int ensures = 0;
+  Object? ensureError;
+  Completer<void>? ensureGate;
 
   @override
   Future<void> cancelRequest() async {
@@ -108,6 +111,45 @@ class _FakePairing implements IPairingRepository {
   @override
   Future<void> unpair() async {
     unpairs++;
+  }
+
+  @override
+  Future<void> ensurePairingCode() async {
+    ensures++;
+    final error = ensureError;
+    if (error != null) throw error;
+    final gate = ensureGate;
+    if (gate != null) await gate.future;
+  }
+}
+
+class _CodeSession extends SessionNotifier {
+  static int refreshes = 0;
+
+  @override
+  Future<Session?> build() {
+    return SynchronousFuture(
+      const Session(
+        id: 'user-a',
+        email: 'a@example.com',
+        name: 'Ana',
+        isPaired: false,
+      ),
+    );
+  }
+
+  @override
+  Future<void> refresh() async {
+    refreshes++;
+    state = const AsyncData(
+      Session(
+        id: 'user-a',
+        email: 'a@example.com',
+        name: 'Ana',
+        isPaired: false,
+        pairingCode: 'NEW123',
+      ),
+    );
   }
 }
 
@@ -515,5 +557,72 @@ void main() {
     gate.complete();
     await tester.pump();
     expect(calls, 1);
+  });
+
+  testWidgets('missing pairing code generates one without signing out', (
+    tester,
+  ) async {
+    _CodeSession.refreshes = 0;
+    final gate = Completer<void>();
+    final repo = _FakePairing(
+      const PairingSnapshot(phase: PairingPhase.unpaired),
+    );
+    repo.ensureGate = gate;
+    await _pumpPage(
+      tester,
+      home: const PairingCodePage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    expect(find.textContaining('Saia e entre de novo'), findsNothing);
+    expect(find.text('Sem código ainda.'), findsOneWidget);
+    expect(find.text('Gerar código'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('generate-pairing-code')));
+    await tester.pump();
+    expect(repo.ensures, 1);
+    expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('generate-pairing-code')));
+    await tester.pump();
+    expect(repo.ensures, 1);
+
+    repo.status = const PairingSnapshot(
+      phase: PairingPhase.unpaired,
+      pairingCode: 'NEW123',
+    );
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(_CodeSession.refreshes, 1);
+    expect(find.text('NEW123'), findsOneWidget);
+    expect(find.text('Gerar código'), findsNothing);
+  });
+
+  testWidgets('generate pairing code shows an error when the request fails', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(phase: PairingPhase.unpaired),
+    );
+    repo.ensureError = Exception('offline');
+    await _pumpPage(
+      tester,
+      home: const PairingCodePage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    await tester.tap(find.byKey(const Key('generate-pairing-code')));
+    await tester.pumpAndSettle();
+
+    expect(repo.ensures, 1);
+    expect(
+      find.text('Não foi possível gerar o código. Tente de novo.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
+    expect(find.text('Gerar código'), findsOneWidget);
   });
 }

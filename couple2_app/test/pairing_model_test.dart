@@ -266,11 +266,18 @@ void main() {
     http.data = {'message': 'Successfully unpaired'};
     await repo.unpair();
 
+    http.data = {
+      'pairingCode': 'NEW123',
+      'pairingCodeExpiresAt': '2026-11-06T15:00:00.000Z',
+    };
+    await repo.ensurePairingCode();
+
     expect(http.calls.map((call) => (call.$1, call.$2)).toList(), [
       ('GET', '/pairing/status'),
       ('POST', '/pairing/pair'),
       ('DELETE', '/pairing/request'),
       ('DELETE', '/pairing/unpair'),
+      ('POST', '/pairing/code'),
     ]);
     expect(http.calls[1].$3, {'code': 'XYZ789'});
   });

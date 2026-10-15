@@ -147,6 +147,21 @@ export class PairingService {
   }
 
   /**
+   * Returns the current user's pairing code, creating one when the stored
+   * code is missing or expired. Paired users keep no code.
+   */
+  async ensureOwnPairingCode(userId: string) {
+    const user = await this.usersService.ensurePairingCode(userId);
+    if (user.partnerId) {
+      throw new ConflictException('You are already paired with a partner');
+    }
+    return {
+      pairingCode: user.pairingCode,
+      pairingCodeExpiresAt: user.pairingCodeExpiresAt,
+    };
+  }
+
+  /**
    * Gets the current pairing request status for a user.
    */
   async getPairingStatus(userId: string) {

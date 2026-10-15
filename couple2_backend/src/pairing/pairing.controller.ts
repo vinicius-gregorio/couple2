@@ -23,6 +23,17 @@ export class PairingController {
   }
 
   /**
+   * POST /pairing/code
+   * Returns the current user's pairing code, creating one when it is missing
+   * or expired. Login and unpair already do this; this recovers a code
+   * without signing out.
+   */
+  @Post('code')
+  async ensureCode(@GetUser() user: UserWithPartner) {
+    return this.pairingService.ensureOwnPairingCode(user.id);
+  }
+
+  /**
    * GET /pairing/status
    * Gets the current pairing status for the authenticated user.
    */

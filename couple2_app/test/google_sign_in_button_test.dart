@@ -7,6 +7,7 @@ import 'package:couple2_app/modules/auth/data/auth_repository.dart';
 import 'package:couple2_app/modules/auth/data/google_web_sign_in.dart';
 import 'package:couple2_app/modules/auth/ui/pages/auth/auth_page.dart';
 import 'package:couple2_app/modules/auth/ui/pages/auth/auth_viewmodel.dart';
+import 'package:couple2_app/modules/auth/ui/widgets/apple_sign_in_button.dart';
 import 'package:couple2_app/modules/auth/ui/widgets/google_sign_in_button.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:flutter/material.dart';
@@ -55,10 +56,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: GoogleSignInButton(
-            isLoading: true,
-            onPressed: () => taps++,
-          ),
+          body: GoogleSignInButton(isLoading: true, onPressed: () => taps++),
         ),
       ),
     );
@@ -151,6 +149,55 @@ void main() {
       lessThan(scheme.primary.computeLuminance()),
     );
     expect(find.byType(SelectableText), findsNothing);
+  });
+
+  testWidgets('apple sign-in tap shows a spinner and ignores a second tap', (
+    tester,
+  ) async {
+    final repo = _ScriptedAuthRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authRepositoryProvider.overrideWithValue(repo)],
+        child: const MaterialApp(home: AuthPage()),
+      ),
+    );
+    await tester.pump();
+
+    final semantics = tester.widget<Semantics>(
+      find.descendant(
+        of: find.byType(AppleSignInButton),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.button == true,
+        ),
+      ),
+    );
+    expect(semantics.properties.button, isTrue);
+    expect(semantics.properties.enabled, isTrue);
+
+    await tester.tap(find.byType(AppleSignInButton));
+    await tester.pump();
+
+    expect(repo.appleCalls, 1);
+    expect(find.byKey(AppleSignInButton.loadingIndicatorKey), findsOneWidget);
+    expect(
+      tester
+          .widget<Semantics>(
+            find.descendant(
+              of: find.byType(AppleSignInButton),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is Semantics && widget.properties.button == true,
+              ),
+            ),
+          )
+          .properties
+          .enabled,
+      isFalse,
+    );
+
+    await tester.tap(find.byType(AppleSignInButton));
+    await tester.pump();
+    expect(repo.appleCalls, 1);
   });
 
   testWidgets('sets loading before Google sign-in finishes', (tester) async {
@@ -276,8 +323,10 @@ class _ScriptedAuthRepository implements IAuthRepository {
   _ScriptedAuthRepository({this.onGoogle});
 
   Future<User> Function()? onGoogle;
+  Future<User> Function()? onApple;
   final Completer<User> _hanging = Completer<User>();
   int googleCalls = 0;
+  int appleCalls = 0;
 
   @override
   final AuthStateNotifier authStateNotifier = AuthStateNotifier();
@@ -294,7 +343,12 @@ class _ScriptedAuthRepository implements IAuthRepository {
   }
 
   @override
-  Future<User> signInWithApple() => _hanging.future;
+  Future<User> signInWithApple() {
+    appleCalls++;
+    final action = onApple;
+    if (action == null) return _hanging.future;
+    return action();
+  }
 
   @override
   Future<void> logOut() async {}

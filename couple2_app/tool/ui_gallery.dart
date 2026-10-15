@@ -30,7 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Local screenshot harness. Not part of the product routes.
-/// Open `/?screen=login|login-loading|pairing|enter-code|home|lists-loading|lists-error|lists-empty|lists-ready|gifts|question|dates|buttons`.
+/// Open `/?screen=login|login-loading|pairing|pairing-empty|enter-code|home|lists-loading|lists-error|lists-empty|lists-ready|gifts|question|dates|buttons`.
 final String galleryScreen = Uri.base.queryParameters['screen'] ?? 'login';
 
 void main() {
@@ -66,7 +66,7 @@ class GalleryApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       home: switch (galleryScreen) {
-        'pairing' => const PairingCodePage(),
+        'pairing' || 'pairing-empty' => const PairingCodePage(),
         'enter-code' => const EnterCodePage(),
         'home' => const HomePage(),
         'lists-loading' ||
@@ -95,12 +95,25 @@ class _GalleryAuth extends AuthViewModel {
 
 class _GallerySession extends SessionNotifier {
   @override
-  Future<Session?> build() async => _session;
+  Future<Session?> build() async {
+    if (galleryScreen == 'pairing-empty') {
+      return const Session(
+        id: 'user-a',
+        email: 'ana@example.com',
+        name: 'Ana',
+        isPaired: false,
+      );
+    }
+    return _session;
+  }
 }
 
 class _GalleryPairing extends PairingStatusNotifier {
   @override
   Future<PairingSnapshot> build() async {
+    if (galleryScreen == 'pairing-empty') {
+      return const PairingSnapshot(phase: PairingPhase.unpaired);
+    }
     return PairingSnapshot(
       phase: PairingPhase.unpaired,
       pairingCode: 'AB12CD',

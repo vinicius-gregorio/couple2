@@ -6,6 +6,9 @@ abstract class IPairingRepository {
   Future<PairResult> pair(String code);
   Future<void> cancelRequest();
   Future<void> unpair();
+
+  /// `POST /pairing/code`. Creates the code when login never stored one.
+  Future<void> ensurePairingCode();
 }
 
 class PairingRepository implements IPairingRepository {
@@ -39,6 +42,11 @@ class PairingRepository implements IPairingRepository {
   @override
   Future<void> unpair() async {
     await _httpClient.delete<Map<String, dynamic>>('/pairing/unpair');
+  }
+
+  @override
+  Future<void> ensurePairingCode() async {
+    await _httpClient.post<Map<String, dynamic>>('/pairing/code');
   }
 
   Map<String, dynamic> _asMap(Object? data) {
