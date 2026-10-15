@@ -114,22 +114,12 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   Future<void> _delete(CoupleDate date) async {
     if (_saving || _deletingId != null) return;
     setState(() => _deletingId = date.id);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir data?'),
-        content: Text('“${date.title}” será apagada para os dois.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'Excluir data?',
+      message: '“${date.title}” será apagada para os dois.',
+      confirmLabel: 'Excluir',
+      confirmKey: const Key('confirm-delete-date'),
     );
     if (confirmed != true || !mounted) {
       if (mounted) setState(() => _deletingId = null);
@@ -234,9 +224,15 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           else if (_loadError != null && _dates.isEmpty)
             ErrorView(message: _loadError!, compact: true, onRetry: _load)
           else if (_dates.isEmpty)
-            const EmptyView(
+            EmptyView(
               message: 'Nenhuma data ainda. Adicione a primeira.',
               compact: true,
+              action: FilledButton(
+                onPressed: _saving || _deletingId != null
+                    ? null
+                    : () => _openSheet(),
+                child: const Text('Adicionar data'),
+              ),
             )
           else ...[
             ..._dates.map(

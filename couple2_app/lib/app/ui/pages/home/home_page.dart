@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/core.dart';
 import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
@@ -59,8 +60,16 @@ class HomePage extends ConsumerWidget {
               onPressed: () => context.push(FeedRoutes.feed),
             ),
           IconButton(
+            tooltip: 'Sair',
             icon: const Icon(Icons.logout),
             onPressed: () async {
+              final accepted = await confirmDestructive(
+                context,
+                title: 'Sair da conta?',
+                message: 'Você volta para a tela de entrada.',
+                confirmLabel: 'Sair',
+              );
+              if (!accepted) return;
               await logout();
             },
           ),
@@ -100,10 +109,16 @@ class HomePage extends ConsumerWidget {
                     ),
                   )
                 else
-                  const Center(
+                  Center(
                     child: CircleAvatar(
                       radius: 50,
-                      child: Icon(Icons.person, size: 50),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      child: Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -126,7 +141,10 @@ class HomePage extends ConsumerWidget {
                     },
                     loading: () => const CardSkeleton(),
                     error: (error, _) => ErrorView(
-                      message: 'Erro ao carregar o casal',
+                      message: userFacingError(
+                        error,
+                        fallback: 'Não foi possível carregar o casal.',
+                      ),
                       compact: true,
                       onRetry: () => ref.invalidate(coupleProvider),
                     ),
@@ -155,7 +173,10 @@ class HomePage extends ConsumerWidget {
         },
         loading: () => const ListSkeleton(rows: 4),
         error: (error, _) => ErrorView(
-          message: 'Erro ao carregar usuário',
+          message: userFacingError(
+            error,
+            fallback: 'Não foi possível carregar a sessão.',
+          ),
           onRetry: () => ref.read(sessionProvider.notifier).refresh(),
         ),
       ),
@@ -228,8 +249,13 @@ class _AvatarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final avatar = pictureUrl == null
-        ? const CircleAvatar(child: Icon(Icons.person))
+        ? CircleAvatar(
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+            child: Icon(Icons.person, color: scheme.onPrimary),
+          )
         : CircleAvatar(
             backgroundImage: NetworkImage(pictureUrl!),
             onBackgroundImageError: (_, __) {},

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/provider_load.dart';
 import '../../../../../app/session_provider.dart';
+import '../../../../../core/core.dart';
 import '../../../data/feed_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -63,10 +65,19 @@ class FeedViewModel extends Notifier<FeedState> {
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final page = await ref.read(feedRepositoryProvider).getFeed(limit: 20);
+      final page = await loadOrTimeout(
+        ref.read(feedRepositoryProvider).getFeed(limit: 20),
+      );
       state = FeedState(items: page.items, nextCursor: page.nextCursor);
     } catch (error) {
-      state = FeedState(errorMessage: error.toString());
+      state = state.copyWith(
+        isLoading: false,
+        items: state.items,
+        errorMessage: userFacingError(
+          error,
+          fallback: 'Não foi possível carregar o feed.',
+        ),
+      );
     }
   }
 
@@ -75,10 +86,9 @@ class FeedViewModel extends Notifier<FeedState> {
     if (cursor == null || state.isLoadingMore || state.isLoading) return;
     state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
-      final page = await ref.read(feedRepositoryProvider).getFeed(
-            cursor: cursor,
-            limit: 20,
-          );
+      final page = await loadOrTimeout(
+        ref.read(feedRepositoryProvider).getFeed(cursor: cursor, limit: 20),
+      );
       final seen = state.items.map((item) => item.id).toSet();
       final extra = page.items.where((item) => !seen.contains(item.id));
       state = state.copyWith(
@@ -88,7 +98,13 @@ class FeedViewModel extends Notifier<FeedState> {
         clearCursor: page.nextCursor == null,
       );
     } catch (error) {
-      state = state.copyWith(isLoadingMore: false, errorMessage: error.toString());
+      state = state.copyWith(
+        isLoadingMore: false,
+        errorMessage: userFacingError(
+          error,
+          fallback: 'Não foi possível carregar o feed.',
+        ),
+      );
     }
   }
 

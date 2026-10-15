@@ -71,10 +71,16 @@ TextButtonThemeData textButtonTheme(ColorScheme scheme) {
   );
 }
 
-/// Leave filled icon buttons on the Material default ([ColorScheme.onPrimary]).
-/// A theme-wide foreground paints delete icons dark on the primary circle.
-IconButtonThemeData iconButtonTheme() {
-  return const IconButtonThemeData();
+/// Standard icon buttons are the tertiary variant: a wine glyph, no fill.
+/// Filled icon buttons pass their own onPrimary style so this does not paint
+/// a wine icon on the wine circle.
+IconButtonThemeData iconButtonTheme(ColorScheme scheme) {
+  return IconButtonThemeData(
+    style: IconButton.styleFrom(
+      foregroundColor: scheme.primary,
+      disabledForegroundColor: disabledForeground(scheme),
+    ),
+  );
 }
 
 FloatingActionButtonThemeData floatingActionButtonTheme(ColorScheme scheme) {

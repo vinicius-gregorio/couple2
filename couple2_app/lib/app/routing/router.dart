@@ -13,7 +13,9 @@ import '../../modules/date_plans/routing/routing.dart';
 import '../../modules/mood/routing/routing.dart';
 import '../../modules/notifications/routing/routing.dart';
 import '../../modules/pairing/routing/routing.dart';
+import '../../design_system/design_system.dart';
 import '../session.dart';
+import 'app_back_button.dart';
 import '../session_provider.dart';
 import '../ui/pages/home/home_page.dart';
 import 'auth_redirect.dart';
@@ -110,6 +112,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       return target;
     },
+    errorBuilder: (context, state) => const UnknownRoutePage(),
     routes: [
       GoRoute(
         path: APPRoutes.home,
@@ -131,3 +134,19 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(router.dispose);
   return router;
 });
+
+/// Shown for a path GoRouter does not know. The exception text stays off screen.
+class UnknownRoutePage extends StatelessWidget {
+  const UnknownRoutePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const Text('Página não encontrada'),
+      ),
+      body: const EmptyView(message: 'Essa página não existe.'),
+    );
+  }
+}

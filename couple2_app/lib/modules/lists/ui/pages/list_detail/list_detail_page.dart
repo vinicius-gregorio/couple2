@@ -144,6 +144,23 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
   }
 }
 
+Future<void> _confirmDeleteItem(
+  BuildContext context,
+  WidgetRef ref,
+  String listId,
+  ListItem item,
+) async {
+  final accepted = await confirmDestructive(
+    context,
+    title: 'Excluir item?',
+    message: '“${item.content}” será apagado para os dois.',
+    confirmLabel: 'Excluir',
+    confirmKey: Key('confirm-delete-${item.id}'),
+  );
+  if (!accepted || !context.mounted) return;
+  await ref.read(listsViewModelProvider.notifier).deleteItem(listId, item.id);
+}
+
 class _ItemTile extends ConsumerWidget {
   const _ItemTile({
     required this.item,
@@ -202,7 +219,9 @@ class _ItemTile extends ConsumerWidget {
             key: Key('delete-item-${item.id}'),
             tooltip: 'Excluir item',
             loading: item.pending,
-            onPressed: item.pending ? null : () => vm.deleteItem(listId, item.id),
+            onPressed: item.pending
+                ? null
+                : () => _confirmDeleteItem(context, ref, listId, item),
             icon: const Icon(Icons.delete_outline),
           ),
         ],

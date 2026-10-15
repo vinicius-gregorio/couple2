@@ -200,7 +200,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Voltar'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: Text(confirm),
           ),
@@ -234,7 +234,12 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
         body: missing
             ? const EmptyView(message: 'Date não encontrado')
             : ErrorView(
-                message: 'Não consegui carregar o date.',
+                message: _error == null
+                    ? 'Não consegui carregar o date.'
+                    : userFacingError(
+                        _error!,
+                        fallback: 'Não consegui carregar o date.',
+                      ),
                 onRetry: _load,
               ),
       );

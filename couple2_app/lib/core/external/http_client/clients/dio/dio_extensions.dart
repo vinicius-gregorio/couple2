@@ -39,7 +39,7 @@ extension CPLHttpDioExceptionX<T> on DioException {
               ),
               error: error,
               stackTrace: stackTrace,
-              message: 'Error connecting to the server',
+              message: 'Sem conexão. Verifique a internet e tente de novo.',
             );
           }
         }

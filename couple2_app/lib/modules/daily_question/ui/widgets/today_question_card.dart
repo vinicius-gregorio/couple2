@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -48,8 +49,12 @@ class TodayQuestionCard extends ConsumerWidget {
                       if (today.isLoading && question == null)
                         const SkeletonBox(height: 14)
                       else if (today.hasError)
-                        const AppText(
-                          'Não foi possível carregar a pergunta. Toque para abrir.',
+                        AppText(
+                          userFacingError(
+                            today.error!,
+                            fallback:
+                                'Não foi possível carregar a pergunta. Toque para abrir.',
+                          ),
                         )
                       else if (copy != null)
                         AppText(copy.title)

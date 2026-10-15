@@ -169,6 +169,23 @@ class _ListsBody extends StatelessWidget {
   }
 }
 
+Future<void> _confirmDeleteList(
+  BuildContext context,
+  WidgetRef ref,
+  PartnerList list,
+) async {
+  final accepted = await confirmDestructive(
+    context,
+    title: 'Excluir lista?',
+    message:
+        '“${list.name}” e os itens somem para os dois. Não há como desfazer.',
+    confirmLabel: 'Excluir',
+    confirmKey: const Key('confirm-delete-list'),
+  );
+  if (!accepted || !context.mounted) return;
+  await ref.read(listsViewModelProvider.notifier).deleteList(list.id);
+}
+
 class _ListCard extends ConsumerWidget {
   const _ListCard({required this.list});
   final PartnerList list;
@@ -184,34 +201,43 @@ class _ListCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(icon),
-        title: AppText(list.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppText('$label · $done/$total feitos'),
-            if (isPrivate) const AppText('🔒 Só você vê'),
-          ],
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: IgnorePointer(child: AppText(list.name)),
+        subtitle: IgnorePointer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText('$label · $done/$total feitos'),
+              if (isPrivate) const AppText('🔒 Só você vê'),
+            ],
+          ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            LoadingIconButton(
-              tooltip: 'Excluir lista',
-              loading: ref.watch(listsViewModelProvider).deletingListIds.contains(
+            AbsorbPointer(
+              absorbing: ref.watch(listsViewModelProvider).deletingListIds.contains(
                 list.id,
               ),
-              icon: const Icon(Icons.delete_outline),
-              onPressed:
-                  ref.watch(listsViewModelProvider).deletingListIds.contains(
-                    list.id,
-                  )
-                  ? null
-                  : () => ref
-                        .read(listsViewModelProvider.notifier)
-                        .deleteList(list.id),
+              child: LoadingIconButton(
+                tooltip: 'Excluir lista',
+                loading: ref
+                    .watch(listsViewModelProvider)
+                    .deletingListIds
+                    .contains(list.id),
+                icon: const Icon(Icons.delete_outline),
+                onPressed:
+                    ref.watch(listsViewModelProvider).deletingListIds.contains(
+                      list.id,
+                    )
+                    ? null
+                    : () => _confirmDeleteList(context, ref, list),
+              ),
             ),
-            const Icon(Icons.chevron_right),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ],
         ),
         onTap: () async {

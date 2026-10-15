@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/provider_load.dart';
+import '../../../../../core/core.dart';
 import '../../../data/daily_question_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -58,16 +60,21 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final page = await ref
-          .read(dailyQuestionRepositoryProvider)
-          .history(limit: 20);
+      final page = await loadOrTimeout(
+        ref.read(dailyQuestionRepositoryProvider).history(limit: 20),
+      );
       state = QuestionHistoryState(
         items: page.items,
         nextCursor: page.nextCursor,
       );
       ref.invalidate(todayQuestionProvider);
     } catch (error) {
-      state = QuestionHistoryState(errorMessage: error.toString());
+      state = QuestionHistoryState(
+        errorMessage: userFacingError(
+          error,
+          fallback: 'Não foi possível carregar o histórico.',
+        ),
+      );
     }
   }
 
@@ -76,9 +83,11 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
     if (cursor == null || state.isLoadingMore || state.isLoading) return;
     state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
-      final page = await ref
-          .read(dailyQuestionRepositoryProvider)
-          .history(cursor: cursor, limit: 20);
+      final page = await loadOrTimeout(
+        ref
+            .read(dailyQuestionRepositoryProvider)
+            .history(cursor: cursor, limit: 20),
+      );
       final seen = state.items.map((item) => item.id).toSet();
       final extra = page.items.where((item) => !seen.contains(item.id));
       state = state.copyWith(
@@ -90,7 +99,10 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
     } catch (error) {
       state = state.copyWith(
         isLoadingMore: false,
-        errorMessage: error.toString(),
+        errorMessage: userFacingError(
+          error,
+          fallback: 'Não foi possível carregar o histórico.',
+        ),
       );
     }
   }

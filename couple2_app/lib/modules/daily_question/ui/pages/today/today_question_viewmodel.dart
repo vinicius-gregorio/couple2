@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/provider_load.dart';
+import '../../../../../core/core.dart';
 import '../../../data/daily_question_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -49,13 +51,18 @@ class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final question = await ref
-          .read(dailyQuestionRepositoryProvider)
-          .getToday();
+      final question = await loadOrTimeout(
+        ref.read(dailyQuestionRepositoryProvider).getToday(),
+      );
       state = TodayQuestionState(question: question);
       ref.invalidate(todayQuestionProvider);
     } catch (error) {
-      state = TodayQuestionState(errorMessage: error.toString());
+      state = TodayQuestionState(
+        errorMessage: userFacingError(
+          error,
+          fallback: 'Não foi possível carregar a pergunta.',
+        ),
+      );
     }
   }
 

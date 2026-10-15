@@ -25,27 +25,13 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
     if (_busy || _confirming) return;
     _confirming = true;
     setState(() => _error = null);
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Desfazer o par?'),
-          content: const Text(
-            'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Manter o par'),
-            ),
-            TextButton(
-              key: const Key('confirm-unpair'),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Desfazer'),
-            ),
-          ],
-        );
-      },
+    final accepted = await confirmDestructive(
+      context,
+      title: 'Desfazer o par?',
+      message:
+          'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
+      confirmLabel: 'Desfazer',
+      confirmKey: const Key('confirm-unpair'),
     );
     if (!mounted) return;
     if (accepted != true) {

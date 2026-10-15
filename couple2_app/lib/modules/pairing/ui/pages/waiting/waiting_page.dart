@@ -25,6 +25,7 @@ class WaitingPage extends ConsumerStatefulWidget {
 
 class _WaitingPageState extends ConsumerState<WaitingPage> {
   var _cancelling = false;
+  var _confirming = false;
   String? _error;
 
   Future<void> _refresh() async {
@@ -42,8 +43,26 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
   }
 
   Future<void> _cancel() async {
-    if (_cancelling) return;
+    if (_cancelling || _confirming) return;
     setState(() {
+      _confirming = true;
+      _error = null;
+    });
+    final accepted = await confirmDestructive(
+      context,
+      title: 'Cancelar pedido?',
+      message:
+          'O pedido de pareamento é cancelado. Vocês podem gerar outro código depois.',
+      confirmLabel: 'Cancelar pedido',
+      confirmKey: const Key('confirm-cancel-pairing'),
+    );
+    if (!mounted) return;
+    if (!accepted) {
+      setState(() => _confirming = false);
+      return;
+    }
+    setState(() {
+      _confirming = false;
       _cancelling = true;
       _error = null;
     });
@@ -144,7 +163,11 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
             key: const Key('cancel-pairing-request'),
             variant: LoadingButtonVariant.outlined,
             loading: _cancelling,
-            onPressed: _cancelling ? null : _cancel,
+            onPressed: _cancelling || _confirming
+                ? null
+                : () {
+                    _cancel();
+                  },
             child: Text(_cancelling ? 'Cancelando...' : 'Cancelar pedido'),
           ),
           const SizedBox(height: 8),

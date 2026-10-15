@@ -147,7 +147,25 @@ void main() {
         const ListDetailPage(listId: 'list-1'),
       ),
     );
-    await _doubleTap(tester, find.byTooltip('Excluir item'));
+    await tester.tap(find.byTooltip('Excluir item'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gate.calls, 0);
+    expect(find.text('Excluir item?'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gate.calls, 0);
+    expect(find.text('Pão'), findsOneWidget);
+    await tester.tap(find.byTooltip('Excluir item'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('confirm-delete-bread')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('confirm-delete-bread')),
+      warnIfMissed: false,
+    );
     expect(gate.calls, 1);
     expect(find.text('Pão'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -193,7 +211,14 @@ void main() {
       ),
     );
     expect(find.text('Mercado'), findsOneWidget);
-    await _doubleTap(tester, find.byTooltip('Excluir lista'));
+    await tester.tap(find.byTooltip('Excluir lista'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gate.calls, 0);
+    expect(find.text('Excluir lista?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-delete-list')));
+    await tester.pump();
+    expect(_icon(tester, 'Excluir lista').onPressed, isNull);
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
@@ -394,7 +419,7 @@ void main() {
     await tester.tap(find.widgetWithText(OutlinedButton, 'Recusar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.widgetWithText(TextButton, 'Recusar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Recusar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(
@@ -438,7 +463,7 @@ void main() {
     await tester.tap(find.text('Cancelar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancelar'));
     await tester.pump();
     expect(gate.calls, 1);
     gate.error();
@@ -533,7 +558,7 @@ void main() {
     await tester.tap(find.byTooltip('Excluir'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.widgetWithText(TextButton, 'Excluir'));
+    await tester.tap(find.byKey(const Key('confirm-delete-date')));
     await tester.pump();
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -629,7 +654,17 @@ void main() {
     final gate = Gate();
     await _pump(tester, _pairingScope(gate, const WaitingPage(), pending: true));
     await tester.pump();
-    await _doubleTap(tester, find.text('Cancelar pedido'));
+    await tester.tap(find.text('Cancelar pedido'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gate.calls, 0);
+    expect(find.text('Cancelar pedido?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-cancel-pairing')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('confirm-cancel-pairing')),
+      warnIfMissed: false,
+    );
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();

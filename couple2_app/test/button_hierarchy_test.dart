@@ -87,7 +87,7 @@ void main() {
             onPressed: () {},
             child: const Icon(Icons.add),
           ),
-          body: Column(
+          body: ListView(
             children: [
               const FilledButton(onPressed: null, child: Text('Off')),
               const OutlinedButton(onPressed: null, child: Text('Off line')),
@@ -98,6 +98,18 @@ void main() {
                 selected: true,
                 onSelected: (_) {},
               ),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.arrow_back)),
+              const IconButton(onPressed: null, icon: Icon(Icons.close)),
+              LoadingIconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.delete_outline),
+              ),
+              const LoadingIconButton(
+                onPressed: null,
+                icon: Icon(Icons.delete_outline),
+              ),
+              Switch(value: true, onChanged: (_) {}),
+              Checkbox(value: true, onChanged: (_) {}),
             ],
           ),
         ),
@@ -117,6 +129,13 @@ void main() {
           .first,
     );
     expect((ink.decoration! as ShapeDecoration).color, _primary);
+    final theme = Theme.of(tester.element(find.byType(Switch)));
+    expect(
+      theme.switchTheme.trackColor!.resolve({WidgetState.selected}),
+      _primary,
+    );
+    expect(theme.checkboxTheme.side?.color, _primary);
+    expect(theme.iconButtonTheme.style, isNotNull);
     expect(
       DefaultTextStyle.of(
         tester.element(find.text('Ocasião')),
@@ -133,12 +152,17 @@ void _expectAllowedButtons(WidgetTester tester) {
         widget is FilledButton ||
         widget is OutlinedButton ||
         widget is TextButton ||
-        widget is FloatingActionButton,
+        widget is FloatingActionButton ||
+        widget is IconButton,
   );
 
   for (final element in buttons.evaluate()) {
     final widget = element.widget;
     expect(widget, isNot(isA<ElevatedButton>()));
+    if (widget is IconButton) {
+      _expectIconButton(tester, widget, disabledFg);
+      continue;
+    }
     final background = _background(tester, widget);
     final foreground = _foreground(tester, widget);
     if (background != null && background.a > 0) {
@@ -157,6 +181,38 @@ void _expectAllowedButtons(WidgetTester tester) {
         reason: '$widget label $foreground',
       );
     }
+  }
+}
+
+void _expectIconButton(
+  WidgetTester tester,
+  IconButton button,
+  Color disabledFg,
+) {
+  final icons = find.descendant(
+    of: find.byWidget(button),
+    matching: find.byType(Icon),
+  );
+  expect(icons, findsWidgets, reason: 'IconButton has no glyph');
+  final icon = tester.widget<Icon>(icons.first);
+  final color =
+      icon.color ?? IconTheme.of(tester.element(icons.first)).color;
+  final background = _background(tester, button);
+  final filled = background != null && background.a > 0.5;
+  final disabled = button.onPressed == null;
+  if (filled) {
+    expect(
+      background,
+      disabled ? _disabledFill : _primary,
+      reason: 'filled icon fill $background',
+    );
+    expect(color, disabled ? disabledFg : _white, reason: 'filled icon $color');
+  } else {
+    expect(
+      color,
+      disabled ? disabledFg : _primary,
+      reason: 'icon glyph $color',
+    );
   }
 }
 

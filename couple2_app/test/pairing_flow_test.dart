@@ -405,6 +405,10 @@ void main() {
     expect(find.text('Aguardando confirmação'), findsOneWidget);
     await tester.tap(find.byKey(const Key('cancel-pairing-request')));
     await tester.pumpAndSettle();
+    expect(repo.cancels, 0);
+    expect(find.text('Cancelar pedido?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-cancel-pairing')));
+    await tester.pumpAndSettle();
 
     expect(repo.cancels, 1);
     expect(find.text('Mostre o seu código'), findsOneWidget);
@@ -448,7 +452,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Manter o par'));
+    await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
     expect(repo.unpairs, 0);
 

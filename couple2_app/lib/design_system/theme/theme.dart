@@ -181,7 +181,26 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
     filledButtonTheme: filledButtonTheme(scheme),
     outlinedButtonTheme: outlinedButtonTheme(scheme),
     textButtonTheme: textButtonTheme(scheme),
-    iconButtonTheme: iconButtonTheme(),
+    iconButtonTheme: iconButtonTheme(scheme),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return scheme.primary;
+        return Colors.transparent;
+      }),
+      checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+      side: BorderSide(color: scheme.primary, width: 2),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return scheme.onPrimary;
+        return scheme.primary;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return scheme.primary;
+        return Colors.transparent;
+      }),
+      trackOutlineColor: WidgetStatePropertyAll(scheme.primary),
+    ),
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
     chipTheme: appChipTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),

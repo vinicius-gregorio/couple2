@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/provider_load.dart';
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -24,8 +26,8 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
   String? _pastCursor;
   bool _loadingUpcoming = true;
   bool _loadingPast = true;
-  Object? _upcomingError;
-  Object? _pastError;
+  String? _upcomingError;
+  String? _pastError;
 
   @override
   void initState() {
@@ -66,9 +68,11 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
       }
     });
     try {
-      final page = await ref
-          .read(datePlansRepositoryProvider)
-          .list(scope: scope, cursor: reset ? null : cursor);
+      final page = await loadOrTimeout(
+        ref
+            .read(datePlansRepositoryProvider)
+            .list(scope: scope, cursor: reset ? null : cursor),
+      );
       if (!mounted) return;
       setState(() {
         final target = isUpcoming ? _upcoming : _past;
@@ -85,11 +89,15 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        final message = userFacingError(
+          error,
+          fallback: 'Não consegui carregar os dates.',
+        );
         if (isUpcoming) {
-          _upcomingError = error;
+          _upcomingError = message;
           _loadingUpcoming = false;
         } else {
-          _pastError = error;
+          _pastError = message;
           _loadingPast = false;
         }
       });
@@ -188,7 +196,7 @@ class _DateList extends StatelessWidget {
 
   final List<DatePlan> items;
   final bool loading;
-  final Object? error;
+  final String? error;
   final bool hasMore;
   final String empty;
   final Future<void> Function() onRefresh;
@@ -202,7 +210,7 @@ class _DateList extends StatelessWidget {
     }
     if (error != null && items.isEmpty) {
       return ErrorView(
-        message: 'Não consegui carregar os dates.',
+        message: error!,
         onRetry: () {
           onRefresh();
         },
@@ -217,7 +225,11 @@ class _DateList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.separated(
+      child: Column(
+        children: [
+          if (error != null) MutationErrorBanner(message: error),
+          Expanded(
+            child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         itemCount: items.length + (hasMore ? 1 : 0),
@@ -243,6 +255,9 @@ class _DateList extends StatelessWidget {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }

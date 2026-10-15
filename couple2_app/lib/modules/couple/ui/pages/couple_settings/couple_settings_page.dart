@@ -27,6 +27,27 @@ const _commonTimezones = [
   'UTC',
 ];
 
+const _timezoneLabels = {
+  'America/Sao_Paulo': 'Brasília (São Paulo)',
+  'America/Manaus': 'Manaus',
+  'America/Belem': 'Belém',
+  'America/Fortaleza': 'Fortaleza',
+  'America/Recife': 'Recife',
+  'America/Noronha': 'Fernando de Noronha',
+  'America/Rio_Branco': 'Rio Branco',
+  'America/New_York': 'Nova York',
+  'America/Chicago': 'Chicago',
+  'America/Denver': 'Denver',
+  'America/Los_Angeles': 'Los Angeles',
+  'Europe/Lisbon': 'Lisboa',
+  'Europe/London': 'Londres',
+  'UTC': 'UTC',
+};
+
+String timezoneLabel(String zone) {
+  return _timezoneLabels[zone] ?? zone.replaceAll('_', ' ').replaceAll('/', ' · ');
+}
+
 class CoupleSettingsPage extends ConsumerStatefulWidget {
   const CoupleSettingsPage({super.key});
 
@@ -165,7 +186,12 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             key: ValueKey(_timezone),
             initialValue: zones.contains(_timezone) ? _timezone : zones.first,
             items: zones
-                .map((zone) => DropdownMenuItem(value: zone, child: Text(zone)))
+                .map(
+                  (zone) => DropdownMenuItem(
+                    value: zone,
+                    child: Text(timezoneLabel(zone)),
+                  ),
+                )
                 .toList(),
             onChanged: _saving
                 ? null

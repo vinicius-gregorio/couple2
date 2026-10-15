@@ -32,8 +32,11 @@ class GoogleSignInButton extends StatelessWidget {
         ? scheme.onPrimary
         : scheme.onSurface.withValues(alpha: 0.38);
     final border = active
-        ? Color.alphaBlend(const Color(0x59000000), scheme.primary)
-        : scheme.outline.withValues(alpha: 0.45);
+        ? Color.alphaBlend(
+            scheme.scrim.withValues(alpha: 0.35),
+            scheme.primary,
+          )
+        : scheme.outline;
     return Material(
       color: background,
       elevation: 0,

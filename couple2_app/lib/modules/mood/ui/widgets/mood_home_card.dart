@@ -135,10 +135,27 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
         );
       },
       loading: () => const CardSkeleton(lines: 2),
-      error: (error, _) => ErrorView(
-        message: 'Não foi possível carregar o humor',
-        compact: true,
-        onRetry: () => ref.invalidate(currentMoodProvider),
+      error: (error, _) => Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+          child: Column(
+            children: [
+              AppText(
+                'Como vocês estão',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              ErrorView(
+                message: userFacingError(
+                  error,
+                  fallback: 'Não foi possível carregar o humor',
+                ),
+                compact: true,
+                onRetry: () => ref.invalidate(currentMoodProvider),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

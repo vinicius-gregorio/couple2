@@ -15,7 +15,7 @@ class AppBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+      tooltip: 'Voltar',
       icon: const BackButtonIcon(),
       onPressed: () => popOrGo(context, fallback),
     );

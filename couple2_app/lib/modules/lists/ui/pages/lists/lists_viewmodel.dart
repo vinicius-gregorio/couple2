@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/external/http_client/exceptions/cpl_http_forbidden_exception.dart';
+import '../../../../../core/core.dart';
 import '../../../data/lists_providers.dart';
 import '../../../data/lists_repository.dart';
 import '../../../domain/domain.dart';
@@ -71,7 +71,13 @@ class ListsViewModel extends Notifier<ListsState> {
     } on CPLHttpForbiddenException {
       state = const ListsState(isLoading: false, needsPairing: true);
     } catch (e) {
-      state = ListsState(isLoading: false, errorMessage: e.toString());
+      state = ListsState(
+        isLoading: false,
+        errorMessage: userFacingError(
+          e,
+          fallback: 'Não foi possível carregar as listas.',
+        ),
+      );
     }
   }
 

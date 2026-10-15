@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/core.dart';
 import '../../data/date_plans_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -17,8 +18,11 @@ class NextDateCard extends ConsumerWidget {
 
     return next.when(
       loading: () => const CardSkeleton(lines: 2),
-      error: (_, __) => ErrorView(
-        message: 'Não consegui carregar os dates.',
+      error: (error, _) => ErrorView(
+        message: userFacingError(
+          error,
+          fallback: 'Não consegui carregar os dates.',
+        ),
         compact: true,
         onRetry: () => ref.invalidate(nextDateProvider),
       ),
