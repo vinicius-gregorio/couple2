@@ -17,42 +17,50 @@ class _Unset {
   const _Unset();
 }
 
-/// User-visible auth failure. Always includes the Firebase error code.
+/// User-visible auth failure in PT-BR. Firebase's English text stays off screen.
 String formatAuthError(Object error) {
   if (error is firebase_auth.FirebaseAuthException) {
-    final code = error.code.trim();
-    final message = error.message?.trim();
-    if (code.isEmpty) {
-      return message == null || message.isEmpty ? error.toString() : message;
+    switch (error.code.trim()) {
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Login cancelado';
+      case 'network-request-failed':
+        return 'Sem conexão. Verifique a internet e tente de novo.';
+      case 'operation-not-allowed':
+        return 'Este tipo de login não está disponível.';
+      default:
+        return 'Não foi possível entrar. Tente de novo.';
     }
-    if (message == null || message.isEmpty) return code;
-    return '$code: $message';
   }
-  return error.toString();
+  return 'Não foi possível entrar. Tente de novo.';
 }
 
 /// Estados possíveis da autenticação
 class AuthState {
-  final bool isLoading;
+  final bool googleLoading;
+  final bool appleLoading;
   final String? errorMessage;
   final bool isAuthenticated;
   final User? currentUser;
 
   const AuthState({
-    this.isLoading = false,
+    this.googleLoading = false,
+    this.appleLoading = false,
     this.errorMessage,
     this.isAuthenticated = false,
     this.currentUser,
   });
 
   AuthState copyWith({
-    bool? isLoading,
+    bool? googleLoading,
+    bool? appleLoading,
     Object? errorMessage = _unset,
     bool? isAuthenticated,
     Object? currentUser = _unset,
   }) {
     return AuthState(
-      isLoading: isLoading ?? this.isLoading,
+      googleLoading: googleLoading ?? this.googleLoading,
+      appleLoading: appleLoading ?? this.appleLoading,
       errorMessage: identical(errorMessage, _unset)
           ? this.errorMessage
           : errorMessage as String?,
@@ -97,62 +105,64 @@ class AuthViewModel extends Notifier<AuthState> {
 
   /// Realiza o login com Google (via Firebase)
   Future<User?> signInWithGoogle() {
-    return _runSignIn(_authRepository.signInWithGoogle);
+    if (state.googleLoading) return Future<User?>.value();
+    state = state.copyWith(googleLoading: true, errorMessage: null);
+    return _finishSignIn(
+      _authRepository.signInWithGoogle,
+      () => state.copyWith(googleLoading: false),
+    );
   }
 
-  /// Realiza o login com Apple (via Firebase)
+  /// Realiza o login com Apple (via Firebase). The login screen hides this
+  /// until the Apple provider is enabled.
   Future<User?> signInWithApple() {
-    return _runSignIn(_authRepository.signInWithApple);
+    if (state.appleLoading) return Future<User?>.value();
+    state = state.copyWith(appleLoading: true, errorMessage: null);
+    return _finishSignIn(
+      _authRepository.signInWithApple,
+      () => state.copyWith(appleLoading: false),
+    );
   }
 
-  /// Sets loading before any await so a tap paints a spinner immediately.
-  /// A second call while loading is ignored.
-  Future<User?> _runSignIn(Future<User> Function() signIn) {
-    if (state.isLoading) return Future<User?>.value();
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    return _finishSignIn(signIn);
-  }
-
-  Future<User?> _finishSignIn(Future<User> Function() signIn) async {
+  /// Sets that provider's spinner before any await. The other provider stays
+  /// tappable. A second tap on the same provider is ignored.
+  Future<User?> _finishSignIn(
+    Future<User> Function() signIn,
+    AuthState Function() settle,
+  ) async {
     try {
       final user = await signIn();
-      state = state.copyWith(
-        isLoading: false,
+      state = settle().copyWith(
         isAuthenticated: true,
         currentUser: user,
         errorMessage: null,
       );
       return user;
     } on GoogleRedirectInProgress {
-      // The browser is navigating to Google. Keep the spinner; the session
-      // is completed by getRedirectResult on the next load.
+      // The browser is navigating to Google. Keep this provider's spinner;
+      // the session is completed by getRedirectResult on the next load.
       return null;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: formatAuthError(e),
-      );
+      state = settle().copyWith(errorMessage: formatAuthError(e));
       return null;
     }
   }
 
   /// Realiza o logout
   Future<void> logout() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(errorMessage: null);
 
     try {
       await _authRepository.logOut();
       state = state.copyWith(
-        isLoading: false,
+        googleLoading: false,
+        appleLoading: false,
         isAuthenticated: false,
         currentUser: null,
         errorMessage: null,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: formatAuthError(e),
-      );
+      state = state.copyWith(errorMessage: formatAuthError(e));
     }
   }
 

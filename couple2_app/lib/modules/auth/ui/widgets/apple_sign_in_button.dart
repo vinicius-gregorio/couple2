@@ -1,6 +1,10 @@
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
+/// Apple provider is disabled in Firebase (`OPERATION_NOT_ALLOWED`).
+/// The login screen must not build [AppleSignInButton] while this is false.
+const bool kAppleSignInEnabled = false;
+
 /// "Entrar com Apple" button. Sign-in still runs through Firebase Auth.
 ///
 /// Flutter web misses taps on [ElevatedButton.icon] and that control does not

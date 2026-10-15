@@ -87,7 +87,7 @@ class _GalleryAuth extends AuthViewModel {
   @override
   AuthState build() {
     if (galleryScreen == 'login-loading') {
-      return const AuthState(isLoading: true);
+      return const AuthState(googleLoading: true);
     }
     return const AuthState();
   }

@@ -17,35 +17,30 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _LoadingAuth extends AuthViewModel {
   @override
-  AuthState build() => const AuthState(isLoading: true);
+  AuthState build() => const AuthState(googleLoading: true);
+}
+
+class _AppleLoadingAuth extends AuthViewModel {
+  @override
+  AuthState build() => const AuthState(appleLoading: true);
 }
 
 class _ErrorAuth extends AuthViewModel {
   @override
-  AuthState build() => const AuthState(
-    errorMessage: 'configuration-not-found: Firebase auth is not configured.',
-  );
+  AuthState build() =>
+      const AuthState(errorMessage: 'Não foi possível entrar. Tente de novo.');
 }
 
 void main() {
-  test('formatAuthError includes the Firebase error code', () {
-    final error = FirebaseAuthException(
-      code: 'configuration-not-found',
-      message: 'Firebase auth is not configured.',
-    );
-
-    expect(
-      formatAuthError(error),
-      'configuration-not-found: Firebase auth is not configured.',
-    );
-  });
-
   test('copyWith can clear a previous error', () {
-    const state = AuthState(errorMessage: 'popup-blocked: blocked');
+    const state = AuthState(
+      errorMessage: 'Não foi possível entrar. Tente de novo.',
+    );
 
-    final next = state.copyWith(isLoading: true, errorMessage: null);
+    final next = state.copyWith(googleLoading: true, errorMessage: null);
 
-    expect(next.isLoading, isTrue);
+    expect(next.googleLoading, isTrue);
+    expect(next.appleLoading, isFalse);
     expect(next.errorMessage, isNull);
   });
 
@@ -91,9 +86,11 @@ void main() {
     );
 
     expect(
-      find.text('configuration-not-found: Firebase auth is not configured.'),
+      find.text('Não foi possível entrar. Tente de novo.'),
       findsOneWidget,
     );
+    expect(find.text('Entrar com Apple'), findsNothing);
+    expect(find.byType(AppleSignInButton), findsNothing);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
     expect(find.text('Entrar com Google'), findsOneWidget);
   });
@@ -110,6 +107,7 @@ void main() {
 
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsOneWidget);
     expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.byType(AppleSignInButton), findsNothing);
   });
 
   testWidgets('Google button is a full-width opaque target', (tester) async {
@@ -151,53 +149,33 @@ void main() {
     expect(find.byType(SelectableText), findsNothing);
   });
 
-  testWidgets('apple sign-in tap shows a spinner and ignores a second tap', (
+  testWidgets('login hides Apple and keeps Google independent of it', (
     tester,
   ) async {
     final repo = _ScriptedAuthRepository();
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repo),
+          authViewModelProvider.overrideWith(_AppleLoadingAuth.new),
+        ],
         child: const MaterialApp(home: AuthPage()),
       ),
     );
     await tester.pump();
 
-    final semantics = tester.widget<Semantics>(
-      find.descendant(
-        of: find.byType(AppleSignInButton),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is Semantics && widget.properties.button == true,
-        ),
-      ),
-    );
-    expect(semantics.properties.button, isTrue);
-    expect(semantics.properties.enabled, isTrue);
+    expect(kAppleSignInEnabled, isFalse);
+    expect(find.byType(AppleSignInButton), findsNothing);
+    expect(find.text('Entrar com Apple'), findsNothing);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
 
-    await tester.tap(find.byType(AppleSignInButton));
+    await tester.tap(find.byType(GoogleSignInButton));
     await tester.pump();
 
-    expect(repo.appleCalls, 1);
-    expect(find.byKey(AppleSignInButton.loadingIndicatorKey), findsOneWidget);
-    expect(
-      tester
-          .widget<Semantics>(
-            find.descendant(
-              of: find.byType(AppleSignInButton),
-              matching: find.byWidgetPredicate(
-                (widget) => widget is Semantics && widget.properties.button == true,
-              ),
-            ),
-          )
-          .properties
-          .enabled,
-      isFalse,
-    );
-
-    await tester.tap(find.byType(AppleSignInButton));
-    await tester.pump();
-    expect(repo.appleCalls, 1);
+    expect(repo.googleCalls, 1);
+    expect(repo.appleCalls, 0);
+    expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsOneWidget);
   });
 
   testWidgets('sets loading before Google sign-in finishes', (tester) async {
@@ -217,13 +195,14 @@ void main() {
       tester.element(find.byType(AuthPage)),
     );
     repo.onGoogle = () {
-      loadingWhenCalled = container.read(authViewModelProvider).isLoading;
+      loadingWhenCalled = container.read(authViewModelProvider).googleLoading;
       return pending.future;
     };
 
     await tester.tap(find.byType(GoogleSignInButton));
     expect(loadingWhenCalled, isTrue);
-    expect(container.read(authViewModelProvider).isLoading, isTrue);
+    expect(container.read(authViewModelProvider).googleLoading, isTrue);
+    expect(container.read(authViewModelProvider).appleLoading, isFalse);
     expect(pending.isCompleted, isFalse);
     expect(repo.googleCalls, 1);
 
@@ -235,10 +214,10 @@ void main() {
     expect(find.textContaining('popup-blocked'), findsNothing);
   });
 
-  testWidgets('failed Google sign-in shows the code inline and in a SnackBar', (
+  testWidgets('failed Google sign-in shows Portuguese and hides English', (
     tester,
   ) async {
-    const message = 'popup-blocked: Popup blocked';
+    const message = 'Não foi possível entrar. Tente de novo.';
     final repo = _ScriptedAuthRepository(
       onGoogle: () async {
         throw FirebaseAuthException(
@@ -261,6 +240,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text(message), findsWidgets);
+    expect(find.textContaining('Popup blocked'), findsNothing);
+    expect(find.textContaining('popup-blocked'), findsNothing);
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
   });
@@ -309,10 +290,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      find.text('web-storage-unsupported: Storage is blocked.'),
-      findsWidgets,
-    );
+    expect(find.text('Não foi possível entrar. Tente de novo.'), findsWidgets);
+    expect(find.textContaining('Storage is blocked'), findsNothing);
     expect(find.byType(SnackBar), findsOneWidget);
   });
 }

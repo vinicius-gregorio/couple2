@@ -67,13 +67,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               const SizedBox(height: 48),
               GoogleSignInButton(
                 onPressed: _handleGoogleSignIn,
-                isLoading: authState.isLoading,
+                isLoading: authState.googleLoading,
               ),
-              const SizedBox(height: 16),
-              AppleSignInButton(
-                onPressed: authState.isLoading ? null : _handleAppleSignIn,
-                isLoading: authState.isLoading,
-              ),
+              if (kAppleSignInEnabled) ...[
+                const SizedBox(height: 16),
+                AppleSignInButton(
+                  onPressed: authState.appleLoading ? null : _handleAppleSignIn,
+                  isLoading: authState.appleLoading,
+                ),
+              ],
 
               if (authState.errorMessage != null) ...[
                 const SizedBox(height: 24),

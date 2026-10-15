@@ -30,7 +30,7 @@ class PendingGoogleAuthError {
 /// Popup runs only when redirect throws before navigation. If redirect starts
 /// and Firebase has no user yet, this throws [GoogleRedirectInProgress]: the
 /// page is navigating away, and [runGoogleRedirectBootstrap] finishes login
-/// on the way back. Popup errors propagate so the Firebase code stays visible.
+/// on the way back. Popup errors propagate so the login screen can map them.
 Future<void> signInWithGoogleOnWeb({
   required Future<void> Function() signInWithRedirect,
   required Future<void> Function() signInWithPopup,

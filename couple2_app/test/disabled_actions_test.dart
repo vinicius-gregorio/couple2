@@ -2,7 +2,6 @@ import 'package:couple2_app/app/routing/routes.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/design_system/design_system.dart';
-import 'package:couple2_app/modules/auth/ui/widgets/apple_sign_in_button.dart';
 import 'package:couple2_app/modules/daily_question/domain/domain.dart';
 import 'package:couple2_app/modules/daily_question/ui/pages/today/today_question_page.dart';
 import 'package:couple2_app/modules/daily_question/ui/pages/today/today_question_viewmodel.dart';
@@ -97,64 +96,6 @@ void main() {
     final icon = tester.widget<Icon>(find.byIcon(Icons.add));
     final iconTheme = IconTheme.of(tester.element(find.byIcon(Icons.add)));
     expect(icon.color ?? iconTheme.color, lightColorScheme.onPrimary);
-  });
-
-  testWidgets('apple sign-in shows a spinner while loading', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: lightTheme,
-        home: Scaffold(
-          body: AppleSignInButton(onPressed: () {}, isLoading: true),
-        ),
-      ),
-    );
-
-    expect(find.byKey(AppleSignInButton.loadingIndicatorKey), findsOneWidget);
-    final button = tester.widget<GestureDetector>(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is GestureDetector &&
-            widget.behavior == HitTestBehavior.opaque,
-      ),
-    );
-    expect(button.onTap, isNull);
-    final semantics = tester.widget<Semantics>(
-      find.byWidgetPredicate(
-        (widget) => widget is Semantics && widget.properties.button == true,
-      ),
-    );
-    expect(semantics.properties.button, isTrue);
-    expect(semantics.properties.enabled, isFalse);
-    expect(semantics.properties.label, 'Entrar com Apple');
-    expect(
-      _fill(tester, find.byType(AppleSignInButton)),
-      lightColorScheme.inverseSurface,
-    );
-  });
-
-  testWidgets('apple sign-in tap registers and exposes a button', (
-    tester,
-  ) async {
-    var taps = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: lightTheme,
-        home: Scaffold(body: AppleSignInButton(onPressed: () => taps++)),
-      ),
-    );
-
-    final semantics = tester.widget<Semantics>(
-      find.byWidgetPredicate(
-        (widget) => widget is Semantics && widget.properties.button == true,
-      ),
-    );
-    expect(semantics.properties.button, isTrue);
-    expect(semantics.properties.enabled, isTrue);
-
-    await tester.tap(find.byType(AppleSignInButton));
-    await tester.pump();
-    expect(taps, 1);
-    expect(find.byKey(AppleSignInButton.loadingIndicatorKey), findsNothing);
   });
 
   testWidgets('dates keeps a back arrow that goes home when nothing can pop', (
