@@ -91,7 +91,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
       setState(() {
         final message = userFacingError(
           error,
-          fallback: 'Não consegui carregar os dates.',
+          fallback: 'Não consegui carregar os encontros.',
         );
         if (isUpcoming) {
           _upcomingError = message;
@@ -127,7 +127,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: const AppText('Nossos dates'),
+        title: const AppText('Nossos encontros'),
         bottom: TabBar(
           controller: _tabs,
           tabs: const [
@@ -137,8 +137,8 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
         ),
       ),
       floatingActionButton: AppFab(
-        tooltip: 'Planejar um date',
-        label: 'Planejar um date',
+        tooltip: 'Planejar um encontro',
+        label: 'Planejar um encontro',
         icon: const Icon(Icons.add),
         onPressed: () async {
           await context.push(DatePlanRoutes.create);
@@ -154,7 +154,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
             loading: _loadingUpcoming,
             error: _upcomingError,
             hasMore: _upcomingCursor != null,
-            empty: 'Nenhum date por vir.',
+            empty: 'Nenhum encontro por vir.',
             onRefresh: () => _load('upcoming', reset: true),
             onMore: () => _load('upcoming'),
             onOpen: (id) async {
@@ -168,7 +168,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
             loading: _loadingPast,
             error: _pastError,
             hasMore: _pastCursor != null,
-            empty: 'Nenhum date passado.',
+            empty: 'Nenhum encontro passado.',
             onRefresh: () => _load('past', reset: true),
             onMore: () => _load('past'),
             onOpen: (id) async {
@@ -231,31 +231,31 @@ class _DateList extends StatelessWidget {
           if (error != null) MutationErrorBanner(message: error),
           Expanded(
             child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        itemCount: items.length + (hasMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index >= items.length) {
-            return LoadingButton(
-              variant: LoadingButtonVariant.text,
-              loading: loading,
-              onPressed: loading ? null : onMore,
-              child: const Text('Carregar mais'),
-            );
-          }
-          final plan = items[index];
-          return Card(
-            child: ListTile(
-              title: Text(plan.title),
-              subtitle: Text(
-                '${datePlanWhen(plan.scheduledAt)} · horário do aparelho',
-              ),
-              trailing: Chip(label: Text(plan.status.label)),
-              onTap: () => onOpen(plan.id),
-            ),
-          );
-        },
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              itemCount: items.length + (hasMore ? 1 : 0),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                if (index >= items.length) {
+                  return LoadingButton(
+                    variant: LoadingButtonVariant.text,
+                    loading: loading,
+                    onPressed: loading ? null : onMore,
+                    child: const Text('Carregar mais'),
+                  );
+                }
+                final plan = items[index];
+                return Card(
+                  child: ListTile(
+                    title: Text(plan.title),
+                    subtitle: Text(
+                      '${datePlanWhen(plan.scheduledAt)} · horário do aparelho',
+                    ),
+                    trailing: Chip(label: Text(plan.status.label)),
+                    onTap: () => onOpen(plan.id),
+                  ),
+                );
+              },
             ),
           ),
         ],

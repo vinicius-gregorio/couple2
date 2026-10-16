@@ -4,8 +4,9 @@ const anniversary = new Date('2024-10-05T00:00:00.000Z');
 const saoPaulo = 'America/Sao_Paulo';
 
 describe('daysTogether', () => {
-  it('counts elapsed days, so the start evening is one less than the next midnight', () => {
+  it('counts the start day as 1, so the anniversary evening is 731', () => {
     // 05/10/2026 23:30 in America/Sao_Paulo is already 06/10 02:30 UTC.
+    // features/couple-record.md: 2024-10-05 through 2026-10-05 is 731.
     const lateEvening = new Date('2026-10-06T02:30:00.000Z');
     expect(
       daysTogether({
@@ -14,7 +15,7 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: lateEvening,
       }),
-    ).toBe(730);
+    ).toBe(731);
 
     // 00:10 the next local day.
     const justAfterMidnight = new Date('2026-10-06T03:10:00.000Z');
@@ -25,10 +26,10 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: justAfterMidnight,
       }),
-    ).toBe(731);
+    ).toBe(732);
   });
 
-  it('counts 10/10 through 15/10 as 5 elapsed days', () => {
+  it('counts 10/10 through 15/10 as 6 days, including the start day', () => {
     const start = new Date('2026-10-10T00:00:00.000Z');
     expect(
       daysTogether({
@@ -37,7 +38,7 @@ describe('daysTogether', () => {
         timezone: 'UTC',
         now: new Date('2026-10-15T12:00:00.000Z'),
       }),
-    ).toBe(5);
+    ).toBe(6);
     expect(
       daysTogether({
         anniversaryDate: start,
@@ -45,7 +46,7 @@ describe('daysTogether', () => {
         timezone: 'UTC',
         now: new Date('2026-10-10T23:00:00.000Z'),
       }),
-    ).toBe(0);
+    ).toBe(1);
   });
 
   it('uses the couple timezone across midnight', () => {
@@ -58,7 +59,7 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: new Date('2026-10-15T02:30:00.000Z'),
       }),
-    ).toBe(4);
+    ).toBe(5);
     // 15/10 00:30 in America/Sao_Paulo.
     expect(
       daysTogether({
@@ -67,8 +68,8 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: new Date('2026-10-15T03:30:00.000Z'),
       }),
-    ).toBe(5);
-    // The local start day is still 0 just before the next midnight.
+    ).toBe(6);
+    // The local start day counts as 1 just before the next midnight.
     expect(
       daysTogether({
         anniversaryDate: start,
@@ -76,7 +77,7 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: new Date('2026-10-11T02:30:00.000Z'),
       }),
-    ).toBe(0);
+    ).toBe(1);
     // 11/10 00:00 in America/Sao_Paulo.
     expect(
       daysTogether({
@@ -85,7 +86,7 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now: new Date('2026-10-11T03:00:00.000Z'),
       }),
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it('uses the pairedAt calendar day in the couple timezone when anniversary is unset', () => {
@@ -99,7 +100,7 @@ describe('daysTogether', () => {
         timezone: saoPaulo,
         now,
       }),
-    ).toBe(1);
+    ).toBe(2);
   });
 });
 

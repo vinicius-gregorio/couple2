@@ -71,52 +71,137 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = _name(session?.partnerName);
 
-    return mood.when(
-      data: (current) {
-        if (current == null) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 460),
+      child: mood.when(
+        data: (current) {
+          if (current == null) {
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppText(
+                      'Como vocês estão',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    _CareButton(
+                      sending: _sending,
+                      onTap: () => _send(NudgeKind.thinkingOfYou),
+                      onLongPress: _sending ? null : _compose,
+                    ),
+                    TextButton(
+                      onPressed: _sending ? null : _compose,
+                      child: const Text('Escolher um carinho'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final caring = suggestCaringNudge(current.partner?.mood);
+          final theme = Theme.of(context);
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 24),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppText(
                     'Como vocês estão',
-                    style: Theme.of(context).textTheme.labelLarge,
+                    style: theme.textTheme.labelLarge,
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MoodSide(
+                          title: 'Você',
+                          snapshot: current.me,
+                          empty: 'Toque para dizer',
+                          onTap: () => showMoodPickerSheet(context),
+                        ),
+                      ),
+                      Expanded(
+                        child: _MoodSide(
+                          title: partnerName,
+                          snapshot: current.partner,
+                          empty: 'Quando quiser',
+                          onTap: () => context.push(MoodRoutes.history),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (caring) ...[
+                    const SizedBox(height: 12),
+                    AppText(
+                      'Mandar um carinho?',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _CareButton(
                     sending: _sending,
                     onTap: () => _send(NudgeKind.thinkingOfYou),
                     onLongPress: _sending ? null : _compose,
                   ),
+                  const SizedBox(height: 4),
+                  const AppText(
+                    'Toque para enviar. Segure para escolher.',
+                    textAlign: TextAlign.center,
+                  ),
                   TextButton(
                     onPressed: _sending ? null : _compose,
                     child: const Text('Escolher um carinho'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => context.push(MoodRoutes.history),
+                    child: const Text('Histórico'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => context.push(MoodRoutes.nudges),
+                    child: const Text('Carinhos recebidos'),
                   ),
                 ],
               ),
             ),
           );
-        }
-        final caring = suggestCaringNudge(current.partner?.mood);
-        final theme = Theme.of(context);
-        return Card(
+        },
+        loading: () => const CardSkeleton(lines: 4, minHeight: 460),
+        error: (error, _) => Card(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AppText('Como vocês estão', style: theme.textTheme.labelLarge),
+                AppText(
+                  'Como vocês estão',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                if (!collapseThisError(context, error))
+                  ErrorView(
+                    message: userFacingError(
+                      error,
+                      fallback: 'Não foi possível carregar o humor',
+                    ),
+                    compact: true,
+                    onRetry: () => ref.invalidate(currentMoodProvider),
+                  ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _MoodSide(
                         title: 'Você',
-                        snapshot: current.me,
+                        snapshot: null,
                         empty: 'Toque para dizer',
                         onTap: () => showMoodPickerSheet(context),
                       ),
@@ -124,31 +209,18 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                     Expanded(
                       child: _MoodSide(
                         title: partnerName,
-                        snapshot: current.partner,
+                        snapshot: null,
                         empty: 'Quando quiser',
                         onTap: () => context.push(MoodRoutes.history),
                       ),
                     ),
                   ],
                 ),
-                if (caring) ...[
-                  const SizedBox(height: 12),
-                  AppText(
-                    'Mandar um carinho?',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ],
                 const SizedBox(height: 12),
                 _CareButton(
                   sending: _sending,
                   onTap: () => _send(NudgeKind.thinkingOfYou),
                   onLongPress: _sending ? null : _compose,
-                ),
-                const SizedBox(height: 4),
-                const AppText(
-                  'Toque para enviar. Segure para escolher.',
-                  textAlign: TextAlign.center,
                 ),
                 TextButton(
                   onPressed: _sending ? null : _compose,
@@ -166,41 +238,6 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                 ),
               ],
             ),
-          ),
-        );
-      },
-      loading: () => const CardSkeleton(lines: 2),
-      error: (error, _) => Card(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppText(
-                'Como vocês estão',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              if (!collapseThisError(context, error))
-                ErrorView(
-                  message: userFacingError(
-                    error,
-                    fallback: 'Não foi possível carregar o humor',
-                  ),
-                  compact: true,
-                  onRetry: () => ref.invalidate(currentMoodProvider),
-                ),
-              const SizedBox(height: 8),
-              _CareButton(
-                sending: _sending,
-                onTap: () => _send(NudgeKind.thinkingOfYou),
-                onLongPress: _sending ? null : _compose,
-              ),
-              TextButton(
-                onPressed: _sending ? null : _compose,
-                child: const Text('Escolher um carinho'),
-              ),
-            ],
           ),
         ),
       ),

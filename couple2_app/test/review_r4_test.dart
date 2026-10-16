@@ -171,17 +171,7 @@ void main() {
     expect(repo.declines, 0);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('Recusar pedido?'), findsOneWidget);
-    expect(
-      tester
-          .widget<IconButton>(
-            find.ancestor(
-              of: find.byTooltip('Voltar'),
-              matching: find.byType(IconButton),
-            ),
-          )
-          .onPressed,
-      isNull,
-    );
+    expect(find.byTooltip('Voltar'), findsNothing);
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(repo.declines, 0);

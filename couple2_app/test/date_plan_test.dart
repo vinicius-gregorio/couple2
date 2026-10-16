@@ -82,7 +82,7 @@ void main() {
       proposerId: 'user-a',
       scheduledAt: DateTime(2026, 10, 9, 20),
     );
-    expect(nextDateHeadline(plan), 'Próximo date: Sexta 20:00 — Japonês');
+    expect(nextDateHeadline(plan), 'Próximo encontro: Sexta 20:00 — Japonês');
   });
 
   test('isoWithOffset keeps the same instant and includes an offset', () {

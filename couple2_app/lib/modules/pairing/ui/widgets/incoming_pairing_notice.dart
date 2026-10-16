@@ -15,28 +15,20 @@ class IncomingPairingNotice extends ConsumerWidget {
     final async = ref.watch(incomingPairingRequestsProvider);
     final requests = async.asData?.value ?? const <IncomingPairingRequest>[];
     if (async.hasError && requests.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: AppText(
-          pairingErrorMessage(async.error!, action: PairingAction.status),
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
+      return AppText(
+        pairingErrorMessage(async.error!, action: PairingAction.status),
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
       );
     }
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      alignment: Alignment.topCenter,
-      child: requests.isEmpty
-          ? const SizedBox(width: double.infinity, height: 0)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final request in requests) ...[
-                  _IncomingCard(request: request),
-                  const SizedBox(height: 16),
-                ],
-              ],
-            ),
+    if (requests.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final request in requests) ...[
+          _IncomingCard(request: request),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }
@@ -55,13 +47,17 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
   var _confirming = false;
   String? _error;
   var _held = false;
+  PairingControlsLock? _lock;
 
   bool get _locked => _busy != null || _confirming;
 
   void _hold(bool on) {
     if (_held == on) return;
     _held = on;
-    final lock = ref.read(pairingControlsLockedProvider.notifier);
+    final existing = _lock;
+    final PairingControlsLock lock = existing ??
+        ref.read(pairingControlsLockedProvider.notifier);
+    _lock = lock;
     if (on) {
       lock.acquire();
     } else {
@@ -73,7 +69,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
   void dispose() {
     if (_held) {
       _held = false;
-      ref.read(pairingControlsLockedProvider.notifier).release();
+      _lock?.release();
     }
     super.dispose();
   }

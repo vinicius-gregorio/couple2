@@ -24,6 +24,7 @@ class EnterCodePage extends ConsumerStatefulWidget {
 class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   final _controller = TextEditingController();
   var _submitting = false;
+  var _typed = false;
   String? _error;
   final _pop = PopGuard();
 
@@ -31,6 +32,12 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   void initState() {
     super.initState();
     _controller.addListener(_onCodeChanged);
+    // Browser autofill can refill a code from a previous visit. Clear that
+    // once, before the user types. A later keystroke is kept.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _typed || _controller.text.isEmpty) return;
+      _controller.clear();
+    });
   }
 
   void _onCodeChanged() {
@@ -154,6 +161,8 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
             textCapitalization: TextCapitalization.characters,
             autocorrect: false,
             enableSuggestions: false,
+            autofillHints: const [],
+            onChanged: (_) => _typed = true,
             maxLength: 6,
             textInputAction: TextInputAction.done,
             inputFormatters: [

@@ -87,7 +87,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
     if (_saving || _pop.used) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
-      _toast('Dê um título ao date.');
+      _toast('Dê um título ao encontro.');
       return;
     }
     if (!_when.isAfter(DateTime.now())) {
@@ -153,7 +153,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
     return Scaffold(
       appBar: AppBar(
         leading: AppBackButton(enabled: !_saving),
-        title: AppText(_editing ? 'Editar o date' : 'Planejar um date'),
+        title: AppText(_editing ? 'Editar o encontro' : 'Planejar um encontro'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),

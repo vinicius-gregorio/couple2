@@ -383,7 +383,7 @@ describe('received pairing requests', () => {
       .set('Authorization', bearer('user-b', 'b@example.com'))
       .expect(201);
 
-    expect(declined.body).toEqual({ message: 'Pairing request declined' });
+    expect(declined.body).toEqual({ message: 'Pedido recusado.' });
     expect(requests.map((row) => row.id)).not.toContain('req-for-b');
     expect(requests.map((row) => row.id)).toContain('req-for-a');
 
@@ -423,6 +423,22 @@ describe('received pairing requests', () => {
 
     expect(again.body.partner).toEqual({ id: 'user-h', name: 'Helena' });
     expect(JSON.stringify(again.body)).not.toContain('AAAAAA');
+    expect(couplesCreated).toBe(1);
+    expect(users.get('user-a')?.partnerId).toBe('user-h');
+  });
+
+  it('returns 404 when a paired user accepts an unknown request id', async () => {
+    await request(app.getHttpServer())
+      .post('/pairing/requests/req-for-a/accept')
+      .set('Authorization', bearer('user-a', 'a@example.com'))
+      .expect(201);
+
+    const bogus = await request(app.getHttpServer())
+      .post('/pairing/requests/does-not-exist/accept')
+      .set('Authorization', bearer('user-a', 'a@example.com'))
+      .expect(404);
+
+    expect(bogus.body.message).toBe('Pedido de pareamento não encontrado.');
     expect(couplesCreated).toBe(1);
     expect(users.get('user-a')?.partnerId).toBe('user-h');
   });

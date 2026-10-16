@@ -1,6 +1,7 @@
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../app/routing/app_back_button.dart';
@@ -56,9 +57,13 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
     final onRefresh = widget.onRefresh;
     final screenLocked = ref.watch(pairingControlsLockedProvider) > 0;
     final actionsEnabled = widget.actionsEnabled && !screenLocked;
+    final incoming = ref.watch(incomingPairingRequestsProvider);
+    final requests = incoming.asData?.value ?? const [];
+    final showNotice =
+        requests.isNotEmpty || (incoming.hasError && requests.isEmpty);
     final body = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, showNotice ? 240 : 32),
       children: [
         Center(
           child: ConstrainedBox(
@@ -66,7 +71,6 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const IncomingPairingNotice(),
                 _Steps(current: step),
                 const SizedBox(height: 24),
                 ...children,
@@ -77,7 +81,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
       ],
     );
 
-    final canPop = Navigator.of(context).canPop();
+    final canPop = _routeCanPop(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -112,11 +116,41 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
           ),
         ],
       ),
-      body: onRefresh == null
-          ? body
-          : RefreshIndicator(onRefresh: _refresh, child: body),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          onRefresh == null
+              ? body
+              : RefreshIndicator(onRefresh: _refresh, child: body),
+          if (showNotice)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Material(
+                elevation: 8,
+                color: Theme.of(context).colorScheme.surface,
+                child: const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: IncomingPairingNotice(),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
+}
+
+/// A dialog route makes [Navigator.canPop] and [GoRouter.canPop] true, because
+/// both ask the navigator. Page matches ignore that dialog, so the arrow stays
+/// off the pairing root while Recusar is confirming.
+bool _routeCanPop(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null) {
+    return router.routerDelegate.currentConfiguration.matches.length > 1;
+  }
+  return Navigator.of(context).canPop();
 }
 
 class _Steps extends StatelessWidget {

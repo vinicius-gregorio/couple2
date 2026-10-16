@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../core/core.dart';
 import '../modules/auth/data/auth_providers.dart';
+import 'provider_load.dart';
 import 'session.dart';
 import 'session_cache.dart';
 
@@ -56,8 +57,8 @@ class SessionNotifier extends AsyncNotifier<Session?> {
       return null;
     }
 
-    final response = await GetIt.I<ICPLHttpClient>().get<Map<String, dynamic>>(
-      '/auth/me',
+    final response = await loadOrTimeout(
+      GetIt.I<ICPLHttpClient>().get<Map<String, dynamic>>('/auth/me'),
     );
     final data = response.data;
     if (data is! Map<String, dynamic>) {

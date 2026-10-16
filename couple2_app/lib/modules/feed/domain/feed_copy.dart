@@ -38,17 +38,17 @@ String feedActionText(String type, Map<String, dynamic>? payload) {
           ? 'mandou um carinho'
           : 'mandou um carinho: "$message"';
     case 'DATE_PLAN_PROPOSED':
-      return _datePlanText('propôs o date', title, data);
+      return _datePlanText('propôs o encontro', title, data);
     case 'DATE_PLAN_ACCEPTED':
-      return 'aceitou o date "$title"';
+      return 'aceitou o encontro "$title"';
     case 'DATE_PLAN_DECLINED':
-      return 'recusou o date "$title"';
+      return 'recusou o encontro "$title"';
     case 'DATE_PLAN_COUNTERED':
       return _datePlanText('sugeriu', title, data);
     case 'DATE_PLAN_CANCELLED':
-      return 'cancelou o date "$title"';
+      return 'cancelou o encontro "$title"';
     case 'DATE_PLAN_DONE':
-      return 'marcou o date "$title" como feito';
+      return 'marcou o encontro "$title" como feito';
     default:
       return 'fez uma atualização';
   }

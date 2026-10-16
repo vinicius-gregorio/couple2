@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
+import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
 import 'date_plans_repository.dart';
@@ -25,13 +26,18 @@ final datePlansChangedProvider = NotifierProvider<DatePlansChanged, int>(
 );
 
 /// The next date for the Home card: first upcoming row, or null.
-final nextDateProvider = FutureProvider<DatePlan?>(
-  (ref) async {
+final nextDateProvider = FutureProvider<DatePlan?>((ref) async {
+  final coupleId = ref.watch(
+    sessionProvider.select((async) => async.asData?.value?.coupleId),
+  );
+  if (coupleId == null) return null;
+  try {
     final page = await loadOrTimeout(
       ref.watch(datePlansRepositoryProvider).list(scope: 'upcoming'),
     );
     if (page.items.isEmpty) return null;
     return page.items.first;
-  },
-  retry: noProviderRetry,
-);
+  } on CPLHttpForbiddenException {
+    return null;
+  }
+}, retry: noProviderRetry);

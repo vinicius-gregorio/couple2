@@ -146,7 +146,7 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'nudges': value}),
                 ),
                 SwitchListTile(
-                  title: const Text('Planos de date'),
+                  title: const Text('Planos de encontro'),
                   value: prefs.datePlans,
                   onChanged: _saving
                       ? null

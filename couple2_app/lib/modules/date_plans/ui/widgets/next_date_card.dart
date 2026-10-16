@@ -17,49 +17,55 @@ class NextDateCard extends ConsumerWidget {
     final next = ref.watch(nextDateProvider);
     final theme = Theme.of(context);
 
-    return next.when(
-      loading: () => const CardSkeleton(lines: 2),
-      error: (error, _) => collapseThisError(context, error)
-          ? _emptyCard(context, theme)
-          : ErrorView(
-              message: userFacingError(
-                error,
-                fallback: 'Não consegui carregar os dates.',
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 160),
+      child: next.when(
+        loading: () => const CardSkeleton(lines: 2, minHeight: 160),
+        error: (error, _) => collapseThisError(context, error)
+            ? _emptyCard(context, theme)
+            : ErrorView(
+                message: userFacingError(
+                  error,
+                  fallback: 'Não consegui carregar os encontros.',
+                ),
+                compact: true,
+                onRetry: () => ref.invalidate(nextDateProvider),
               ),
-              compact: true,
-              onRetry: () => ref.invalidate(nextDateProvider),
-            ),
-      data: (plan) {
-        if (plan == null) return _emptyCard(context, theme);
+        data: (plan) {
+          if (plan == null) return _emptyCard(context, theme);
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          child: InkWell(
-            onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(
-                    nextDateHeadline(plan),
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Horário do aparelho', style: theme.textTheme.bodySmall),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push(DatePlanRoutes.list),
-                      child: const Text('Ver dates'),
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            child: InkWell(
+              onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      nextDateHeadline(plan),
+                      style: theme.textTheme.titleMedium,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Horário do aparelho',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push(DatePlanRoutes.list),
+                        child: const Text('Ver encontros'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -72,12 +78,12 @@ Widget _emptyCard(BuildContext context, ThemeData theme) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppText('Próximo date', style: theme.textTheme.labelLarge),
+          AppText('Próximo encontro', style: theme.textTheme.labelLarge),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => context.push(DatePlanRoutes.create),
             icon: const Icon(Icons.event_available_outlined),
-            label: const Text('Planejar um date'),
+            label: const Text('Planejar um encontro'),
           ),
         ],
       ),

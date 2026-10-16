@@ -16,15 +16,14 @@ final nudgesRepositoryProvider = Provider<INudgesRepository>((ref) {
   return NudgesRepository(httpClient: GetIt.I<ICPLHttpClient>());
 });
 
-final currentMoodProvider = FutureProvider<MoodCurrent?>(
-  (ref) async {
-    final session = await ref.watch(sessionProvider.future);
-    if (session == null || session.coupleId == null) return null;
-    try {
-      return await loadOrTimeout(ref.watch(moodRepositoryProvider).current());
-    } on CPLHttpForbiddenException {
-      return null;
-    }
-  },
-  retry: noProviderRetry,
-);
+final currentMoodProvider = FutureProvider<MoodCurrent?>((ref) async {
+  final coupleId = ref.watch(
+    sessionProvider.select((async) => async.asData?.value?.coupleId),
+  );
+  if (coupleId == null) return null;
+  try {
+    return await loadOrTimeout(ref.watch(moodRepositoryProvider).current());
+  } on CPLHttpForbiddenException {
+    return null;
+  }
+}, retry: noProviderRetry);

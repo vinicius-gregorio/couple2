@@ -63,7 +63,7 @@ void main() {
 
     expect(find.text('Nossas listas'), findsOneWidget);
     expect(find.text('Our Lists'), findsNothing);
-    expect(find.text('Planejar um date'), findsOneWidget);
+    expect(find.text('Planejar um encontro'), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
     expect(find.text('Histórico'), findsOneWidget);
     expect(find.text('Carinhos recebidos'), findsOneWidget);
@@ -122,10 +122,7 @@ void main() {
 
     final ink = tester.widget<Ink>(
       find
-          .descendant(
-            of: find.byType(ChoiceChip),
-            matching: find.byType(Ink),
-          )
+          .descendant(of: find.byType(ChoiceChip), matching: find.byType(Ink))
           .first,
     );
     expect((ink.decoration! as ShapeDecoration).color, _primary);
@@ -137,9 +134,7 @@ void main() {
     expect(theme.checkboxTheme.side?.color, _primary);
     expect(theme.iconButtonTheme.style, isNotNull);
     expect(
-      DefaultTextStyle.of(
-        tester.element(find.text('Ocasião')),
-      ).style.color,
+      DefaultTextStyle.of(tester.element(find.text('Ocasião'))).style.color,
       _white,
     );
   });
@@ -195,8 +190,7 @@ void _expectIconButton(
   );
   expect(icons, findsWidgets, reason: 'IconButton has no glyph');
   final icon = tester.widget<Icon>(icons.first);
-  final color =
-      icon.color ?? IconTheme.of(tester.element(icons.first)).color;
+  final color = icon.color ?? IconTheme.of(tester.element(icons.first)).color;
   final background = _background(tester, button);
   final filled = background != null && background.a > 0.5;
   final disabled = button.onPressed == null;
@@ -258,9 +252,7 @@ Future<void> _saveHome(WidgetTester tester, String name) async {
   await tester.runAsync(() async {
     final image = await boundary.toImage(pixelRatio: 2);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    File('${dir.path}/$name.png').writeAsBytesSync(
-      bytes!.buffer.asUint8List(),
-    );
+    File('${dir.path}/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
   });
 }
 

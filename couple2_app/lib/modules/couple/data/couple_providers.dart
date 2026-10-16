@@ -11,15 +11,14 @@ final coupleRepositoryProvider = Provider<ICoupleRepository>((ref) {
   return CoupleRepository(httpClient: GetIt.I<ICPLHttpClient>());
 });
 
-final coupleProvider = FutureProvider<Couple?>(
-  (ref) async {
-    final session = await ref.watch(sessionProvider.future);
-    if (session == null || session.coupleId == null) return null;
-    try {
-      return await loadOrTimeout(ref.watch(coupleRepositoryProvider).getCouple());
-    } on CPLHttpForbiddenException {
-      return null;
-    }
-  },
-  retry: noProviderRetry,
-);
+final coupleProvider = FutureProvider<Couple?>((ref) async {
+  final coupleId = ref.watch(
+    sessionProvider.select((async) => async.asData?.value?.coupleId),
+  );
+  if (coupleId == null) return null;
+  try {
+    return await loadOrTimeout(ref.watch(coupleRepositoryProvider).getCouple());
+  } on CPLHttpForbiddenException {
+    return null;
+  }
+}, retry: noProviderRetry);

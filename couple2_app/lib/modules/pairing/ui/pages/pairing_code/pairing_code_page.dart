@@ -56,7 +56,10 @@ class PairingCodePage extends ConsumerWidget {
           ),
           if (declined != null) ...[
             const SizedBox(height: 12),
-            MutationErrorBanner(message: declined),
+            MutationErrorBanner(
+              message: declined,
+              tone: MutationBannerTone.info,
+            ),
           ],
           const SizedBox(height: 20),
           if (statusAsync.isLoading && shown.code == null)

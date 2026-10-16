@@ -11,6 +11,7 @@ Future<void> showMoodPickerSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    isDismissible: false,
     enableDrag: false,
     builder: (_) => const MoodPickerSheet(),
   );
@@ -75,73 +76,82 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Listener(
-      onPointerDown: (_) => _pointers++,
-      onPointerUp: (_) => _pointers = (_pointers - 1).clamp(0, 99),
-      onPointerCancel: (_) => _pointers = (_pointers - 1).clamp(0, 99),
-      child: Padding(
-      padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppText(
-            'Como você está?',
-            style: Theme.of(context).textTheme.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const AppText(
-            'Vale o que você sentir agora. Pode mudar quando quiser.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          IgnorePointer(
-            ignoring: _saving,
-            child: Opacity(
-              opacity: _saving ? 0.38 : 1,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  for (final level in MoodLevel.values)
-                    _EmojiChoice(
-                      level: level,
-                      selected: level == _mood,
-                      onTap: () => setState(() => _mood = level),
-                    ),
-                ],
+    return PopScope(
+      canPop: !_saving,
+      child: Listener(
+        onPointerDown: (_) => _pointers++,
+        onPointerUp: (_) => _pointers = (_pointers - 1).clamp(0, 99),
+        onPointerCancel: (_) => _pointers = (_pointers - 1).clamp(0, 99),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppText(
+                'Como você está?',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 8),
+              const AppText(
+                'Vale o que você sentir agora. Pode mudar quando quiser.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              IgnorePointer(
+                ignoring: _saving,
+                child: Opacity(
+                  opacity: _saving ? 0.38 : 1,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final level in MoodLevel.values)
+                        _EmojiChoice(
+                          level: level,
+                          selected: level == _mood,
+                          onTap: () => setState(() => _mood = level),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _note,
+                enabled: !_saving,
+                maxLength: 140,
+                minLines: 1,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Uma nota, se quiser',
+                  hintText: 'Opcional',
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                AppText(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 12),
+              LoadingButton(
+                variant: LoadingButtonVariant.filled,
+                loading: _saving,
+                onPressed: _saving || _pop.used ? null : _save,
+                child: Text(_saving ? 'Guardando…' : 'Compartilhar'),
+              ),
+              TextButton(
+                onPressed: _saving || _pop.used
+                    ? null
+                    : () => Navigator.of(context).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _note,
-            enabled: !_saving,
-            maxLength: 140,
-            minLines: 1,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Uma nota, se quiser',
-              hintText: 'Opcional',
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            AppText(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: 12),
-          LoadingButton(
-            variant: LoadingButtonVariant.filled,
-            loading: _saving,
-            onPressed: _saving || _pop.used ? null : _save,
-            child: Text(_saving ? 'Guardando…' : 'Compartilhar'),
-          ),
-        ],
+        ),
       ),
-    ),
     );
   }
 }

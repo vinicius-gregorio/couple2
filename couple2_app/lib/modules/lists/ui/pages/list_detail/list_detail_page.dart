@@ -226,7 +226,7 @@ class _ItemTile extends ConsumerWidget {
                 ).toString();
                 context.push(query);
               },
-              child: const Text('Planejar date'),
+              child: const Text('Planejar encontro'),
             ),
           const SizedBox(width: 12),
           LoadingIconButton(

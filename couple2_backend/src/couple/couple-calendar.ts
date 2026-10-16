@@ -63,9 +63,10 @@ function monthDay(date: Date): { month: number; day: number } {
 }
 
 /**
- * Elapsed calendar days from the relationship start to today in the couple
- * timezone. The start day counts as 0, so 10/10 through 15/10 is 5.
- * Start is anniversaryDate when set, otherwise the calendar day of pairedAt.
+ * Calendar days from the relationship start through today in the couple
+ * timezone. The start day counts as 1, so 10/10 through 15/10 is 6
+ * (features/couple-record.md). Start is anniversaryDate when set, otherwise
+ * the calendar day of pairedAt.
  */
 export function daysTogether(input: {
   anniversaryDate: Date | null;
@@ -78,7 +79,7 @@ export function daysTogether(input: {
   const start = input.anniversaryDate
     ? (toDateOnlyString(input.anniversaryDate) as string)
     : calendarYmdInTimeZone(input.pairedAt, input.timezone);
-  return diffCalendarDays(start, today);
+  return Math.max(0, diffCalendarDays(start, today) + 1);
 }
 
 export function buildUpcoming(input: {

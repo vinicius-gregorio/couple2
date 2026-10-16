@@ -11,33 +11,29 @@ final feedRepositoryProvider = Provider<IFeedRepository>((ref) {
   return FeedRepository(httpClient: GetIt.I<ICPLHttpClient>());
 });
 
-final unreadCountProvider = FutureProvider<int>(
-  (ref) async {
-    final session = await ref.watch(sessionProvider.future);
-    if (session == null || session.coupleId == null) return 0;
-    try {
-      return await loadOrTimeout(
-        ref.watch(feedRepositoryProvider).unreadCount(),
-      );
-    } on CPLHttpForbiddenException {
-      return 0;
-    }
-  },
-  retry: noProviderRetry,
-);
+final unreadCountProvider = FutureProvider<int>((ref) async {
+  final coupleId = ref.watch(
+    sessionProvider.select((async) => async.asData?.value?.coupleId),
+  );
+  if (coupleId == null) return 0;
+  try {
+    return await loadOrTimeout(ref.watch(feedRepositoryProvider).unreadCount());
+  } on CPLHttpForbiddenException {
+    return 0;
+  }
+}, retry: noProviderRetry);
 
-final feedPreviewProvider = FutureProvider<List<ActivityEvent>>(
-  (ref) async {
-    final session = await ref.watch(sessionProvider.future);
-    if (session == null || session.coupleId == null) return const [];
-    try {
-      final page = await loadOrTimeout(
-        ref.watch(feedRepositoryProvider).getFeed(limit: 3),
-      );
-      return page.items;
-    } on CPLHttpForbiddenException {
-      return const [];
-    }
-  },
-  retry: noProviderRetry,
-);
+final feedPreviewProvider = FutureProvider<List<ActivityEvent>>((ref) async {
+  final coupleId = ref.watch(
+    sessionProvider.select((async) => async.asData?.value?.coupleId),
+  );
+  if (coupleId == null) return const [];
+  try {
+    final page = await loadOrTimeout(
+      ref.watch(feedRepositoryProvider).getFeed(limit: 3),
+    );
+    return page.items;
+  } on CPLHttpForbiddenException {
+    return const [];
+  }
+}, retry: noProviderRetry);

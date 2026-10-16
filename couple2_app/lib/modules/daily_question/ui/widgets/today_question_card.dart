@@ -29,52 +29,56 @@ class TodayQuestionCard extends ConsumerWidget {
             partnerAnswered: question.partnerAnswered,
           );
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: InkWell(
-        onTap: () => context.push(DailyQuestionRoutes.today),
-        child: IgnorePointer(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppText(
-                        'Pergunta do dia',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      if (today.isLoading && question == null)
-                        const SkeletonBox(height: 14)
-                      else if (today.hasError &&
-                          collapseThisError(context, today.error!))
-                        const AppText('Responda a pergunta de hoje')
-                      else if (today.hasError)
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 112),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: InkWell(
+          onTap: () => context.push(DailyQuestionRoutes.today),
+          child: IgnorePointer(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         AppText(
-                          userFacingError(
-                            today.error!,
-                            fallback:
-                                'Não foi possível carregar a pergunta. Toque para abrir.',
-                          ),
-                        )
-                      else if (copy != null)
-                        AppText(copy.title)
-                      else
-                        const AppText('Responda a pergunta de hoje'),
-                    ],
+                          'Pergunta do dia',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        if (today.isLoading && question == null)
+                          const SkeletonBox(height: 14)
+                        else if (today.hasError &&
+                            collapseThisError(context, today.error!))
+                          const AppText('Responda a pergunta de hoje')
+                        else if (today.hasError)
+                          AppText(
+                            userFacingError(
+                              today.error!,
+                              fallback:
+                                  'Não foi possível carregar a pergunta. Toque para abrir.',
+                            ),
+                          )
+                        else if (copy != null)
+                          AppText(copy.title)
+                        else
+                          const AppText('Responda a pergunta de hoje'),
+                      ],
+                    ),
                   ),
-                ),
-                if (copy != null && copy.kind != TodayCardKind.unanswered) ...[
-                  const SizedBox(width: 12),
-                  _PartnerAvatar(
-                    pictureUrl: session?.partnerPicture,
-                    gray: copy.grayPartnerAvatar,
-                  ),
+                  if (copy != null &&
+                      copy.kind != TodayCardKind.unanswered) ...[
+                    const SizedBox(width: 12),
+                    _PartnerAvatar(
+                      pictureUrl: session?.partnerPicture,
+                      gray: copy.grayPartnerAvatar,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

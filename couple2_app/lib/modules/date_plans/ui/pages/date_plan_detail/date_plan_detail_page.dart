@@ -91,7 +91,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   Future<void> _decline() async {
     if (_busyAction != null || _confirming) return;
     setState(() => _confirming = true);
-    final note = await _askNote(title: 'Recusar date', confirm: 'Recusar');
+    final note = await _askNote(title: 'Recusar encontro', confirm: 'Recusar');
     if (!mounted) return;
     setState(() => _confirming = false);
     if (note == null) return;
@@ -108,7 +108,10 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       _confirming = true;
       _actionError = null;
     });
-    final note = await _askNote(title: 'Cancelar date', confirm: 'Cancelar');
+    final note = await _askNote(
+      title: 'Cancelar encontro',
+      confirm: 'Cancelar',
+    );
     if (!mounted) return;
     setState(() => _confirming = false);
     if (note == null) return;
@@ -195,7 +198,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       await ref.read(listsRepositoryProvider).toggleItem(item.id);
       ref.invalidate(listsViewModelProvider);
     } catch (_) {
-      _toast('O date foi marcado, mas o item da lista não.');
+      _toast('O encontro foi marcado, mas o item da lista não.');
     }
   }
 
@@ -263,13 +266,13 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       return Scaffold(
         appBar: AppBar(leading: AppBackButton()),
         body: missing
-            ? const EmptyView(message: 'Date não encontrado')
+            ? const EmptyView(message: 'Encontro não encontrado')
             : ErrorView(
                 message: _error == null
-                    ? 'Não consegui carregar o date.'
+                    ? 'Não consegui carregar o encontro.'
                     : userFacingError(
                         _error!,
-                        fallback: 'Não consegui carregar o date.',
+                        fallback: 'Não consegui carregar o encontro.',
                       ),
                 onRetry: _load,
               ),
@@ -373,42 +376,66 @@ class _Actions extends StatelessWidget {
         LoadingButton(
           variant: LoadingButtonVariant.filled,
           loading: busyAction == 'accept',
-          onPressed: locked ? null : () { onAccept(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onAccept();
+                },
           child: const Text('Aceitar'),
         ),
       if (plan.canDecline(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'decline',
-          onPressed: locked ? null : () { onDecline(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onDecline();
+                },
           child: const Text('Recusar'),
         ),
       if (plan.canCounter(me))
         LoadingButton(
           variant: LoadingButtonVariant.text,
           loading: busyAction == 'counter',
-          onPressed: locked ? null : () { onCounter(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onCounter();
+                },
           child: const Text('Sugerir outro horário'),
         ),
       if (plan.canEdit(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'edit',
-          onPressed: locked ? null : () { onEdit(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onEdit();
+                },
           child: const Text('Editar'),
         ),
       if (plan.canCancel(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'cancel',
-          onPressed: locked ? null : () { onCancel(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onCancel();
+                },
           child: const Text('Cancelar'),
         ),
       if (plan.canDone(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
           loading: busyAction == 'done',
-          onPressed: locked ? null : () { onDone(); },
+          onPressed: locked
+              ? null
+              : () {
+                  onDone();
+                },
           child: const Text('Marcar como feito'),
         ),
     ];

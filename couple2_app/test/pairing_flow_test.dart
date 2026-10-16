@@ -87,6 +87,7 @@ class _FakePairing implements IPairingRepository {
   int ensures = 0;
   Object? ensureError;
   Completer<void>? ensureGate;
+  String? issuedCode;
 
   @override
   Future<void> cancelRequest() async {
@@ -98,7 +99,20 @@ class _FakePairing implements IPairingRepository {
   }
 
   @override
-  Future<PairingSnapshot> getStatus() async => status;
+  Future<PairingSnapshot> getStatus() async {
+    final code = status.pairingCode;
+    if ((code == null || code.isEmpty) && issuedCode != null) {
+      return PairingSnapshot(
+        phase: status.phase,
+        message: status.message,
+        pendingCode: status.pendingCode,
+        pairingCode: issuedCode,
+        pairingCodeExpiresAt: status.pairingCodeExpiresAt,
+        partner: status.partner,
+      );
+    }
+    return status;
+  }
 
   @override
   Future<PairResult> pair(String code) async {
@@ -120,6 +134,7 @@ class _FakePairing implements IPairingRepository {
     if (error != null) throw error;
     final gate = ensureGate;
     if (gate != null) await gate.future;
+    issuedCode ??= 'HHHHHH';
   }
 
   @override
@@ -661,7 +676,34 @@ void main() {
     expect(find.text('HHHHHH'), findsOneWidget);
     expect(find.text('Sem código ainda.'), findsNothing);
     expect(find.text('Gerar código'), findsNothing);
+    expect(
+      find.text('Seu código aparece quando a tela atualizar.'),
+      findsNothing,
+    );
     expect(find.textContaining('Aceitar ou Recusar'), findsOneWidget);
+    expect(repo.ensures, 0);
+  });
+
+  testWidgets('waiting loads the caller code when status and session omit it', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(phase: PairingPhase.pending, pendingCode: 'MMMMMM'),
+    );
+    await _pumpPage(
+      tester,
+      home: const WaitingPage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    expect(find.text('HHHHHH'), findsOneWidget);
+    expect(
+      find.text('Seu código aparece quando a tela atualizar.'),
+      findsNothing,
+    );
+    expect(find.text('Gerar código'), findsNothing);
+    expect(repo.ensures, 1);
   });
 
   testWidgets('a declined request is named when the sender returns', (

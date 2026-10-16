@@ -206,7 +206,11 @@ void main() {
     await _pump(
       tester,
       _listsScope(
-        _ListsRepo(gate, op: 'delete-list', lists: [_list(name: 'Mercado')]),
+        _ListsRepo(
+          gate,
+          op: 'delete-list',
+          lists: [_list(name: 'Mercado')],
+        ),
         const ListsPage(),
       ),
     );
@@ -252,7 +256,9 @@ void main() {
     expect(find.text('Salvando…'), findsNothing);
   });
 
-  testWidgets('carinho shows a spinner and does not send twice', (tester) async {
+  testWidgets('carinho shows a spinner and does not send twice', (
+    tester,
+  ) async {
     final gate = Gate();
     await _pump(
       tester,
@@ -262,9 +268,7 @@ void main() {
           currentMoodProvider.overrideWith((ref) async => _lowMood),
           nudgesRepositoryProvider.overrideWithValue(_NudgesRepo(gate)),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: MoodHomeCard()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: MoodHomeCard())),
       ),
     );
     await tester.pump();
@@ -283,12 +287,12 @@ void main() {
     await _pump(
       tester,
       ProviderScope(
-        overrides: [
-          moodRepositoryProvider.overrideWithValue(_MoodRepo(gate)),
-        ],
+        overrides: [moodRepositoryProvider.overrideWithValue(_MoodRepo(gate))],
         child: const MaterialApp(home: Scaffold(body: MoodPickerSheet())),
       ),
     );
+    await tester.enterText(find.byType(TextField), 'saudade');
+    await tester.pump();
     await _doubleTap(tester, find.text('Compartilhar'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -300,6 +304,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Como você está?'), findsOneWidget);
+    expect(find.text('saudade'), findsOneWidget);
+    expect(find.text('Fechar'), findsOneWidget);
   });
 
   testWidgets('question answer locks the field and keeps the draft', (
@@ -390,7 +396,7 @@ void main() {
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
     expect(find.text('Jantar'), findsOneWidget);
-    expect(find.text('Planejar um date'), findsOneWidget);
+    expect(find.text('Planejar um encontro'), findsOneWidget);
   });
 
   testWidgets('editing a date keeps the form when the save fails', (
@@ -408,7 +414,7 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
-    expect(find.text('Editar o date'), findsOneWidget);
+    expect(find.text('Editar o encontro'), findsOneWidget);
     expect(find.text('Jantar cedo'), findsOneWidget);
   });
 
@@ -682,7 +688,10 @@ void main() {
     tester,
   ) async {
     final gate = Gate();
-    await _pump(tester, _pairingScope(gate, const WaitingPage(), pending: true));
+    await _pump(
+      tester,
+      _pairingScope(gate, const WaitingPage(), pending: true),
+    );
     await tester.pump();
     await tester.tap(find.text('Cancelar pedido'));
     await tester.pump();
@@ -716,11 +725,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('confirm-unpair')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('unpair-button')), warnIfMissed: false);
+    await tester.tap(
+      find.byKey(const Key('unpair-button')),
+      warnIfMissed: false,
+    );
     expect(gate.calls, 1);
     expect(find.text('Desfazendo…'), findsOneWidget);
     expect(
-      tester.widget<LoadingButton>(find.byKey(const Key('unpair-button'))).onPressed,
+      tester
+          .widget<LoadingButton>(find.byKey(const Key('unpair-button')))
+          .onPressed,
       isNull,
     );
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -757,7 +771,9 @@ void main() {
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
     expect(
       tester
-          .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Alertas'))
+          .widget<SwitchListTile>(
+            find.widgetWithText(SwitchListTile, 'Alertas'),
+          )
           .onChanged,
       isNull,
     );
@@ -769,7 +785,9 @@ void main() {
     );
     expect(
       tester
-          .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Alertas'))
+          .widget<SwitchListTile>(
+            find.widgetWithText(SwitchListTile, 'Alertas'),
+          )
           .value,
       before,
     );
@@ -832,11 +850,7 @@ Widget _dateScope(Gate gate, Widget home) {
   );
 }
 
-Future<void> _pumpDetail(
-  WidgetTester tester,
-  Gate gate,
-  DatePlan plan,
-) async {
+Future<void> _pumpDetail(WidgetTester tester, Gate gate, DatePlan plan) async {
   await _pump(
     tester,
     ProviderScope(
@@ -864,7 +878,11 @@ Future<void> _pumpDetail(
   }
 }
 
-Widget _coupleScope(Gate gate, Widget home, {List<CoupleDate> dates = const []}) {
+Widget _coupleScope(
+  Gate gate,
+  Widget home, {
+  List<CoupleDate> dates = const [],
+}) {
   return ProviderScope(
     overrides: [
       sessionProvider.overrideWith(_Session.new),
@@ -1126,7 +1144,10 @@ class _QuestionRepo implements IDailyQuestionRepository {
     return CoupleQuestion(
       id: 'q1',
       date: '2026-10-15',
-      question: const QuestionPrompt(text: 'O que te fez sorrir?', category: 'FUN'),
+      question: const QuestionPrompt(
+        text: 'O que te fez sorrir?',
+        category: 'FUN',
+      ),
       partnerAnswered: false,
       answerable: true,
       myAnswer: answered
@@ -1225,7 +1246,6 @@ class _PairingRepo implements IPairingRepository {
 
   @override
   Future<void> declineRequest(String id) => gate.hang();
-
 }
 
 class _NotesRepo implements INotificationsRepository {

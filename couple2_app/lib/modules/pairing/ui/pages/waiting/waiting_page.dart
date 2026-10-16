@@ -26,8 +26,45 @@ class WaitingPage extends ConsumerStatefulWidget {
 class _WaitingPageState extends ConsumerState<WaitingPage> {
   var _cancelling = false;
   var _confirming = false;
+  var _loadingCode = true;
   String? _error;
+  String? _codeError;
   final _pop = PopGuard();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureCode());
+  }
+
+  Future<void> _ensureCode() async {
+    if (!mounted) return;
+    final status = ref.read(pairingStatusProvider).asData?.value;
+    final session = ref.read(sessionProvider).asData?.value;
+    final shown = shownPairingCode(
+      status: status,
+      sessionCode: session?.pairingCode,
+      sessionExpiresAt: session?.pairingCodeExpiresAt,
+    );
+    if (shown.code != null) {
+      if (mounted) setState(() => _loadingCode = false);
+      return;
+    }
+    setState(() {
+      _loadingCode = true;
+      _codeError = null;
+    });
+    try {
+      await ref.read(pairingStatusProvider.notifier).ensureShownCode();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _codeError = pairingErrorMessage(error, action: PairingAction.generate);
+      });
+    } finally {
+      if (mounted) setState(() => _loadingCode = false);
+    }
+  }
 
   Future<void> _refresh() async {
     final phase = await ref.read(pairingStatusProvider.notifier).poll();
@@ -120,7 +157,6 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
             'A outra pessoa vê o pedido na tela de pareamento e pode Aceitar ou Recusar. Ela também pode digitar o seu código.',
           ),
           const SizedBox(height: 8),
-          const AppText('Atualizando automaticamente…'),
           if (status?.pendingCode != null) ...[
             const SizedBox(height: 16),
             AppText('Código que você enviou: ${status!.pendingCode}'),
@@ -131,6 +167,8 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           PairingCodeCard(
             code: shown.code,
             allowGenerate: false,
+            loading: shown.code == null && _loadingCode,
+            missingMessage: _codeError,
             actionsEnabled: !busy,
             expiryLabel: pairingExpiryLabel(shown.expiresAt),
             onCopy: shown.code == null
@@ -168,8 +206,23 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
               child: const Text('Ir para a Home'),
             ),
           ],
-          MutationErrorBanner(message: _error),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 48,
+            child: Center(
+              child: _error == null
+                  ? const AppText('Atualizando automaticamente…')
+                  : Text(
+                      _error!,
+                      key: MutationErrorBanner.bannerKey,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
           LoadingButton(
             key: const Key('cancel-pairing-request'),
             variant: LoadingButtonVariant.outlined,

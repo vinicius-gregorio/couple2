@@ -65,7 +65,7 @@ void main() {
         'title': 'Japonês',
         'whenLabel': 'sexta-feira, 20:00',
       }),
-      'propôs o date "Japonês" para sexta-feira, 20:00',
+      'propôs o encontro "Japonês" para sexta-feira, 20:00',
     );
     expect(
       activityRoute('DATE_PLAN_ACCEPTED', {'route': '/dates/plan-1'}),

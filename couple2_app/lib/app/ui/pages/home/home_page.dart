@@ -91,102 +91,125 @@ class HomePage extends ConsumerWidget {
 
           return HomeFailureScope(
             collapseOffline: collapseOffline,
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await ref.read(sessionProvider.notifier).refresh();
-                ref.invalidate(coupleProvider);
-                ref.invalidate(unreadCountProvider);
-                ref.invalidate(feedPreviewProvider);
-                ref.invalidate(todayQuestionProvider);
-                ref.invalidate(currentMoodProvider);
-                ref.invalidate(nextDateProvider);
-                await ref.read(coupleProvider.future);
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                children: [
-                  if (session.picture != null)
-                    Center(
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage: NetworkImage(session.picture!),
-                        onBackgroundImageError: (_, __) {},
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(sessionProvider.notifier).refresh();
+                    ref.invalidate(coupleProvider);
+                    ref.invalidate(unreadCountProvider);
+                    ref.invalidate(feedPreviewProvider);
+                    ref.invalidate(todayQuestionProvider);
+                    ref.invalidate(currentMoodProvider);
+                    ref.invalidate(nextDateProvider);
+                    await ref.read(coupleProvider.future);
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    children: [
+                      if (session.picture != null)
+                        Center(
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundImage: NetworkImage(session.picture!),
+                            onBackgroundImageError: (_, __) {},
+                          ),
+                        )
+                      else
+                        Center(
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
+                            child: Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      AppText(
+                        'Bem-vindo, ${session.name}!',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        textAlign: TextAlign.center,
                       ),
-                    )
-                  else
-                    Center(
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimary,
-                        child: Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Theme.of(context).colorScheme.onPrimary,
+                      const SizedBox(height: 24),
+                      if (session.coupleId != null)
+                        coupleAsync.when(
+                          data: (couple) {
+                            if (couple == null) return const SizedBox.shrink();
+                            return ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 200),
+                              child: DaysTogetherCard(
+                                couple: couple,
+                                onOpenSettings: () =>
+                                    context.push(CoupleRoutes.settings),
+                                onOpenDates: () =>
+                                    context.push(CoupleRoutes.dates),
+                              ),
+                            );
+                          },
+                          loading: () => const CardSkeleton(minHeight: 200),
+                          error: (error, _) =>
+                              collapseOffline && isOfflineFailure(error)
+                              ? const SizedBox.shrink()
+                              : ErrorView(
+                                  message: userFacingError(
+                                    error,
+                                    fallback:
+                                        'Não foi possível carregar o casal.',
+                                  ),
+                                  compact: true,
+                                  onRetry: () => ref.invalidate(coupleProvider),
+                                ),
+                        ),
+                      if (session.coupleId != null) ...[
+                        const SizedBox(height: 16),
+                        const MoodHomeCard(),
+                        const SizedBox(height: 16),
+                        const NextDateCard(),
+                        const SizedBox(height: 16),
+                        const TodayQuestionCard(),
+                        const SizedBox(height: 16),
+                        FeedPreview(
+                          onOpen: () => context.push(FeedRoutes.feed),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push(ListsRoutes.lists),
+                          icon: const Icon(Icons.list),
+                          label: const Text('Nossas listas'),
                         ),
                       ),
-                    ),
-                  const SizedBox(height: 16),
-                  AppText(
-                    'Bem-vindo, ${session.name}!',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  if (collapseOffline)
-                    ErrorView(
-                      message: offlineUserMessage,
-                      compact: true,
-                      retryLabel: 'Atualizar',
-                      onRetry: () => _retryHome(ref),
-                    ),
-                  if (session.coupleId != null)
-                    coupleAsync.when(
-                      data: (couple) {
-                        if (couple == null) return const SizedBox.shrink();
-                        return DaysTogetherCard(
-                          couple: couple,
-                          onOpenSettings: () =>
-                              context.push(CoupleRoutes.settings),
-                          onOpenDates: () => context.push(CoupleRoutes.dates),
-                        );
-                      },
-                      loading: () => const CardSkeleton(),
-                      error: (error, _) =>
-                          collapseOffline && isOfflineFailure(error)
-                          ? const SizedBox.shrink()
-                          : ErrorView(
-                              message: userFacingError(
-                                error,
-                                fallback: 'Não foi possível carregar o casal.',
-                              ),
-                              compact: true,
-                              onRetry: () => ref.invalidate(coupleProvider),
-                            ),
-                    ),
-                  if (session.coupleId != null) ...[
-                    const SizedBox(height: 16),
-                    const MoodHomeCard(),
-                    const SizedBox(height: 16),
-                    const NextDateCard(),
-                    const SizedBox(height: 16),
-                    const TodayQuestionCard(),
-                    const SizedBox(height: 16),
-                    FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
-                  ],
-                  const SizedBox(height: 24),
-                  Center(
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.push(ListsRoutes.lists),
-                      icon: const Icon(Icons.list),
-                      label: const Text('Nossas listas'),
+                ),
+                if (collapseOffline)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Material(
+                      elevation: 2,
+                      color: Theme.of(context).colorScheme.surface,
+                      child: ErrorView(
+                        message: offlineUserMessage,
+                        compact: true,
+                        retryLabel: 'Atualizar',
+                        onRetry: () => _retryHome(ref),
+                      ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           );
         },

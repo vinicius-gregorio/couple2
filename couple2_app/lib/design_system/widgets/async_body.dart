@@ -87,17 +87,29 @@ class AsyncValueView<T> extends StatelessWidget {
 /// Inline PT-BR failure for a mutation that should stay on screen.
 ///
 /// An empty message takes no space. A new message grows in place.
+/// [MutationBannerTone.info] is for a notice, such as a declined request.
+enum MutationBannerTone { error, info }
+
 class MutationErrorBanner extends StatelessWidget {
-  const MutationErrorBanner({super.key, this.message});
+  const MutationErrorBanner({
+    super.key,
+    this.message,
+    this.tone = MutationBannerTone.error,
+  });
 
   static const bannerKey = Key('mutation-error');
 
   final String? message;
+  final MutationBannerTone tone;
 
   @override
   Widget build(BuildContext context) {
     final text = message;
     final visible = text != null && text.isNotEmpty;
+    final scheme = Theme.of(context).colorScheme;
+    final color = tone == MutationBannerTone.info
+        ? scheme.primary
+        : scheme.error;
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),
       alignment: Alignment.topCenter,
@@ -108,7 +120,7 @@ class MutationErrorBanner extends StatelessWidget {
                 text,
                 key: bannerKey,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextStyle(color: color),
               ),
             )
           : const SizedBox(width: double.infinity, height: 0),

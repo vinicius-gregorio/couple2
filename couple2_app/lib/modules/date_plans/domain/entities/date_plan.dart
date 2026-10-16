@@ -129,7 +129,7 @@ class DatePlan {
   factory DatePlan.fromJson(Map<String, dynamic> json) {
     final status = DatePlanStatus.parse(json['status'] as String?);
     if (status == null) {
-      throw const FormatException('Resposta de date inválida');
+      throw const FormatException('Resposta de encontro inválida');
     }
     final source = json['sourceListItem'];
     return DatePlan(

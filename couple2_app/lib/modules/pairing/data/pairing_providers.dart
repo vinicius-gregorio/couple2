@@ -18,8 +18,9 @@ final pairingPollIntervalProvider = Provider<Duration?>((ref) {
 
 /// Received-request refresh while a pairing screen is visible.
 /// The poller skips it when [pairingPollIntervalProvider] is null.
+/// Shorter than the status poll so an incoming card shows up without a manual refresh.
 final incomingPairingPollIntervalProvider = Provider<Duration>((ref) {
-  return const Duration(seconds: 10);
+  return const Duration(seconds: 4);
 });
 
 /// How many pairing controls are mid-confirm or mid-request.
@@ -105,21 +106,30 @@ final pairingStatusProvider =
     );
 
 class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
+  String? _heldCode;
+  DateTime? _heldExpires;
+  var _ensuring = false;
+
   @override
-  Future<PairingSnapshot> build() {
-    return ref.read(pairingRepositoryProvider).getStatus();
+  Future<PairingSnapshot> build() async {
+    final snapshot = await ref.read(pairingRepositoryProvider).getStatus();
+    return _retain(snapshot);
   }
 
   Future<void> reload() async {
-    state = await AsyncValue.guard(
-      () => ref.read(pairingRepositoryProvider).getStatus(),
-    );
+    state = await AsyncValue.guard(() async {
+      final snapshot = await ref.read(pairingRepositoryProvider).getStatus();
+      return _retain(snapshot);
+    });
   }
 
-  /// One poll tick. Keeps the previous snapshot when the request fails.
+  /// One poll tick. Keeps the previous snapshot when the request fails,
+  /// and keeps a code the server omits on a later tick.
   Future<PairingPhase?> poll() async {
     try {
-      final snapshot = await ref.read(pairingRepositoryProvider).getStatus();
+      final snapshot = _retain(
+        await ref.read(pairingRepositoryProvider).getStatus(),
+      );
       if (snapshot.phase == PairingPhase.paired) {
         await refreshSessionAfterPairing();
       }
@@ -128,6 +138,71 @@ class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
     } catch (_) {
       return state.asData?.value.phase;
     }
+  }
+
+  /// Loads the caller's own code when the snapshot and the session lack one.
+  /// A later poll cannot drop a code this already found.
+  Future<void> ensureShownCode() async {
+    final current = state.asData?.value;
+    if (current?.phase == PairingPhase.paired) return;
+    if (_visibleCode(current) != null) return;
+    if (_ensuring) return;
+    _ensuring = true;
+    try {
+      var snapshot = _retain(
+        await ref.read(pairingRepositoryProvider).getStatus(),
+      );
+      if (_visibleCode(snapshot) == null) {
+        await ref.read(pairingRepositoryProvider).ensurePairingCode();
+        snapshot = _retain(
+          await ref.read(pairingRepositoryProvider).getStatus(),
+        );
+      }
+      if (_visibleCode(snapshot) == null) {
+        await ref.read(sessionProvider.notifier).refresh();
+        final session = ref.read(sessionProvider).asData?.value;
+        final sessionCode = session?.pairingCode;
+        if (sessionCode != null && sessionCode.isNotEmpty) {
+          _heldCode = sessionCode;
+          _heldExpires = session?.pairingCodeExpiresAt ?? _heldExpires;
+          snapshot = _retain(snapshot);
+        }
+      }
+      if (snapshot.phase != PairingPhase.paired) {
+        state = AsyncData(snapshot);
+      }
+    } finally {
+      _ensuring = false;
+    }
+  }
+
+  String? _visibleCode(PairingSnapshot? snapshot) {
+    final session = ref.read(sessionProvider).asData?.value;
+    return shownPairingCode(
+      status: snapshot,
+      sessionCode: session?.pairingCode,
+      sessionExpiresAt: session?.pairingCodeExpiresAt,
+    ).code;
+  }
+
+  PairingSnapshot _retain(PairingSnapshot snapshot) {
+    final code = snapshot.pairingCode;
+    if (code != null && code.isNotEmpty) {
+      _heldCode = code;
+      _heldExpires = snapshot.pairingCodeExpiresAt ?? _heldExpires;
+      return snapshot;
+    }
+    if (snapshot.phase == PairingPhase.paired || _heldCode == null) {
+      return snapshot;
+    }
+    return PairingSnapshot(
+      phase: snapshot.phase,
+      message: snapshot.message,
+      pendingCode: snapshot.pendingCode,
+      pairingCode: _heldCode,
+      pairingCodeExpiresAt: _heldExpires,
+      partner: snapshot.partner,
+    );
   }
 
   /// One `POST /pairing/pair`. A pending result does not reload status or the
@@ -149,13 +224,15 @@ class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
       final previous = state.asData?.value;
       final session = ref.read(sessionProvider).asData?.value;
       state = AsyncData(
-        PairingSnapshot(
-          phase: PairingPhase.pending,
-          message: result.message,
-          pendingCode: code,
-          pairingCode: previous?.pairingCode ?? session?.pairingCode,
-          pairingCodeExpiresAt:
-              previous?.pairingCodeExpiresAt ?? session?.pairingCodeExpiresAt,
+        _retain(
+          PairingSnapshot(
+            phase: PairingPhase.pending,
+            message: result.message,
+            pendingCode: code,
+            pairingCode: previous?.pairingCode ?? session?.pairingCode,
+            pairingCodeExpiresAt:
+                previous?.pairingCodeExpiresAt ?? session?.pairingCodeExpiresAt,
+          ),
         ),
       );
     }

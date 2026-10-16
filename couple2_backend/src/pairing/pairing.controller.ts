@@ -90,7 +90,7 @@ export class PairingController {
   @Delete('request')
   async cancelRequest(@GetUser() user: UserWithPartner) {
     await this.pairingService.cancelPairingRequest(user.id);
-    return { message: 'Pairing request cancelled' };
+    return { message: 'Pedido cancelado' };
   }
 
   /**
@@ -102,6 +102,6 @@ export class PairingController {
   @Delete('unpair')
   async unpair(@GetUser() user: UserWithPartner) {
     await this.pairingService.unpair(user.id);
-    return { message: 'Successfully unpaired' };
+    return { message: 'Pareamento desfeito' };
   }
 }

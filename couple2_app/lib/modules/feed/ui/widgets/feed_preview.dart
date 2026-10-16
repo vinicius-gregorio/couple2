@@ -19,40 +19,44 @@ class FeedPreview extends ConsumerWidget {
     final preview = ref.watch(feedPreviewProvider);
     final session = ref.watch(sessionProvider).asData?.value;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextButton(
-              onPressed: onOpen,
-              child: const Row(
-                children: [
-                  Text('O que rolou'),
-                  Spacer(),
-                  Icon(Icons.chevron_right),
-                ],
-              ),
-            ),
-            if (preview.hasError && !collapseThisError(context, preview.error!))
-              ErrorView(
-                message: userFacingError(
-                  preview.error!,
-                  fallback: 'Não foi possível carregar o feed',
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 220),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextButton(
+                onPressed: onOpen,
+                child: const Row(
+                  children: [
+                    Text('O que rolou'),
+                    Spacer(),
+                    Icon(Icons.chevron_right),
+                  ],
                 ),
-                compact: true,
-                onRetry: () => ref.invalidate(feedPreviewProvider),
               ),
-            _FeedLines(
-              loading: preview.isLoading && preview.value == null,
-              items: preview.value,
-              failed: preview.hasError,
-              sessionId: session?.id,
-              onOpen: onOpen,
-            ),
-          ],
+              if (preview.hasError &&
+                  !collapseThisError(context, preview.error!))
+                ErrorView(
+                  message: userFacingError(
+                    preview.error!,
+                    fallback: 'Não foi possível carregar o feed',
+                  ),
+                  compact: true,
+                  onRetry: () => ref.invalidate(feedPreviewProvider),
+                ),
+              _FeedLines(
+                loading: preview.isLoading && preview.value == null,
+                items: preview.value,
+                failed: preview.hasError,
+                sessionId: session?.id,
+                onOpen: onOpen,
+              ),
+            ],
+          ),
         ),
       ),
     );

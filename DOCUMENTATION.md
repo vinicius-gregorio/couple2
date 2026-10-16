@@ -308,6 +308,8 @@ flutter build web --release --dart-define=API_BASE_URL=https://couple2-api-produ
 firebase deploy --only hosting
 ```
 
+Do not pass `--no-tree-shake-icons`. The app references every icon as a const `IconData`, so the tree-shaken font still draws them.
+
 `API_BASE_URL` is compiled in. Omitting it keeps `http://localhost:3000` for local dev.
 
 Real Google/Apple login still verifies a Firebase ID token (project `couple42-27692`).

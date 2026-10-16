@@ -128,10 +128,10 @@ void main() {
     expect(find.byType(FilledButton), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
     expect(_outlinedLabel('Nossas listas'), findsOneWidget);
-    expect(_outlinedLabel('Planejar um date'), findsOneWidget);
+    expect(_outlinedLabel('Planejar um encontro'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Planejar um date'));
-    await tester.tap(find.text('Planejar um date'));
+    await tester.ensureVisible(find.text('Planejar um encontro'));
+    await tester.tap(find.text('Planejar um encontro'));
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('formulario-date'), findsOneWidget);
     expect(find.text('pagina-listas'), findsNothing);

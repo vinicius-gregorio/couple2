@@ -34,6 +34,8 @@ class _PairingPollerState extends ConsumerState<PairingPoller>
     with WidgetsBindingObserver {
   Timer? _timer;
   Timer? _incoming;
+  Duration? _statusInterval;
+  Duration? _incomingInterval;
   var _leaving = false;
   var _foreground = true;
 
@@ -52,6 +54,7 @@ class _PairingPollerState extends ConsumerState<PairingPoller>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
     final foreground = state == AppLifecycleState.resumed;
     if (foreground == _foreground) return;
     _foreground = foreground;
@@ -65,6 +68,7 @@ class _PairingPollerState extends ConsumerState<PairingPoller>
   }
 
   bool get _onScreen {
+    if (!mounted) return false;
     final route = ModalRoute.of(context);
     return route == null || route.isCurrent;
   }
@@ -82,18 +86,45 @@ class _PairingPollerState extends ConsumerState<PairingPoller>
         location.startsWith('${PairingRoutes.enter}/');
   }
 
-  void _arm() {
+  void _stop() {
     _timer?.cancel();
     _incoming?.cancel();
     _timer = null;
     _incoming = null;
-    if (!mounted || !widget.enabled || !_foreground || !_onScreen) return;
+    _statusInterval = null;
+    _incomingInterval = null;
+  }
+
+  /// Starts the timers once. A later [didChangeDependencies] with the same
+  /// interval must not reset them, or the first tick never arrives.
+  /// Incoming requests also load immediately so the card does not wait.
+  void _arm() {
+    if (!mounted || !widget.enabled || !_foreground || !_onScreen) {
+      _stop();
+      return;
+    }
     final interval = ref.read(pairingPollIntervalProvider);
-    if (interval == null || interval <= Duration.zero) return;
-    _timer = Timer.periodic(interval, (_) => _poll());
+    if (interval == null || interval <= Duration.zero) {
+      _stop();
+      return;
+    }
+    if (_timer == null || _statusInterval != interval) {
+      _timer?.cancel();
+      _statusInterval = interval;
+      _timer = Timer.periodic(interval, (_) => _poll());
+    }
     final incoming = ref.read(incomingPairingPollIntervalProvider);
-    if (incoming > Duration.zero) {
+    if (incoming <= Duration.zero) {
+      _incoming?.cancel();
+      _incoming = null;
+      _incomingInterval = null;
+      return;
+    }
+    if (_incoming == null || _incomingInterval != incoming) {
+      _incoming?.cancel();
+      _incomingInterval = incoming;
       _incoming = Timer.periodic(incoming, (_) => _pollIncoming());
+      unawaited(_pollIncoming());
     }
   }
 
@@ -141,8 +172,7 @@ class _PairingPollerState extends ConsumerState<PairingPoller>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _timer?.cancel();
-    _incoming?.cancel();
+    _stop();
     super.dispose();
   }
 
