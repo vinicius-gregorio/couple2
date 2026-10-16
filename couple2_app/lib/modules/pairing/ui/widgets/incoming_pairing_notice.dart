@@ -23,15 +23,20 @@ class IncomingPairingNotice extends ConsumerWidget {
         ),
       );
     }
-    if (requests.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final request in requests) ...[
-          _IncomingCard(request: request),
-          const SizedBox(height: 16),
-        ],
-      ],
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      alignment: Alignment.topCenter,
+      child: requests.isEmpty
+          ? const SizedBox(width: double.infinity, height: 0)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final request in requests) ...[
+                  _IncomingCard(request: request),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
     );
   }
 }
@@ -49,8 +54,29 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
   String? _busy;
   var _confirming = false;
   String? _error;
+  var _held = false;
 
   bool get _locked => _busy != null || _confirming;
+
+  void _hold(bool on) {
+    if (_held == on) return;
+    _held = on;
+    final lock = ref.read(pairingControlsLockedProvider.notifier);
+    if (on) {
+      lock.acquire();
+    } else {
+      lock.release();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_held) {
+      _held = false;
+      ref.read(pairingControlsLockedProvider.notifier).release();
+    }
+    super.dispose();
+  }
 
   Future<void> _accept() async {
     if (_locked) return;
@@ -58,6 +84,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
       _busy = 'accept';
       _error = null;
     });
+    _hold(true);
     try {
       await ref
           .read(incomingPairingRequestsProvider.notifier)
@@ -68,6 +95,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
         _error = pairingErrorMessage(error, action: PairingAction.accept);
       });
     } finally {
+      _hold(false);
       if (mounted) setState(() => _busy = null);
     }
   }
@@ -78,6 +106,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
       _confirming = true;
       _error = null;
     });
+    _hold(true);
     final accepted = await confirmDestructive(
       context,
       title: 'Recusar pedido?',
@@ -88,6 +117,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
     );
     if (!mounted) return;
     if (!accepted) {
+      _hold(false);
       setState(() => _confirming = false);
       return;
     }
@@ -105,6 +135,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
         _error = pairingErrorMessage(error, action: PairingAction.decline);
       });
     } finally {
+      _hold(false);
       if (mounted) setState(() => _busy = null);
     }
   }

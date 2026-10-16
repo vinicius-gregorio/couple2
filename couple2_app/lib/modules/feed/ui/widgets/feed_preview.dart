@@ -36,19 +36,15 @@ class FeedPreview extends ConsumerWidget {
                 ],
               ),
             ),
-            if (preview.hasError)
-              collapseThisError(context, preview.error!)
-                  ? QuietRetry(
-                      onRetry: () => ref.invalidate(feedPreviewProvider),
-                    )
-                  : ErrorView(
-                      message: userFacingError(
-                        preview.error!,
-                        fallback: 'Não foi possível carregar o feed',
-                      ),
-                      compact: true,
-                      onRetry: () => ref.invalidate(feedPreviewProvider),
-                    ),
+            if (preview.hasError && !collapseThisError(context, preview.error!))
+              ErrorView(
+                message: userFacingError(
+                  preview.error!,
+                  fallback: 'Não foi possível carregar o feed',
+                ),
+                compact: true,
+                onRetry: () => ref.invalidate(feedPreviewProvider),
+              ),
             _FeedLines(
               loading: preview.isLoading && preview.value == null,
               items: preview.value,
@@ -96,7 +92,9 @@ class _FeedLines extends StatelessWidget {
       );
     }
     final rows = items;
-    if (rows == null || (rows.isEmpty && failed)) return const SizedBox.shrink();
+    if (rows == null || (rows.isEmpty && failed)) {
+      return const SizedBox.shrink();
+    }
     if (rows.isEmpty) {
       return const EmptyView(message: 'Nada por aqui ainda.', compact: true);
     }
@@ -105,7 +103,10 @@ class _FeedLines extends StatelessWidget {
         for (final event in rows)
           ListTile(
             dense: true,
-            leading: Icon(activityIcon(event.type)),
+            leading: Icon(
+              activityIcon(event.type),
+              color: Theme.of(context).colorScheme.primary,
+            ),
             title: IgnorePointer(
               child: AppText(
                 '${feedActorLabel(actorId: event.actorId, currentUserId: sessionId, actorName: event.payload['actorName'] is String ? event.payload['actorName'] as String : null)} ${feedActionText(event.type, event.payload)}',

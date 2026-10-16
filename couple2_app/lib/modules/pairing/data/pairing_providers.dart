@@ -22,6 +22,35 @@ final incomingPairingPollIntervalProvider = Provider<Duration>((ref) {
   return const Duration(seconds: 10);
 });
 
+/// How many pairing controls are mid-confirm or mid-request.
+/// The scaffold and the code buttons stay disabled while this is above zero.
+class PairingControlsLock extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void acquire() => state++;
+
+  void release() {
+    if (state > 0) state--;
+  }
+}
+
+final pairingControlsLockedProvider =
+    NotifierProvider<PairingControlsLock, int>(PairingControlsLock.new);
+
+/// Set when a sent request disappears because the other person declined.
+class PairingDeclineMessage extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void show(String message) => state = message;
+
+  void clear() => state = null;
+}
+
+final pairingDeclineMessageProvider =
+    NotifierProvider<PairingDeclineMessage, String?>(PairingDeclineMessage.new);
+
 final incomingPairingRequestsProvider =
     AsyncNotifierProvider<
       IncomingPairingRequestsNotifier,
@@ -117,11 +146,16 @@ class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
         ),
       );
     } else {
+      final previous = state.asData?.value;
+      final session = ref.read(sessionProvider).asData?.value;
       state = AsyncData(
         PairingSnapshot(
           phase: PairingPhase.pending,
           message: result.message,
           pendingCode: code,
+          pairingCode: previous?.pairingCode ?? session?.pairingCode,
+          pairingCodeExpiresAt:
+              previous?.pairingCodeExpiresAt ?? session?.pairingCodeExpiresAt,
         ),
       );
     }

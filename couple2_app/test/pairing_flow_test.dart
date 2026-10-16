@@ -132,7 +132,6 @@ class _FakePairing implements IPairingRepository {
 
   @override
   Future<void> declineRequest(String id) async {}
-
 }
 
 class _CodeSession extends SessionNotifier {
@@ -640,5 +639,77 @@ void main() {
     );
     expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
     expect(find.text('Gerar código'), findsOneWidget);
+  });
+
+  testWidgets('waiting shows the caller code without a second primary', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(
+        phase: PairingPhase.pending,
+        pendingCode: 'MMMMMM',
+        pairingCode: 'HHHHHH',
+      ),
+    );
+    await _pumpPage(
+      tester,
+      home: const WaitingPage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    expect(find.text('HHHHHH'), findsOneWidget);
+    expect(find.text('Sem código ainda.'), findsNothing);
+    expect(find.text('Gerar código'), findsNothing);
+    expect(find.textContaining('Aceitar ou Recusar'), findsOneWidget);
+  });
+
+  testWidgets('a declined request is named when the sender returns', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(
+        phase: PairingPhase.pending,
+        pendingCode: 'MMMMMM',
+        pairingCode: 'HHHHHH',
+      ),
+    );
+    final router = GoRouter(
+      initialLocation: PairingRoutes.waiting,
+      routes: [
+        GoRoute(
+          path: PairingRoutes.hub,
+          builder: (_, _) => const PairingCodePage(),
+        ),
+        GoRoute(
+          path: PairingRoutes.waiting,
+          builder: (_, _) => const WaitingPage(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWith(_CodeSession.new),
+        pairingRepositoryProvider.overrideWithValue(repo),
+        pairingPollIntervalProvider.overrideWithValue(null),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(theme: lightTheme, routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    container.read(pairingStatusProvider.notifier).state = const AsyncData(
+      PairingSnapshot(phase: PairingPhase.unpaired, pairingCode: 'HHHHHH'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(declinedPairingMessage), findsOneWidget);
+    expect(find.text('Aguardando confirmação'), findsNothing);
   });
 }

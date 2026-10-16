@@ -51,7 +51,7 @@ class TodayQuestionCard extends ConsumerWidget {
                         const SkeletonBox(height: 14)
                       else if (today.hasError &&
                           collapseThisError(context, today.error!))
-                        const AppText('Toque para tentar de novo')
+                        const AppText('Responda a pergunta de hoje')
                       else if (today.hasError)
                         AppText(
                           userFacingError(

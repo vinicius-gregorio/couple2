@@ -28,6 +28,9 @@ interface StoredRequest {
   createdAt: Date;
 }
 
+let uniqueFailures = 0;
+let couplesCreated = 0;
+
 function memoryPrisma(
   users: Map<string, StoredUser>,
   requests: StoredRequest[],
@@ -116,11 +119,23 @@ function memoryPrisma(
         data,
       }: {
         data: { userAId: string; userBId: string; status: string };
-      }) => ({ id: 'couple-new', ...data }),
+      }) => {
+        if (uniqueFailures > 0) {
+          uniqueFailures -= 1;
+          const error = new Error(
+            'Unique constraint failed on the fields: (`userAId`)',
+          );
+          (error as { code: string }).code = 'P2002';
+          throw error;
+        }
+        couplesCreated += 1;
+        return { id: `couple-${couplesCreated}`, ...data };
+      },
     },
     partnerList: {
       updateMany: async () => ({ count: 0 }),
     },
+    $queryRaw: async () => [],
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(api),
   };
   return api as unknown as PrismaService;
@@ -136,6 +151,8 @@ describe('received pairing requests', () => {
   });
 
   function seed() {
+    uniqueFailures = 0;
+    couplesCreated = 0;
     users.clear();
     requests.splice(0, requests.length);
     const nextUsers: Array<[string, StoredUser]> = [
@@ -391,5 +408,54 @@ describe('received pairing requests', () => {
     expect(users.get('user-a')?.partnerId).toBe('user-h');
     expect(users.get('user-h')?.partnerId).toBe('user-a');
     expect(requests.map((row) => row.id)).not.toContain('req-for-a');
+  });
+
+  it('returns the paired result when the same accept is repeated', async () => {
+    await request(app.getHttpServer())
+      .post('/pairing/requests/req-for-a/accept')
+      .set('Authorization', bearer('user-a', 'a@example.com'))
+      .expect(201);
+
+    const again = await request(app.getHttpServer())
+      .post('/pairing/requests/req-for-a/accept')
+      .set('Authorization', bearer('user-a', 'a@example.com'))
+      .expect(201);
+
+    expect(again.body.partner).toEqual({ id: 'user-h', name: 'Helena' });
+    expect(JSON.stringify(again.body)).not.toContain('AAAAAA');
+    expect(couplesCreated).toBe(1);
+    expect(users.get('user-a')?.partnerId).toBe('user-h');
+  });
+
+  it('accepts once when two calls run together and never returns 500', async () => {
+    const server = app.getHttpServer();
+    const send = () =>
+      request(server)
+        .post('/pairing/requests/req-for-a/accept')
+        .set('Authorization', bearer('user-a', 'a@example.com'));
+    const [first, second] = await Promise.all([send(), send()]);
+
+    for (const response of [first, second]) {
+      expect(response.status).not.toBe(500);
+      expect([201, 409]).toContain(response.status);
+    }
+    expect([first.status, second.status]).toContain(201);
+    for (const response of [first, second].filter((row) => row.status === 201)) {
+      expect(response.body.partner).toEqual({ id: 'user-h', name: 'Helena' });
+      expect(JSON.stringify(response.body)).not.toContain('AAAAAA');
+    }
+    expect(couplesCreated).toBe(1);
+    expect(users.get('user-a')?.partnerId).toBe('user-h');
+    expect(users.get('user-h')?.partnerId).toBe('user-a');
+  });
+
+  it('returns 409 instead of 500 when the couple insert hits a unique constraint', async () => {
+    uniqueFailures = 1;
+    await request(app.getHttpServer())
+      .post('/pairing/requests/req-for-a/accept')
+      .set('Authorization', bearer('user-a', 'a@example.com'))
+      .expect(409);
+    expect(users.get('user-a')?.partnerId).toBeNull();
+    expect(couplesCreated).toBe(0);
   });
 });

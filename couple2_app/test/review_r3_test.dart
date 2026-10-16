@@ -53,30 +53,33 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('session cache round-trips and the boot splash is not a card skeleton', () async {
-    SharedPreferences.setMockInitialValues({});
-    const session = Session(
-      id: 'ada',
-      email: 'a@example.com',
-      name: 'Ada',
-      isPaired: true,
-      coupleId: 'couple-1',
-    );
-    await SessionCache.write(session);
-    final read = await SessionCache.read();
-    expect(read?.name, 'Ada');
-    expect(read?.coupleId, 'couple-1');
-    expect(jsonDecode(jsonEncode(session.toCacheJson()))['name'], 'Ada');
+  test(
+    'session cache round-trips and the boot splash is not a card skeleton',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      const session = Session(
+        id: 'ada',
+        email: 'a@example.com',
+        name: 'Ada',
+        isPaired: true,
+        coupleId: 'couple-1',
+      );
+      await SessionCache.write(session);
+      final read = await SessionCache.read();
+      expect(read?.name, 'Ada');
+      expect(read?.coupleId, 'couple-1');
+      expect(jsonDecode(jsonEncode(session.toCacheJson()))['name'], 'Ada');
 
-    await SessionCache.write(null);
-    expect(await SessionCache.read(), isNull);
-  });
+      await SessionCache.write(null);
+      expect(await SessionCache.read(), isNull);
+    },
+  );
 
-  testWidgets('session splash does not paint home card skeletons', (tester) async {
+  testWidgets('session splash does not paint home card skeletons', (
+    tester,
+  ) async {
     _pinSurface(tester);
-    await tester.pumpWidget(
-      const MaterialApp(home: SessionSplash()),
-    );
+    await tester.pumpWidget(const MaterialApp(home: SessionSplash()));
     expect(find.text('Abrindo a sessão…'), findsOneWidget);
     expect(find.byType(CardSkeleton), findsNothing);
     expect(find.byType(ListSkeleton), findsNothing);
@@ -168,6 +171,7 @@ void main() {
 
     expect(find.text(offlineUserMessage), findsOneWidget);
     expect(find.text('Atualizar'), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsNothing);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
   });
 
@@ -192,10 +196,7 @@ void main() {
     repo.releaseAdd();
     expect(await added, isTrue);
     expect(_contents(container), contains('AuditSlow'));
-    expect(
-      container.read(listsViewModelProvider).actionError,
-      isNull,
-    );
+    expect(container.read(listsViewModelProvider).actionError, isNull);
   });
 
   test('creating a list does not also store a page error', () async {
@@ -219,9 +220,7 @@ void main() {
     _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          listsRepositoryProvider.overrideWithValue(_ListsRepo()),
-        ],
+        overrides: [listsRepositoryProvider.overrideWithValue(_ListsRepo())],
         child: const MaterialApp(home: ListsPage()),
       ),
     );
@@ -243,7 +242,8 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: CoupleDateSheet(
-            onSave: (_) async => 'Sem conexão. Verifique a internet e tente de novo.',
+            onSave: (_) async =>
+                'Sem conexão. Verifique a internet e tente de novo.',
           ),
         ),
       ),
@@ -324,29 +324,32 @@ void main() {
           pairingPollIntervalProvider.overrideWithValue(null),
           sessionProvider.overrideWith(_Session.new),
         ],
-          child: MaterialApp(
-            theme: lightTheme,
-            home: const Scaffold(body: _SaveProbe()),
-          ),
+        child: MaterialApp(
+          theme: lightTheme,
+          home: const Scaffold(body: _SaveProbe()),
+        ),
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    final unpair = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'Desfazer o par'),
+    );
+    expect(unpair.style?.foregroundColor?.resolve({}), lightColorScheme.error);
     await tester.tap(find.text('Desfazer o par'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final confirm = tester.widget<FilledButton>(
       find.byKey(const Key('confirm-unpair')),
     );
-    expect(
-      confirm.style?.backgroundColor?.resolve({}),
-      lightColorScheme.error,
-    );
+    expect(confirm.style?.backgroundColor?.resolve({}), lightColorScheme.error);
     await tester.tap(find.byKey(const Key('confirm-unpair')));
     await tester.pump();
     expect(find.text('Desfazendo…'), findsOneWidget);
     expect(find.text('Salvar'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Salvar')).onPressed,
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Salvar'))
+          .onPressed,
       isNull,
     );
     gate.complete();
@@ -359,7 +362,10 @@ void main() {
     _pinSurface(tester);
     final gate = Completer<PairResult>();
     final repo = _Pairing(
-      const PairingSnapshot(phase: PairingPhase.unpaired, pairingCode: 'ABC123'),
+      const PairingSnapshot(
+        phase: PairingPhase.unpaired,
+        pairingCode: 'ABC123',
+      ),
       hungPair: gate.future,
     );
     final router = GoRouter(
@@ -387,7 +393,10 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.byTooltip('Atualizar'), findsOneWidget);
-    await tester.enterText(find.byKey(const Key('partner-code-field')), 'XYZ789');
+    await tester.enterText(
+      find.byKey(const Key('partner-code-field')),
+      'XYZ789',
+    );
     await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
@@ -414,9 +423,7 @@ void main() {
     );
     expect(repo.pairs, 1);
     expect(repo.statusReads, 1);
-    gate.complete(
-      const PairResult(phase: PairingPhase.pending, message: 'ok'),
-    );
+    gate.complete(const PairResult(phase: PairingPhase.pending, message: 'ok'));
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(repo.pairs, 1);
     expect(repo.statusReads, 1);
@@ -534,10 +541,8 @@ void main() {
                 onPressed: () => showModalBottomSheet<void>(
                   context: context,
                   isScrollControlled: true,
-                  builder: (_) => ProfileSheet(
-                    session: session,
-                    hostContext: context,
-                  ),
+                  builder: (_) =>
+                      ProfileSheet(session: session, hostContext: context),
                 ),
                 child: const Text('perfil'),
               ),
@@ -801,7 +806,6 @@ class _Pairing implements IPairingRepository {
 
   @override
   Future<void> declineRequest(String id) async {}
-
 }
 
 class _MoodRepo implements IMoodRepository {

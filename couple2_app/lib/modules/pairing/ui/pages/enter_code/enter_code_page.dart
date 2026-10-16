@@ -44,8 +44,11 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
     super.dispose();
   }
 
+  bool get _controlsLocked => ref.read(pairingControlsLockedProvider) > 0;
+
   bool get _canSubmit =>
       !_submitting &&
+      !_controlsLocked &&
       validatePartnerCode(_controller.text, myCode: _myCode) == null;
 
   /// Format and self-code errors show once the field has 6 characters.
@@ -105,14 +108,18 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
     final theme = Theme.of(context);
     final statusAsync = ref.watch(pairingStatusProvider);
     final status = statusAsync.asData?.value;
+    final controlsLocked = ref.watch(pairingControlsLockedProvider) > 0;
+    final incoming =
+        ref.watch(incomingPairingRequestsProvider).asData?.value ?? const [];
+    final acceptIsPrimary = incoming.isNotEmpty;
     if (statusAsync.isLoading && !statusAsync.hasValue) {
       return PairingPoller(
         enabled: true,
         child: PairingScaffold(
-        step: 2,
-        actionsEnabled: !_submitting,
-        onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
-        children: const [CardSkeleton(lines: 2)],
+          step: 2,
+          actionsEnabled: !_submitting && !controlsLocked,
+          onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
+          children: const [CardSkeleton(lines: 2)],
         ),
       );
     }
@@ -120,69 +127,66 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
     return PairingPoller(
       enabled: status?.phase != PairingPhase.paired,
       child: PairingScaffold(
-      step: 2,
-      actionsEnabled: !_submitting,
-      onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
-      children: [
-        const AppText(
-          'Código do par',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
-        const AppText(
-          'Digite o código de 6 caracteres que a outra pessoa mostrou. Ela também precisa digitar o seu.',
-        ),
-        const SizedBox(height: 20),
-        if (status?.phase == PairingPhase.pending) ...[
-          AppText(
-            pairingRequestNotice(status!),
-            style: TextStyle(color: theme.colorScheme.primary),
+        step: 2,
+        actionsEnabled: !_submitting && !controlsLocked,
+        onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
+        children: [
+          const AppText(
+            'Código do par',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 16),
-        ],
-        TextField(
-          key: const Key('partner-code-field'),
-          controller: _controller,
-          enabled: !_submitting,
-          textCapitalization: TextCapitalization.characters,
-          autocorrect: false,
-          enableSuggestions: false,
-          maxLength: 6,
-          textInputAction: TextInputAction.done,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
-            const _UpperCaseFormatter(),
+          const SizedBox(height: 8),
+          const AppText(
+            'Digite o código de 6 caracteres que a outra pessoa mostrou. O pedido também pode ser aceito ou recusado na tela de pareamento.',
+          ),
+          const SizedBox(height: 20),
+          if (status?.phase == PairingPhase.pending) ...[
+            AppText(
+              pairingRequestNotice(status!),
+              style: TextStyle(color: theme.colorScheme.primary),
+            ),
+            const SizedBox(height: 16),
           ],
-          decoration: const InputDecoration(
-            labelText: 'Código de 6 caracteres',
-            counterText: '',
+          TextField(
+            key: const Key('partner-code-field'),
+            controller: _controller,
+            enabled: !_submitting && !controlsLocked,
+            textCapitalization: TextCapitalization.characters,
+            autocorrect: false,
+            enableSuggestions: false,
+            maxLength: 6,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+              const _UpperCaseFormatter(),
+            ],
+            decoration: const InputDecoration(
+              labelText: 'Código de 6 caracteres',
+              counterText: '',
+            ),
+            onSubmitted: (_) {
+              if (_canSubmit) _submit();
+            },
           ),
-          onSubmitted: (_) {
-            if (_canSubmit) _submit();
-          },
-        ),
-        if (_shownError != null) ...[
-          const SizedBox(height: 12),
-          AppText(
-            _shownError!,
-            style: TextStyle(color: theme.colorScheme.error),
+          MutationErrorBanner(message: _shownError),
+          const SizedBox(height: 24),
+          LoadingButton(
+            key: const Key('submit-partner-code'),
+            variant: acceptIsPrimary
+                ? LoadingButtonVariant.outlined
+                : LoadingButtonVariant.filled,
+            loading: _submitting,
+            onPressed: _canSubmit ? _submit : null,
+            child: Text(_submitting ? 'Enviando…' : 'Enviar pedido'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _submitting || controlsLocked
+                ? null
+                : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
+            child: const Text('Voltar ao meu código'),
           ),
         ],
-        const SizedBox(height: 24),
-        LoadingButton(
-          key: const Key('submit-partner-code'),
-          loading: _submitting,
-          onPressed: _canSubmit ? _submit : null,
-          child: Text(_submitting ? 'Enviando…' : 'Enviar pedido'),
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: _submitting
-              ? null
-              : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
-          child: const Text('Voltar ao meu código'),
-        ),
-      ],
       ),
     );
   }

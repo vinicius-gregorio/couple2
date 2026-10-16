@@ -10,12 +10,19 @@ class PairingCodeCard extends StatelessWidget {
     this.expiryLabel,
     this.onCopy,
     this.onShare,
+    this.actionsEnabled = true,
+    this.allowGenerate = true,
   });
 
   final String? code;
   final String? expiryLabel;
   final VoidCallback? onCopy;
   final VoidCallback? onShare;
+  final bool actionsEnabled;
+
+  /// The waiting step already has a request, so it does not offer a second
+  /// primary "Gerar código".
+  final bool allowGenerate;
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +34,16 @@ class PairingCodeCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           children: [
-            if (value == null) ...[
+            if (value == null && allowGenerate) ...[
               const AppText('Sem código ainda.', textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              const GeneratePairingCodeButton(),
-            ] else
+              GeneratePairingCodeButton(enabled: actionsEnabled),
+            ] else if (value == null)
+              const AppText(
+                'Seu código aparece quando a tela atualizar.',
+                textAlign: TextAlign.center,
+              )
+            else
               Semantics(
                 label: 'Seu código de pareamento $value',
                 child: AppText(
@@ -64,7 +76,7 @@ class PairingCodeCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       key: const Key('copy-pairing-code'),
-                      onPressed: onCopy,
+                      onPressed: actionsEnabled ? onCopy : null,
                       icon: const Icon(Icons.copy),
                       label: const Text('Copiar'),
                     ),
@@ -73,7 +85,7 @@ class PairingCodeCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       key: const Key('share-pairing-code'),
-                      onPressed: onShare,
+                      onPressed: actionsEnabled ? onShare : null,
                       icon: const Icon(Icons.share),
                       label: const Text('Compartilhar'),
                     ),

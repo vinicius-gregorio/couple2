@@ -80,42 +80,53 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final session = widget.session;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final maxHeight = MediaQuery.sizeOf(context).height - viewInsets.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppText(session.name, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          AppText(session.email),
-          const SizedBox(height: 16),
-          const AppText('Meu aniversário'),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: _saving ? null : _pickDate,
-            child: Text(
-              _birthDate == null
-                  ? 'Escolher data'
-                  : formatDisplayDate(formatDateOnly(_birthDate!)),
+      padding: EdgeInsets.only(bottom: viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppText(
+                    session.name,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  AppText(session.email),
+                  const SizedBox(height: 16),
+                  const AppText('Meu aniversário'),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: _saving ? null : _pickDate,
+                    child: Text(
+                      _birthDate == null
+                          ? 'Escolher data'
+                          : formatDisplayDate(formatDateOnly(_birthDate!)),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    MutationErrorBanner(message: _error),
+                  ],
+                  const SizedBox(height: 16),
+                  LoadingButton(
+                    loading: _saving,
+                    onPressed: _saving || _pop.used ? null : _save,
+                    child: Text(_saving ? 'Salvando…' : 'Salvar'),
+                  ),
+                ],
+              ),
             ),
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            MutationErrorBanner(message: _error),
-          ],
-          const SizedBox(height: 16),
-          LoadingButton(
-            loading: _saving,
-            onPressed: _saving || _pop.used ? null : _save,
-            child: Text(_saving ? 'Salvando…' : 'Salvar'),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -4,6 +4,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../notifications/prisma-errors';
 import { PrismaService } from '../prisma';
 import { UsersService } from '../users';
 import { PairResponseDto, PairingStatus } from './dto';
@@ -11,6 +13,9 @@ import { applyPairing } from './apply-pairing';
 
 @Injectable()
 export class PairingService {
+  /** Serializes accepts for the same pair inside this process. */
+  private readonly acceptTails = new Map<string, Promise<void>>();
+
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
@@ -126,15 +131,19 @@ export class PairingService {
     userAId: string,
     userBId: string,
   ): Promise<PairResponseDto> {
-    const paired = await this.prisma.$transaction((tx) =>
-      applyPairing(tx, userAId, userBId),
-    );
+    try {
+      const paired = await this.prisma.$transaction(async (tx) => {
+        await this.lockUsers(tx, [userAId, userBId]);
+        const existing = await this.alreadyPaired(tx, userAId, userBId);
+        if (existing) return existing;
+        return applyPairing(tx, userAId, userBId);
+      });
 
-    return {
-      status: PairingStatus.PAIRED,
-      message: 'Successfully paired with your partner!',
-      partner: paired.partner,
-    };
+      return this.pairedBody(paired.partner);
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return this.conflictOrExistingPair(userAId, userBId);
+    }
   }
 
   /**
@@ -193,7 +202,9 @@ export class PairingService {
       return {
         status: 'pending',
         pendingCode: user.pairingRequestsSent[0].targetCode,
-        message: 'Waiting for your partner to enter your code',
+        pairingCode: user.pairingCode,
+        pairingCodeExpiresAt: user.pairingCodeExpiresAt,
+        message: 'Waiting for your partner to accept or decline',
       };
     }
 
@@ -235,32 +246,167 @@ export class PairingService {
 
   /**
    * Accepts one request addressed to the caller and completes the pair.
+   * A repeated or concurrent accept of the same request returns the paired
+   * result. It never surfaces a unique-constraint 500.
    * A request for anyone else is 404, so ids cannot be used to probe.
    */
   async acceptReceivedRequest(userId: string, requestId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    const preview = await this.prisma.pairingRequest.findUnique({
+      where: { id: requestId },
+    });
+    const key = [userId, preview?.requesterId ?? '']
+      .filter((id) => id.length > 0)
+      .sort()
+      .join(':');
+    return this.runExclusive(key, () => this.acceptOnce(userId, requestId));
+  }
 
-    const request = await this.ownedRequest(user.pairingCode, requestId);
-    if (user.partnerId) {
+  private async acceptOnce(
+    userId: string,
+    requestId: string,
+  ): Promise<PairResponseDto> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const request = await tx.pairingRequest.findUnique({
+          where: { id: requestId },
+        });
+        const ids = [userId];
+        if (request) ids.push(request.requesterId);
+        await this.lockUsers(tx, ids);
+
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          include: { partner: { select: { id: true, name: true } } },
+        });
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+
+        const owned =
+          !!request &&
+          !!user.pairingCode &&
+          request.targetCode === user.pairingCode;
+
+        if (!owned) {
+          if (user.partnerId && user.partner) {
+            return this.pairedBody({
+              id: user.partner.id,
+              name: user.partner.name,
+            });
+          }
+          throw new NotFoundException('Pairing request not found');
+        }
+
+        if (user.partnerId) {
+          throw new ConflictException('You are already paired with a partner');
+        }
+
+        const requester = await tx.user.findUnique({
+          where: { id: request.requesterId },
+        });
+        if (!requester) {
+          throw new NotFoundException('Pairing request not found');
+        }
+        if (requester.partnerId) {
+          throw new ConflictException(
+            'This user is already paired with someone else',
+          );
+        }
+
+        const paired = await applyPairing(tx, user.id, requester.id);
+        return this.pairedBody(paired.partner);
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { partner: { select: { id: true, name: true } } },
+      });
+      if (user?.partnerId && user.partner) {
+        return this.pairedBody({
+          id: user.partner.id,
+          name: user.partner.name,
+        });
+      }
       throw new ConflictException('You are already paired with a partner');
     }
+  }
 
-    const requester = await this.prisma.user.findUnique({
-      where: { id: request.requesterId },
+  private pairedBody(partner: {
+    id: string;
+    name: string | null;
+  }): PairResponseDto {
+    return {
+      status: PairingStatus.PAIRED,
+      message: 'Successfully paired with your partner!',
+      partner,
+    };
+  }
+
+  private async alreadyPaired(
+    tx: Prisma.TransactionClient,
+    userAId: string,
+    userBId: string,
+  ) {
+    const user = await tx.user.findUnique({
+      where: { id: userAId },
+      include: { partner: { select: { id: true, name: true } } },
     });
-    if (!requester) {
-      throw new NotFoundException('Pairing request not found');
+    if (user?.partnerId === userBId && user.partner) {
+      return {
+        coupleId: user.coupleId ?? '',
+        partner: { id: user.partner.id, name: user.partner.name },
+      };
     }
-    if (requester.partnerId) {
-      throw new ConflictException(
-        'This user is already paired with someone else',
-      );
+    const other = await tx.user.findUnique({
+      where: { id: userBId },
+      include: { partner: { select: { id: true, name: true } } },
+    });
+    if (other?.partnerId === userAId) {
+      return {
+        coupleId: other.coupleId ?? '',
+        partner: { id: other.id, name: other.name },
+      };
     }
+    if (user?.partnerId || other?.partnerId) {
+      throw new ConflictException('You are already paired with a partner');
+    }
+    return null;
+  }
 
-    return this.completePairing(user.id, requester.id);
+  private async conflictOrExistingPair(userAId: string, userBId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userAId },
+      include: { partner: { select: { id: true, name: true } } },
+    });
+    if (user?.partnerId === userBId && user.partner) {
+      return this.pairedBody({
+        id: user.partner.id,
+        name: user.partner.name,
+      });
+    }
+    throw new ConflictException('You are already paired with a partner');
+  }
+
+  /** Row lock in id order so two accepts cannot both create an active couple. */
+  private async lockUsers(tx: Prisma.TransactionClient, ids: string[]) {
+    const sorted = [...new Set(ids)].filter((id) => id.length > 0).sort();
+    for (const id of sorted) {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${id} FOR UPDATE`;
+    }
+  }
+
+  private runExclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.acceptTails.get(key) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(fn);
+    this.acceptTails.set(
+      key,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
   }
 
   /**

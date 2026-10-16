@@ -54,7 +54,8 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
     final step = widget.step;
     final children = widget.children;
     final onRefresh = widget.onRefresh;
-    final actionsEnabled = widget.actionsEnabled;
+    final screenLocked = ref.watch(pairingControlsLockedProvider) > 0;
+    final actionsEnabled = widget.actionsEnabled && !screenLocked;
     final body = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),

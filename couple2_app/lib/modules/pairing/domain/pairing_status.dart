@@ -51,6 +51,8 @@ class PairingSnapshot {
           phase: PairingPhase.pending,
           message: _string(json['message']),
           pendingCode: _string(json['pendingCode']),
+          pairingCode: _string(json['pairingCode']),
+          pairingCodeExpiresAt: _date(json['pairingCodeExpiresAt']),
         );
       case 'paired':
         return PairingSnapshot(
@@ -130,10 +132,14 @@ class IncomingPairingRequest {
 String pairingRequestNotice(PairingSnapshot status) {
   final sent = status.pendingCode;
   if (sent != null && sent.isNotEmpty) {
-    return 'Pedido enviado ($sent). Falta a outra pessoa digitar o seu código.';
+    return 'Pedido enviado ($sent). A outra pessoa pode Aceitar ou Recusar. Ela também pode digitar o seu código.';
   }
-  return 'Seu par enviou um pedido de pareamento. Digite o código dele para concluir.';
+  return 'Seu par enviou um pedido de pareamento. Aceite ou recuse aqui, ou digite o código dele.';
 }
+
+/// Shown on the code step after the other person declines.
+const declinedPairingMessage =
+    'Seu par recusou o pedido. Vocês podem enviar outro.';
 
 /// Code to show the user. Pending status does not include `pairingCode`;
 /// that value stays on `GET /auth/me`.

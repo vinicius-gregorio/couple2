@@ -32,9 +32,9 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           .send(kind: kind, message: message);
       ref.invalidate(feedPreviewProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Carinho enviado: ${kind.label}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Carinho enviado: ${kind.label}')));
     } on CPLHttpException catch (error) {
       if (!mounted) return;
       final limited = error.response?.statusCode == 429;
@@ -181,11 +181,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                 'Como vocês estão',
                 style: Theme.of(context).textTheme.labelLarge,
               ),
-              if (collapseThisError(context, error))
-                QuietRetry(
-                  onRetry: () => ref.invalidate(currentMoodProvider),
-                )
-              else
+              if (!collapseThisError(context, error))
                 ErrorView(
                   message: userFacingError(
                     error,

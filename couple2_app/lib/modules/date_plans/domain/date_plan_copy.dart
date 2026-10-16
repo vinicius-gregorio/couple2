@@ -1,3 +1,5 @@
+import 'package:couple2_app/core/core.dart';
+
 import 'entities/date_plan.dart';
 
 const dateWeekdays = <int, String>{
@@ -44,4 +46,16 @@ String datePlanErrorMessage(int? statusCode, {bool linkingItem = false}) {
     default:
       return 'Não consegui salvar agora.';
   }
+}
+
+/// Offline failures name the network. Other HTTP statuses keep the date copy.
+String datePlanFailureMessage(Object error, {bool linkingItem = false}) {
+  if (isOfflineFailure(error)) return offlineUserMessage;
+  if (error is CPLHttpException) {
+    return datePlanErrorMessage(
+      error.response?.statusCode,
+      linkingItem: linkingItem,
+    );
+  }
+  return userFacingError(error, fallback: 'Não consegui salvar agora.');
 }

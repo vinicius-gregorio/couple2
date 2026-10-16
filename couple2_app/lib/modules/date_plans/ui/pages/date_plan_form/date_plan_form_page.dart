@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
-import '../../../../../core/core.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -129,15 +128,13 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       } else if (_pop.claim(context)) {
         context.go(DatePlanRoutes.list);
       }
-    } on CPLHttpException catch (error) {
+    } catch (error) {
       _toast(
-        datePlanErrorMessage(
-          error.response?.statusCode,
+        datePlanFailureMessage(
+          error,
           linkingItem: widget.sourceListItemId != null,
         ),
       );
-    } catch (_) {
-      _toast('Não consegui salvar agora.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

@@ -43,5 +43,5 @@ String? pairingExpiryLabel(DateTime? expiresAt, {DateTime? now}) {
 }
 
 String pairingShareText(String code) {
-  return 'Meu código no Couple2 é $code. Abra o app e digite esse código. Depois eu digito o seu para a gente se conectar.';
+  return 'Meu código no Couple2 é $code. Abra o app para Aceitar ou Recusar o pedido. Você também pode digitar esse código.';
 }

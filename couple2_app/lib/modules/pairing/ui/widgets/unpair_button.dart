@@ -86,6 +86,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
         LoadingButton(
           key: const Key('unpair-button'),
           variant: LoadingButtonVariant.outlined,
+          foregroundColor: theme.colorScheme.error,
           loading: _busy,
           onPressed: _busy || _confirming || !widget.enabled
               ? null
@@ -94,10 +95,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
                 },
           child: Text(_busy ? 'Desfazendo…' : 'Desfazer o par'),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-        ],
+        MutationErrorBanner(message: _error),
       ],
     );
   }

@@ -70,6 +70,14 @@ void main() {
     expect(pending.pendingCode, 'XYZ789');
     expect(pending.pairingCode, isNull);
 
+    final pendingWithOwnCode = PairingSnapshot.fromJson({
+      'status': 'pending',
+      'pendingCode': 'XYZ789',
+      'pairingCode': 'HHHHHH',
+    });
+    expect(pendingWithOwnCode.pairingCode, 'HHHHHH');
+    expect(shownPairingCode(status: pendingWithOwnCode).code, 'HHHHHH');
+
     final paired = PairingSnapshot.fromJson({
       'status': 'paired',
       'partner': {'id': 'user-b', 'name': 'Bruno'},

@@ -20,12 +20,7 @@ class NextDateCard extends ConsumerWidget {
     return next.when(
       loading: () => const CardSkeleton(lines: 2),
       error: (error, _) => collapseThisError(context, error)
-          ? Card(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              child: QuietRetry(
-                onRetry: () => ref.invalidate(nextDateProvider),
-              ),
-            )
+          ? _emptyCard(context, theme)
           : ErrorView(
               message: userFacingError(
                 error,
@@ -35,26 +30,7 @@ class NextDateCard extends ConsumerWidget {
               onRetry: () => ref.invalidate(nextDateProvider),
             ),
       data: (plan) {
-        if (plan == null) {
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppText('Próximo date', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push(DatePlanRoutes.create),
-                    icon: const Icon(Icons.event_available_outlined),
-                    label: const Text('Planejar um date'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+        if (plan == null) return _emptyCard(context, theme);
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -86,4 +62,25 @@ class NextDateCard extends ConsumerWidget {
       },
     );
   }
+}
+
+Widget _emptyCard(BuildContext context, ThemeData theme) {
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 24),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppText('Próximo date', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => context.push(DatePlanRoutes.create),
+            icon: const Icon(Icons.event_available_outlined),
+            label: const Text('Planejar um date'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

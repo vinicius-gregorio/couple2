@@ -53,7 +53,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
       context,
       title: 'Cancelar pedido?',
       message:
-          'O pedido de pareamento é cancelado. Vocês podem gerar outro código depois.',
+          'O pedido some para a outra pessoa. Vocês podem enviar outro depois.',
       confirmLabel: 'Cancelar pedido',
       confirmKey: const Key('confirm-cancel-pairing'),
     );
@@ -83,22 +83,32 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(pairingStatusProvider, (previous, next) {
+      final was = previous?.asData?.value.phase;
+      final now = next.asData?.value.phase;
+      if (was != PairingPhase.pending || now != PairingPhase.unpaired) return;
+      if (_cancelling || _confirming) return;
+      ref
+          .read(pairingDeclineMessageProvider.notifier)
+          .show(declinedPairingMessage);
+      context.go(PairingRoutes.hub);
+    });
     final status = ref.watch(pairingStatusProvider).asData?.value;
     final session = ref.watch(sessionProvider).asData?.value;
+    final controlsLocked = ref.watch(pairingControlsLockedProvider) > 0;
     final shown = shownPairingCode(
       status: status,
       sessionCode: session?.pairingCode,
       sessionExpiresAt: session?.pairingCodeExpiresAt,
     );
-    final theme = Theme.of(context);
     final partnerName = status?.partner?.name;
 
+    final busy = _cancelling || _confirming || controlsLocked;
     return PairingPoller(
       enabled: status?.phase != PairingPhase.paired,
-      returnToHubWhenUnpaired: true,
       child: PairingScaffold(
         step: 3,
-        actionsEnabled: !_cancelling && !_confirming,
+        actionsEnabled: !busy,
         onRefresh: _refresh,
         children: [
           const AppText(
@@ -107,7 +117,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           ),
           const SizedBox(height: 8),
           const AppText(
-            'Peça para a outra pessoa abrir o app e digitar o seu código. Quando isso acontecer, o casal fica ativo e a Home abre.',
+            'A outra pessoa vê o pedido na tela de pareamento e pode Aceitar ou Recusar. Ela também pode digitar o seu código.',
           ),
           const SizedBox(height: 8),
           const AppText('Atualizando automaticamente…'),
@@ -120,6 +130,8 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           const SizedBox(height: 8),
           PairingCodeCard(
             code: shown.code,
+            allowGenerate: false,
+            actionsEnabled: !busy,
             expiryLabel: pairingExpiryLabel(shown.expiresAt),
             onCopy: shown.code == null
                 ? null
@@ -156,16 +168,13 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
               child: const Text('Ir para a Home'),
             ),
           ],
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AppText(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
+          MutationErrorBanner(message: _error),
           const SizedBox(height: 24),
           LoadingButton(
             key: const Key('cancel-pairing-request'),
             variant: LoadingButtonVariant.outlined,
             loading: _cancelling,
-            onPressed: _cancelling || _confirming
+            onPressed: busy
                 ? null
                 : () {
                     _cancel();
@@ -174,7 +183,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: _cancelling
+            onPressed: busy
                 ? null
                 : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
             child: const Text('Voltar ao meu código'),

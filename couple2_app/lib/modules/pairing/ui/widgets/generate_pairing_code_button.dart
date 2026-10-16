@@ -9,7 +9,9 @@ import '../../domain/domain.dart';
 /// Asks `POST /pairing/code` for a code, then reloads the session so the
 /// card can show it. Login is the other place the server creates a code.
 class GeneratePairingCodeButton extends ConsumerStatefulWidget {
-  const GeneratePairingCodeButton({super.key});
+  const GeneratePairingCodeButton({super.key, this.enabled = true});
+
+  final bool enabled;
 
   @override
   ConsumerState<GeneratePairingCodeButton> createState() =>
@@ -36,12 +38,18 @@ class _GeneratePairingCodeButtonState
 
   @override
   Widget build(BuildContext context) {
+    final incoming =
+        ref.watch(incomingPairingRequestsProvider).asData?.value ?? const [];
+    final primary = incoming.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LoadingButton(
           key: const Key('generate-pairing-code'),
-          onPressed: _generate,
+          variant: primary
+              ? LoadingButtonVariant.filled
+              : LoadingButtonVariant.outlined,
+          onPressed: widget.enabled ? _generate : null,
           child: const Text('Gerar código'),
         ),
         if (_error != null) ...[

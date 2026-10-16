@@ -85,6 +85,8 @@ class AsyncValueView<T> extends StatelessWidget {
 }
 
 /// Inline PT-BR failure for a mutation that should stay on screen.
+///
+/// An empty message takes no space. A new message grows in place.
 class MutationErrorBanner extends StatelessWidget {
   const MutationErrorBanner({super.key, this.message});
 
@@ -92,30 +94,24 @@ class MutationErrorBanner extends StatelessWidget {
 
   final String? message;
 
-  /// Kept even when [message] is empty so the page does not jump.
-  static const double slotHeight = 40;
-
   @override
   Widget build(BuildContext context) {
     final text = message;
     final visible = text != null && text.isNotEmpty;
-    return SizedBox(
-      height: slotHeight,
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      alignment: Alignment.topCenter,
       child: visible
           ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Center(
-                child: Text(
-                  text,
-                  key: bannerKey,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                text,
+                key: bannerKey,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             )
-          : null,
+          : const SizedBox(width: double.infinity, height: 0),
     );
   }
 }
@@ -172,10 +168,7 @@ class ErrorView extends StatelessWidget {
     if (compact) return content;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 48),
-        content,
-      ],
+      children: [const SizedBox(height: 48), content],
     );
   }
 }
@@ -221,10 +214,7 @@ class EmptyView extends StatelessWidget {
     if (compact) return content;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 48),
-        content,
-      ],
+      children: [const SizedBox(height: 48), content],
     );
   }
 }

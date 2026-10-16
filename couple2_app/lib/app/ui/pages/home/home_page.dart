@@ -49,10 +49,8 @@ class HomePage extends ConsumerWidget {
                     showModalBottomSheet<void>(
                       context: host,
                       isScrollControlled: true,
-                      builder: (_) => ProfileSheet(
-                        session: session,
-                        hostContext: host,
-                      ),
+                      builder: (_) =>
+                          ProfileSheet(session: session, hostContext: host),
                     );
                   },
           ),
@@ -82,7 +80,7 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: sessionAsync.when(
-          data: (session) {
+        data: (session) {
           if (session == null) {
             return const _BootBody();
           }
@@ -94,59 +92,59 @@ class HomePage extends ConsumerWidget {
           return HomeFailureScope(
             collapseOffline: collapseOffline,
             child: RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(sessionProvider.notifier).refresh();
-              ref.invalidate(coupleProvider);
-              ref.invalidate(unreadCountProvider);
-              ref.invalidate(feedPreviewProvider);
-              ref.invalidate(todayQuestionProvider);
-              ref.invalidate(currentMoodProvider);
-              ref.invalidate(nextDateProvider);
-              await ref.read(coupleProvider.future);
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              children: [
-                if (session.picture != null)
-                  Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(session.picture!),
-                      onBackgroundImageError: (_, __) {},
-                    ),
-                  )
-                else
-                  Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      child: Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Theme.of(context).colorScheme.onPrimary,
+              onRefresh: () async {
+                await ref.read(sessionProvider.notifier).refresh();
+                ref.invalidate(coupleProvider);
+                ref.invalidate(unreadCountProvider);
+                ref.invalidate(feedPreviewProvider);
+                ref.invalidate(todayQuestionProvider);
+                ref.invalidate(currentMoodProvider);
+                ref.invalidate(nextDateProvider);
+                await ref.read(coupleProvider.future);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                children: [
+                  if (session.picture != null)
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: NetworkImage(session.picture!),
+                        onBackgroundImageError: (_, __) {},
+                      ),
+                    )
+                  else
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary,
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                       ),
                     ),
+                  const SizedBox(height: 16),
+                  AppText(
+                    'Bem-vindo, ${session.name}!',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
                   ),
-                const SizedBox(height: 16),
-                AppText(
-                  'Bem-vindo, ${session.name}!',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                if (collapseOffline)
-                  ErrorView(
-                    message: offlineUserMessage,
-                    compact: true,
-                    retryLabel: 'Atualizar',
-                    onRetry: () => _retryHome(ref),
-                  ),
-                if (session.coupleId != null)
-                  _HomeSlot(
-                    minHeight: 160,
-                    child: coupleAsync.when(
+                  const SizedBox(height: 24),
+                  if (collapseOffline)
+                    ErrorView(
+                      message: offlineUserMessage,
+                      compact: true,
+                      retryLabel: 'Atualizar',
+                      onRetry: () => _retryHome(ref),
+                    ),
+                  if (session.coupleId != null)
+                    coupleAsync.when(
                       data: (couple) {
                         if (couple == null) return const SizedBox.shrink();
                         return DaysTogetherCard(
@@ -159,9 +157,7 @@ class HomePage extends ConsumerWidget {
                       loading: () => const CardSkeleton(),
                       error: (error, _) =>
                           collapseOffline && isOfflineFailure(error)
-                          ? QuietRetry(
-                              onRetry: () => ref.invalidate(coupleProvider),
-                            )
+                          ? const SizedBox.shrink()
                           : ErrorView(
                               message: userFacingError(
                                 error,
@@ -171,33 +167,27 @@ class HomePage extends ConsumerWidget {
                               onRetry: () => ref.invalidate(coupleProvider),
                             ),
                     ),
-                  ),
-                if (session.coupleId != null) ...[
-                  const SizedBox(height: 16),
-                  const _HomeSlot(minHeight: 420, child: MoodHomeCard()),
-                  const SizedBox(height: 16),
-                  const _HomeSlot(minHeight: 148, child: NextDateCard()),
-                  const SizedBox(height: 16),
-                  const _HomeSlot(minHeight: 96, child: TodayQuestionCard()),
-                  const SizedBox(height: 16),
-                  _HomeSlot(
-                    minHeight: 160,
-                    child: FeedPreview(
-                      onOpen: () => context.push(FeedRoutes.feed),
+                  if (session.coupleId != null) ...[
+                    const SizedBox(height: 16),
+                    const MoodHomeCard(),
+                    const SizedBox(height: 16),
+                    const NextDateCard(),
+                    const SizedBox(height: 16),
+                    const TodayQuestionCard(),
+                    const SizedBox(height: 16),
+                    FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
+                  ],
+                  const SizedBox(height: 24),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push(ListsRoutes.lists),
+                      icon: const Icon(Icons.list),
+                      label: const Text('Nossas listas'),
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                Center(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push(ListsRoutes.lists),
-                    icon: const Icon(Icons.list),
-                    label: const Text('Nossas listas'),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
           );
         },
         loading: () => const _BootBody(),
@@ -258,22 +248,6 @@ class _BootBody extends StatelessWidget {
   }
 }
 
-/// Keeps the controls under a loading card from sliding under the finger.
-class _HomeSlot extends StatelessWidget {
-  const _HomeSlot({required this.minHeight, required this.child});
-
-  final double minHeight;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: minHeight),
-      child: child,
-    );
-  }
-}
-
 class _NeedsPairingBody extends StatelessWidget {
   const _NeedsPairingBody();
 
@@ -295,7 +269,7 @@ class _NeedsPairingBody extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const AppText(
-                'A Home do casal abre depois que os dois digitam o código um do outro.',
+                'A Home do casal abre quando um pedido de pareamento é aceito.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
