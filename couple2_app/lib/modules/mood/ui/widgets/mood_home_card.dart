@@ -173,13 +173,19 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
             ),
           );
         },
-        loading: () => const CardSkeleton(lines: 4, minHeight: 460),
+        loading: () => const CardSkeleton(
+          lines: 2,
+          minHeight: homeMoodCardHeight,
+        ),
         error: (error, _) => LoadErrorCard(
           message: collapseThisError(context, error)
               ? 'Não foi possível carregar o humor.'
               : userFacingError(error),
-          onRetry: () => ref.invalidate(currentMoodProvider),
-          minHeight: 460,
+          onRetry: () {
+            noteHomeRetry(ref);
+            ref.invalidate(currentMoodProvider);
+          },
+          minHeight: homeMoodCardHeight,
         ),
       );
   }

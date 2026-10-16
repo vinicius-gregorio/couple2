@@ -232,7 +232,7 @@ class _DateList extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
               itemCount: items.length + (hasMore ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {

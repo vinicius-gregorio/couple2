@@ -16,6 +16,8 @@ tap_pattern='(?<![A-Za-z])(IconButton|FloatingActionButton|InkWell|GestureDetect
 error_file='lib/design_system/widgets/async_body.dart'
 error_pattern='OverlayPortal|OverlayEntry|\bOverlay\b|\bPositioned\b|\bStack\b'
 overlay_pattern='OverlayPortal|OverlayEntry|\bOverlay\b'
+sheet_allow='lib/design_system/widgets/app_sheet\.dart'
+sheet_pattern='showModalBottomSheet'
 
 # rg's default engine rejects lookbehind. --pcre2 is required, and a
 # parse error (exit 2) must fail the guard instead of looking like a clean tree.
@@ -108,6 +110,13 @@ if [[ -n "$error_hits" ]]; then
   failed=1
 fi
 
+sheet_hits="$(scan "$sheet_pattern" "$sheet_allow")"
+if [[ -n "$sheet_hits" ]]; then
+  echo "showModalBottomSheet found outside showAppSheet:"
+  echo "$sheet_hits"
+  failed=1
+fi
+
 if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
@@ -116,3 +125,4 @@ echo "Button guard: no ElevatedButton/OutlinedButton/TextButton/FilledButton/But
 echo "Checkable guard: no Checkbox/Switch/CheckboxListTile/SwitchListTile outside MutationCheckbox/MutationSwitch."
 echo "Tap guard: no IconButton/FloatingActionButton/InkWell/GestureDetector outside the theme components."
 echo "Error-banner guard: no Overlay/Positioned/Stack in the error widget, and no Overlay in lib."
+echo "Sheet guard: no showModalBottomSheet outside showAppSheet."

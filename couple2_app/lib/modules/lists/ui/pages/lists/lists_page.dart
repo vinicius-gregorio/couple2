@@ -154,7 +154,7 @@ class _ListsBody extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, AppFab.clearance),
       children: [
         for (final list in sharedLists) _ListCard(list: list),
         if (privateLists.isNotEmpty) ...[

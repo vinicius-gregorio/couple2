@@ -63,7 +63,13 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       if (mounted) {
         setState(() {
           _loading = false;
-          _loadError = userFacingError(error);
+          if (_dates.isNotEmpty) {
+            _loadError = null;
+            _actionError = userFacingError(error);
+          } else {
+            _loadError = userFacingError(error);
+            _actionError = null;
+          }
         });
       }
     }
@@ -156,8 +162,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   @override
   Widget build(BuildContext context) {
     final coupleAsync = ref.watch(coupleProvider);
-    final upcoming =
-        coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
+    final failedEmpty = _loadError != null && _dates.isEmpty;
+    final upcoming = failedEmpty
+        ? const <UpcomingDate>[]
+        : coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
     return MutationScope(
       child: Scaffold(
@@ -171,45 +179,47 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         icon: const Icon(Icons.add),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
         children: [
           ActionErrorReporter(message: _actionError),
           const AppText(
             'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),
           const SizedBox(height: 16),
-          AppText(
-            'Próximas datas',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          if (upcoming.isEmpty)
-            const AppText('Nada nos próximos 60 dias.')
-          else
-            ...upcoming.map(
-              (entry) => MutationLock(
-                locked: _rowLocked,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: IgnorePointer(
-                    child: AppText(
-                      nextDateLine(entry).replaceFirst('Próxima data: ', ''),
+          if (!failedEmpty) ...[
+            AppText(
+              'Próximas datas',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (upcoming.isEmpty)
+              const AppText('Nada nos próximos 60 dias.')
+            else
+              ...upcoming.map(
+                (entry) => MutationLock(
+                  locked: _rowLocked,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: IgnorePointer(
+                      child: AppText(
+                        nextDateLine(entry).replaceFirst('Próxima data: ', ''),
+                      ),
                     ),
+                    subtitle: IgnorePointer(
+                      child: AppText(formatDisplayDate(entry.date)),
+                    ),
+                    onTap: _rowLocked || entry.coupleDateId == null
+                        ? null
+                        : () {
+                            final match = _dates.where(
+                              (date) => date.id == entry.coupleDateId,
+                            );
+                            if (match.isNotEmpty) _openSheet(match.first);
+                          },
                   ),
-                  subtitle: IgnorePointer(
-                    child: AppText(formatDisplayDate(entry.date)),
-                  ),
-                  onTap: _rowLocked || entry.coupleDateId == null
-                      ? null
-                      : () {
-                          final match = _dates.where(
-                            (date) => date.id == entry.coupleDateId,
-                          );
-                          if (match.isNotEmpty) _openSheet(match.first);
-                        },
                 ),
               ),
-            ),
+          ],
           const SizedBox(height: 16),
           AppText(
             'Datas do casal',

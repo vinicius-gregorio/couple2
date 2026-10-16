@@ -7,6 +7,15 @@ import 'mutation_scope.dart';
 ///
 /// The theme has no disabled fill, so a locked add button would stay wine.
 class AppFab extends StatelessWidget {
+  /// Default FAB diameter. Lists that sit under a FAB pad by [clearance].
+  static const double extent = 56;
+
+  /// [Scaffold] end-float margin. Content must clear extent + margin.
+  static const double margin = 16;
+
+  /// Bottom padding that keeps the last card above the FAB.
+  static const double clearance = extent + margin;
+
   const AppFab({
     super.key,
     required this.onPressed,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
@@ -32,13 +33,16 @@ class TodayQuestionCard extends ConsumerWidget {
     if (failedWithoutData) {
       return LoadErrorCard(
         message: userFacingError(today.error!),
-        onRetry: () => ref.invalidate(todayQuestionProvider),
-        minHeight: 112,
+        onRetry: () {
+          noteHomeRetry(ref);
+          ref.invalidate(todayQuestionProvider);
+        },
+        minHeight: homeQuestionCardHeight,
       );
     }
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 112),
+      constraints: const BoxConstraints(minHeight: homeQuestionCardHeight),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         child: AppInkWell(

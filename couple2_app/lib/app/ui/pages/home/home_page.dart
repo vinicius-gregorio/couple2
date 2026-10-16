@@ -36,7 +36,14 @@ class HomePage extends ConsumerWidget {
     final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
     final paired = sessionAsync.asData?.value?.coupleId != null;
-    final collapseOffline = _offlineCount(ref, sessionAsync) >= 2;
+    final offlineCount = _offlineCount(ref, sessionAsync);
+    final noticeSuppressed = ref.watch(homeOfflineNoticeSuppressedProvider);
+    if (offlineCount < 2 && noticeSuppressed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(homeOfflineNoticeSuppressedProvider.notifier).reset();
+      });
+    }
+    final collapseOffline = offlineCount >= 2 && !noticeSuppressed;
 
     return MutationScope(
       child: Scaffold(
@@ -53,7 +60,10 @@ class HomePage extends ConsumerWidget {
           preferredSize: const Size.fromHeight(_offlineNoticeSlot),
           child: _OfflineNotice(
             offline: collapseOffline,
-            onRetry: () => _retryHome(ref),
+            onRetry: () {
+              noteHomeRetry(ref);
+              _retryHome(ref);
+            },
           ),
         ),
         leading: sessionAsync.when(
@@ -116,6 +126,7 @@ class HomePage extends ConsumerWidget {
             collapseOffline: collapseOffline,
             child: RefreshIndicator(
               onRefresh: () async {
+                noteHomeRetry(ref);
                 await ref.read(sessionProvider.notifier).refresh();
                 ref.invalidate(coupleProvider);
                 ref.invalidate(unreadCountProvider);
@@ -167,22 +178,38 @@ class HomePage extends ConsumerWidget {
                         coupleAsync.when(
                           skipError: true,
                           data: (couple) {
-                            if (couple == null) return const SizedBox.shrink();
+                            if (couple == null) {
+                              return LoadErrorCard(
+                                message:
+                                    'Não foi possível carregar os dias juntos.',
+                                onRetry: () {
+                                  noteHomeRetry(ref);
+                                  ref.invalidate(coupleProvider);
+                                },
+                                minHeight: homeDaysCardHeight,
+                              );
+                            }
                             return DaysTogetherCard(
                               couple: couple,
-                                onOpenSettings: () {
-                                  context.push(CoupleRoutes.settings);
-                                },
-                                onOpenDates: () {
-                                  context.push(CoupleRoutes.dates);
-                                },
+                              onOpenSettings: () {
+                                context.push(CoupleRoutes.settings);
+                              },
+                              onOpenDates: () {
+                                context.push(CoupleRoutes.dates);
+                              },
                             );
                           },
-                          loading: () => const CardSkeleton(lines: 2, minHeight: 160),
+                          loading: () => const CardSkeleton(
+                            lines: 2,
+                            minHeight: homeDaysCardHeight,
+                          ),
                           error: (error, _) => LoadErrorCard(
                             message: userFacingError(error),
-                            onRetry: () => ref.invalidate(coupleProvider),
-                            minHeight: 160,
+                            onRetry: () {
+                              noteHomeRetry(ref);
+                              ref.invalidate(coupleProvider);
+                            },
+                            minHeight: homeDaysCardHeight,
                           ),
                         ),
                       if (session.coupleId != null) ...[

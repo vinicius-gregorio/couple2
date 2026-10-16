@@ -110,12 +110,15 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.errorMessage != null) {
+    if (state.errorMessage != null && state.items.isEmpty) {
       return ErrorView(
         message: state.errorMessage!,
         compact: true,
         onRetry: onRetry,
       );
+    }
+    if (state.errorMessage != null) {
+      return ActionErrorReporter(message: state.errorMessage);
     }
     if (state.isLoadingMore) {
       return const Padding(

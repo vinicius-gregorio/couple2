@@ -19,7 +19,10 @@ class NextDateCard extends ConsumerWidget {
 
     return next.when(
         skipError: true,
-        loading: () => const CardSkeleton(lines: 2, minHeight: 160),
+        loading: () => const CardSkeleton(
+          lines: 2,
+          minHeight: homeNextDateCardHeight,
+        ),
         error: (error, _) => LoadErrorCard(
           message: collapseThisError(context, error)
               ? 'Não foi possível carregar os encontros.'
@@ -27,8 +30,11 @@ class NextDateCard extends ConsumerWidget {
                   error,
                   fallback: 'Não consegui carregar os encontros.',
                 ),
-          onRetry: () => ref.invalidate(nextDateProvider),
-          minHeight: 160,
+          onRetry: () {
+            noteHomeRetry(ref);
+            ref.invalidate(nextDateProvider);
+          },
+          minHeight: homeNextDateCardHeight,
         ),
         data: (plan) {
           if (plan == null) return _emptyCard(context, theme);
