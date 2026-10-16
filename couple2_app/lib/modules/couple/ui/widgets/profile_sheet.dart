@@ -73,6 +73,8 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
           );
       await ref.read(sessionProvider.notifier).refresh();
       ref.invalidate(coupleProvider);
+      if (!mounted || _pop.used) return;
+      await MutationScope.refreshOf(context);
       if (mounted) _pop.pop(context);
     } catch (error) {
       if (mounted) {

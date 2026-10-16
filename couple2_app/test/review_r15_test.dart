@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/app/ui/home_failure_scope.dart';
@@ -506,6 +508,78 @@ void main() {
     expect(tester.getTopLeft(row).dy, before);
     expect(tester.getSize(find.byKey(const Key('list-item-i2'))).height, listItemSlotHeight);
   });
+
+  testWidgets('slow save shows the new date without a manual refresh', (
+    tester,
+  ) async {
+    final repo = _SlowDatesRepo();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => _Session(_ada)),
+          coupleRepositoryProvider.overrideWithValue(repo),
+          coupleProvider.overrideWith((ref) async => _couple),
+        ],
+        child: MaterialApp(theme: lightTheme, home: const ImportantDatesPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Adicionar data'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Aniversario lento');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Adicionar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Nova data'), findsOneWidget);
+
+    repo.gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nova data'), findsNothing);
+    expect(find.text('Aniversario lento'), findsOneWidget);
+  });
+}
+
+class _SlowDatesRepo implements ICoupleRepository {
+  final created = <CoupleDate>[];
+  final gate = Completer<void>();
+
+  @override
+  Future<List<CoupleDate>> getDates() async => List<CoupleDate>.of(created);
+
+  @override
+  Future<Couple> getCouple() => Future<Couple>.error(StateError('no'));
+
+  @override
+  Future<Couple> updateCouple({String? anniversaryDate, String? timezone}) =>
+      Future<Couple>.error(StateError('no'));
+
+  @override
+  Future<void> updateMyBirthDate(String? birthDate) async {}
+
+  @override
+  Future<CoupleDate> createDate({
+    required String title,
+    required String date,
+    String? recurrence,
+  }) async {
+    await gate.future;
+    final saved = _date('slow-1', title);
+    created.add(saved);
+    return saved;
+  }
+
+  @override
+  Future<CoupleDate> updateDate(
+    String id, {
+    String? title,
+    String? date,
+    String? recurrence,
+  }) async => _date(id, title ?? '');
+
+  @override
+  Future<void> deleteDate(String id) async {}
 }
 Rect _globalSemanticsRect(SemanticsNode node) {
   var rect = node.rect;

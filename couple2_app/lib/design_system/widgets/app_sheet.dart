@@ -17,6 +17,7 @@ Future<T?> showAppSheet<T>({
   bool isScrollControlled = true,
   bool isDismissible = true,
   bool enableDrag = true,
+  Future<void> Function()? onSuccess,
 }) {
   final navigator = Navigator.of(context);
   final localizations = MaterialLocalizations.of(context);
@@ -37,6 +38,7 @@ Future<T?> showAppSheet<T>({
     builder: (sheetContext) {
       return SizedBox.expand(
         child: MutationScope(
+          onSuccess: onSuccess,
           child: _SheetDismissLock(
             lock: route,
             child: ScaffoldMessenger(

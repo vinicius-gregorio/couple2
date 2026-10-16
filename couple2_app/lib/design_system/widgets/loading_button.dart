@@ -83,12 +83,15 @@ class _LoadingButtonState extends State<LoadingButton> {
       final result = action();
       if (result is Future) {
         setState(() {});
-        result.whenComplete(() {
+        result.then<void>((_) async {
+          await scope?.refresh();
+        }, onError: (Object _) {}).whenComplete(() {
           scope?.release(this);
           if (mounted) setState(() => _busy = false);
         });
       } else {
         _busy = false;
+        scope?.refresh();
         scope?.release(this);
       }
     } catch (_) {
@@ -337,12 +340,15 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
       final result = action();
       if (result is Future) {
         setState(() {});
-        result.whenComplete(() {
+        result.then<void>((_) async {
+          await scope?.refresh();
+        }, onError: (Object _) {}).whenComplete(() {
           scope?.release(this);
           if (mounted) setState(() => _busy = false);
         });
       } else {
         _busy = false;
+        scope?.refresh();
         scope?.release(this);
       }
     } catch (_) {

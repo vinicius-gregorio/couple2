@@ -17,18 +17,14 @@ class ImportantDatesPage extends ConsumerStatefulWidget {
 
 class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     with WidgetsBindingObserver {
-  List<CoupleDate> _dates = const [];
-  bool _loading = true;
   String? _deletingId;
   String? _confirmingId;
-  String? _loadError;
   String? _actionError;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _load();
   }
 
   @override
@@ -41,38 +37,15 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.invalidate(coupleProvider);
-      _load();
+      ref.read(coupleDatesProvider.notifier).reload();
     }
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-    try {
-      final dates = await ref.read(coupleRepositoryProvider).getDates();
-      if (mounted) {
-        setState(() {
-          _dates = dates;
-          _loading = false;
-          _actionError = null;
-        });
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          if (_dates.isNotEmpty) {
-            _loadError = null;
-            _actionError = userFacingError(error);
-          } else {
-            _loadError = userFacingError(error);
-            _actionError = null;
-          }
-        });
-      }
-    }
+  /// Publishes the saved row, then re-reads the list. The sheet awaits this
+  /// before it pops, so the new title is already on the page.
+  Future<void> _reloadDates() async {
+    ref.invalidate(coupleProvider);
+    await ref.read(coupleDatesProvider.notifier).reload();
   }
 
   Future<void> _openSheet([CoupleDate? existing]) async {
@@ -81,34 +54,37 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     final host = context;
     final saved = await showAppSheet<bool>(
       context: host,
+      onSuccess: _reloadDates,
       builder: (_) => CoupleDateSheet(
         existing: existing,
         hostContext: host,
         onSave: (draft) => _saveDraft(existing, draft),
       ),
     );
-    if (saved != true || !mounted) return;
-    ref.invalidate(coupleProvider);
-    await _load();
+    if (saved == true && mounted) {
+      _actionError = null;
+    }
   }
 
   Future<String?> _saveDraft(CoupleDate? existing, CoupleDateDraft draft) async {
     try {
       final repo = ref.read(coupleRepositoryProvider);
+      final CoupleDate saved;
       if (existing == null) {
-        await repo.createDate(
+        saved = await repo.createDate(
           title: draft.title,
           date: draft.date,
           recurrence: draft.recurrence,
         );
       } else {
-        await repo.updateDate(
+        saved = await repo.updateDate(
           existing.id,
           title: draft.title,
           date: draft.date,
           recurrence: draft.recurrence,
         );
       }
+      ref.read(coupleDatesProvider.notifier).remember(saved);
       return null;
     } catch (error) {
       return userFacingError(error);
@@ -139,19 +115,14 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       _deletingId = date.id;
       _actionError = null;
     });
-    final previous = _dates;
     try {
       await ref.read(coupleRepositoryProvider).deleteDate(date.id);
-      ref.invalidate(coupleProvider);
       if (!mounted) return;
-      setState(() {
-        _dates = previous.where((item) => item.id != date.id).toList();
-        _deletingId = null;
-      });
+      await MutationScope.refreshOf(context);
+      if (mounted) setState(() => _deletingId = null);
     } catch (error) {
       if (mounted) {
         setState(() {
-          _dates = previous;
           _deletingId = null;
           _actionError = userFacingError(error);
         });
@@ -162,12 +133,19 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   @override
   Widget build(BuildContext context) {
     final coupleAsync = ref.watch(coupleProvider);
-    final failedEmpty = _loadError != null && _dates.isEmpty;
+    final datesAsync = ref.watch(coupleDatesProvider);
+    final dates = datesAsync.value ?? const <CoupleDate>[];
+    final loadError = datesAsync.hasError && dates.isEmpty
+        ? userFacingError(datesAsync.error!)
+        : null;
+    final refreshError = ref.read(coupleDatesProvider.notifier).reloadError;
+    final failedEmpty = loadError != null;
     final upcoming = failedEmpty
         ? const <UpcomingDate>[]
         : coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
     return MutationScope(
+      onSuccess: _reloadDates,
       child: Scaffold(
       appBar: AppBar(
         leading: AppBackButton(enabled: !_rowLocked),
@@ -181,7 +159,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
         children: [
-          ActionErrorReporter(message: _actionError),
+          ActionErrorReporter(message: _actionError ?? refreshError),
           const AppText(
             'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),
@@ -211,7 +189,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
                     onTap: _rowLocked || entry.coupleDateId == null
                         ? null
                         : () {
-                            final match = _dates.where(
+                            final match = dates.where(
                               (date) => date.id == entry.coupleDateId,
                             );
                             if (match.isNotEmpty) _openSheet(match.first);
@@ -226,17 +204,21 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (_loading && _dates.isEmpty && _loadError == null)
+          if (datesAsync.isLoading && dates.isEmpty && loadError == null)
             const SizedBox(height: 240, child: ListSkeleton(rows: 3))
-          else if (_loadError != null && _dates.isEmpty)
-            ErrorView(message: _loadError!, compact: true, onRetry: _load)
-          else if (_dates.isEmpty)
+          else if (loadError != null)
+            ErrorView(
+              message: loadError,
+              compact: true,
+              onRetry: () => ref.read(coupleDatesProvider.notifier).reload(),
+            )
+          else if (dates.isEmpty)
             const EmptyView(
               message: 'Nenhuma data ainda. Toque em adicionar.',
               compact: true,
             )
           else ...[
-            ..._dates.map(
+            ...dates.map(
               (date) => _DateRow(
                 key: Key('date-row-${date.id}'),
                 date: date,

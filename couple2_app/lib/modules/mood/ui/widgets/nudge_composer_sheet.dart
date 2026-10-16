@@ -100,6 +100,9 @@ class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
                           message: text.isEmpty ? null : text,
                         ),
                       );
+                      if (context.mounted) {
+                        await MutationScope.refreshOf(context);
+                      }
                       if (context.mounted) Navigator.of(context).pop();
                     } catch (error) {
                       if (!mounted) return;

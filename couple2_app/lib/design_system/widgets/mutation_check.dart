@@ -44,6 +44,7 @@ class _MutationCheckboxState extends State<MutationCheckbox> {
     setState(() => _busy = true);
     try {
       await widget.onChanged!(next);
+      await _scope?.refresh();
     } finally {
       _scope?.release(this);
       _scope = null;
@@ -128,6 +129,7 @@ class _MutationSwitchState extends State<MutationSwitch> {
     });
     try {
       await result;
+      await _scope?.refresh();
     } finally {
       _scope?.release(this);
       _scope = null;

@@ -59,6 +59,8 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
         await Future<void>.delayed(const Duration(milliseconds: 16));
       }
       if (!mounted || _pop.used) return;
+      await MutationScope.refreshOf(context);
+      if (!mounted || _pop.used) return;
       _pop.pop(context);
     } catch (error) {
       if (!mounted) return;

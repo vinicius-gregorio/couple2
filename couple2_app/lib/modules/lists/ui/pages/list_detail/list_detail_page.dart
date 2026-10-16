@@ -182,6 +182,7 @@ Future<void> _confirmDeleteItem(
   if (scope != null && !scope.claim(item)) return;
   try {
     await ref.read(listsViewModelProvider.notifier).deleteItem(listId, item.id);
+    await scope?.refresh();
   } finally {
     scope?.release(item);
   }

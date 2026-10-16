@@ -9,8 +9,14 @@ import '../../core/errors/user_facing_error.dart';
 class MutationController extends ChangeNotifier {
   var _busy = false;
   var _disposed = false;
+  var _failed = false;
+  var _refreshed = false;
   Object? _owner;
   String? _error;
+
+  /// Runs after a claim finishes without [report]. Pages use it to invalidate
+  /// the provider that renders the mutated data, before the sheet pops.
+  Future<void> Function()? onSuccess;
 
   bool get busy => _busy;
   String? get error => _error;
@@ -23,6 +29,8 @@ class MutationController extends ChangeNotifier {
     _busy = true;
     _owner = owner;
     _error = null;
+    _failed = false;
+    _refreshed = false;
     notifyListeners();
     return true;
   }
@@ -34,8 +42,25 @@ class MutationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Invalidates whatever [onSuccess] names, once per claim.
+  ///
+  /// A [report] skips it. Call this before popping a sheet so the page
+  /// already shows the new row when the route is gone.
+  Future<void> refresh() async {
+    if (_disposed || _failed || _refreshed) return;
+    _refreshed = true;
+    final action = onSuccess;
+    if (action == null) return;
+    try {
+      await action();
+    } catch (error) {
+      report(error);
+    }
+  }
+
   void report(Object error) {
     if (_disposed) return;
+    _failed = true;
     _error = error is String ? error : userFacingError(error);
     notifyListeners();
   }
@@ -69,9 +94,19 @@ class MutationController extends ChangeNotifier {
 
 /// Locks the whole scaffold (or sheet) for the duration of one mutation.
 class MutationScope extends StatefulWidget {
-  const MutationScope({super.key, required this.child});
+  const MutationScope({super.key, required this.child, this.onSuccess});
 
   final Widget child;
+
+  /// Awaited once when the scope's mutation finishes without [MutationController.report].
+  final Future<void> Function()? onSuccess;
+
+  /// Reloads the nearest scope's data. No-op when nothing is in flight.
+  static Future<void> refreshOf(BuildContext context) {
+    final controller = maybeOf(context);
+    if (controller == null) return Future<void>.value();
+    return controller.refresh();
+  }
 
   static MutationController? maybeOf(BuildContext context) {
     return context
@@ -99,7 +134,14 @@ class _MutationScopeState extends State<MutationScope> {
   @override
   void initState() {
     super.initState();
+    _controller.onSuccess = widget.onSuccess;
     _controller.addListener(_onChange);
+  }
+
+  @override
+  void didUpdateWidget(MutationScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _controller.onSuccess = widget.onSuccess;
   }
 
   void _onChange() {

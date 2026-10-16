@@ -197,6 +197,7 @@ Future<void> _confirmDeleteList(
   if (scope != null && !scope.claim(list)) return;
   try {
     await ref.read(listsViewModelProvider.notifier).deleteList(list.id);
+    await scope?.refresh();
   } finally {
     scope?.release(list);
   }
@@ -411,6 +412,8 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                     );
                     if (!context.mounted || _pop.used) return;
                     if (message == null) {
+                      await MutationScope.refreshOf(context);
+                      if (!context.mounted || _pop.used) return;
                       _pop.pop(context);
                       return;
                     }

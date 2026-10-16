@@ -66,6 +66,7 @@ class _NotificationPreferencesPageState
           .updatePreferences(patch);
       if (!mounted) return;
       setState(() => _prefs = next);
+      await scope?.refresh();
     } catch (error) {
       if (!mounted) return;
       setState(() {

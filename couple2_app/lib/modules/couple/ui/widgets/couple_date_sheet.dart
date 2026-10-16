@@ -100,6 +100,8 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
     );
     final save = widget.onSave;
     if (save == null) {
+      await MutationScope.refreshOf(context);
+      if (!mounted || _pop.used) return;
       _pop.pop(context, true);
       return;
     }
@@ -116,6 +118,8 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
       });
       return;
     }
+    await MutationScope.refreshOf(context);
+    if (!mounted || _pop.used) return;
     _pop.pop(context, true);
   }
 
