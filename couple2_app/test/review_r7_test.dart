@@ -241,13 +241,14 @@ void main() {
         .read(pairingDeclineMessageProvider.notifier)
         .show(declinedPairingMessage);
     await tester.pump();
-
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(find.text(declinedPairingMessage), findsOneWidget);
-    final text = tester.widget<Text>(find.byKey(MutationErrorBanner.bannerKey));
+    final text = tester.widget<Text>(find.text(declinedPairingMessage));
     final scheme = Theme.of(
-      tester.element(find.byKey(MutationErrorBanner.bannerKey)),
+      tester.element(find.text(declinedPairingMessage)),
     ).colorScheme;
-    expect(text.style?.color, scheme.onSurface);
     expect(text.style?.color, isNot(scheme.error));
     expect(text.style?.color, isNot(scheme.primary));
   });
@@ -293,7 +294,9 @@ void main() {
       await tester.tap(find.byKey(const Key('cancel-pairing-request')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('confirm-cancel-pairing')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(WaitingPage)),
@@ -303,12 +306,14 @@ void main() {
       await tester.pump();
 
       expect(repo.cancels, 1);
+      expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text(offlineUserMessage), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('Atualizando automaticamente…'), findsOneWidget);
 
       repo.cancelError = null;
       await container.read(pairingStatusProvider.notifier).poll();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text(offlineUserMessage), findsNothing);
       expect(find.text('Atualizando automaticamente…'), findsOneWidget);

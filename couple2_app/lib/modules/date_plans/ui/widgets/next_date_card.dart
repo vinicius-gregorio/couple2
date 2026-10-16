@@ -17,27 +17,25 @@ class NextDateCard extends ConsumerWidget {
     final next = ref.watch(nextDateProvider);
     final theme = Theme.of(context);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 160),
-      child: next.when(
+    return next.when(
         skipError: true,
         loading: () => const CardSkeleton(lines: 2, minHeight: 160),
-        error: (error, _) => collapseThisError(context, error)
-            ? _emptyCard(context, theme)
-            : ErrorView(
-                message: userFacingError(
+        error: (error, _) => LoadErrorCard(
+          message: collapseThisError(context, error)
+              ? 'Não foi possível carregar os encontros.'
+              : userFacingError(
                   error,
                   fallback: 'Não consegui carregar os encontros.',
                 ),
-                compact: true,
-                onRetry: () => ref.invalidate(nextDateProvider),
-              ),
+          onRetry: () => ref.invalidate(nextDateProvider),
+          minHeight: 160,
+        ),
         data: (plan) {
           if (plan == null) return _emptyCard(context, theme);
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 24),
-            child: InkWell(
+            child: AppInkWell(
               onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -69,7 +67,6 @@ class NextDateCard extends ConsumerWidget {
             ),
           );
         },
-      ),
     );
   }
 }

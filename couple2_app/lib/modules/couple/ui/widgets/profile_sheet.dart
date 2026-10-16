@@ -118,7 +118,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
                           : formatDisplayDate(formatDateOnly(_birthDate!)),
                     ),
                   ),
-                  MutationErrorBanner(message: _error),
+                  ActionErrorReporter(message: _error),
                   const SizedBox(height: 16),
                   LoadingButton(
                     loading: _saving,

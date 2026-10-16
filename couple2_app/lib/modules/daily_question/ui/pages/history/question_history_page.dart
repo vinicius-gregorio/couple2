@@ -83,7 +83,7 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
       body: Column(
         children: [
           if (state.items.isNotEmpty)
-            MutationErrorBanner(message: state.errorMessage),
+            ActionErrorReporter(message: state.errorMessage),
           Expanded(
             child: RefreshIndicator(
         onRefresh: viewModel.refresh,

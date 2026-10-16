@@ -144,13 +144,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(vertical: 12),
             children: [
-              if (_error != null)
-                ErrorView(
-                  message:
-                      _error ?? 'Não foi possível atualizar os carinhos.',
-                  compact: true,
-                  onRetry: _refresh,
-                ),
+              ActionErrorReporter(message: _items.isNotEmpty ? _error : null),
               if (_celebrate)
                 ScaleTransition(
                   scale: CurvedAnimation(

@@ -153,7 +153,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
             const SizedBox(height: 8),
             AppText(who),
             const SizedBox(height: 12),
-            MutationErrorBanner(message: _error),
+            ActionErrorReporter(message: _error),
             LoadingButton(
               key: const Key('accept-pairing-request'),
               loading: _busy == 'accept',

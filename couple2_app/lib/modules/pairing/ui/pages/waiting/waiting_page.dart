@@ -214,21 +214,11 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
             ),
           ],
           const SizedBox(height: 16),
-          SizedBox(
+          const SizedBox(
             height: 48,
-            child: Center(
-              child: _error == null
-                  ? const AppText('Atualizando automaticamente…')
-                  : Text(
-                      _error!,
-                      key: MutationErrorBanner.bannerKey,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-            ),
+            child: Center(child: AppText('Atualizando automaticamente…')),
           ),
+          ActionErrorReporter(message: _error),
           const SizedBox(height: 8),
           LoadingButton(
             key: const Key('cancel-pairing-request'),

@@ -8,9 +8,8 @@ import '../../data/mood_providers.dart';
 import '../../domain/domain.dart';
 
 Future<void> showMoodPickerSheet(BuildContext context) async {
-  await showModalBottomSheet<void>(
+  await showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
     builder: (_) => const MoodPickerSheet(),
@@ -125,13 +124,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
                   hintText: 'Opcional',
                 ),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                AppText(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+              ActionErrorReporter(message: _error),
               const SizedBox(height: 12),
               LoadingButton(
                 variant: LoadingButtonVariant.filled,
@@ -172,7 +165,7 @@ class _EmojiChoice extends StatelessWidget {
       button: true,
       selected: selected,
       label: level.label,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(

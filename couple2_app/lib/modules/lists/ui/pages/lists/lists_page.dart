@@ -102,7 +102,7 @@ class _ListsPageState extends ConsumerState<ListsPage>
 
     return Column(
       children: [
-        MutationErrorBanner(message: state.actionError),
+        ActionErrorReporter(message: state.actionError),
         Expanded(
           child: AsyncBody(
             isLoading: state.isLoading,
@@ -124,9 +124,8 @@ class _ListsPageState extends ConsumerState<ListsPage>
     WidgetRef ref,
     String? partnerName,
   ) {
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
       builder: (ctx) => _CreateListSheet(
         partnerName: partnerName,
         onConfirm: (type, name, visibility) {
@@ -226,7 +225,7 @@ class _ListCard extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: InkWell(
+            child: AppInkWell(
               onTap: busy
                   ? null
                   : () async {
@@ -390,7 +389,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             ),
           ],
           const SizedBox(height: 16),
-          MutationErrorBanner(message: _error),
+          ActionErrorReporter(message: _error),
           LoadingButton(
             onPressed:
                 _saving || _nameController.text.trim().isEmpty || _pop.used

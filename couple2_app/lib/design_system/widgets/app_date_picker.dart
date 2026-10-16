@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_icon_button.dart';
+import 'app_ink_well.dart';
 import 'loading_button.dart';
 
 /// Date dialog whose month and year controls always have a PT-BR name.
@@ -87,14 +89,19 @@ class _AppDateDialogState extends State<_AppDateDialog> {
     final scheme = Theme.of(context).colorScheme;
     final days = DateTime(_visible.year, _visible.month + 1, 0).day;
     final leading = DateTime(_visible.year, _visible.month, 1).weekday % 7;
-    final canPrevMonth = DateTime(
-      _visible.year,
+    final firstMonth = DateTime(widget.first.year, widget.first.month);
+    final lastMonth = DateTime(widget.last.year, widget.last.month);
+    final visibleMonth = DateTime(_visible.year, _visible.month);
+    final canPrevMonth = visibleMonth.isAfter(firstMonth);
+    final canNextMonth = visibleMonth.isBefore(lastMonth);
+    final canPrevYear = !DateTime(
+      _visible.year - 1,
       _visible.month,
-    ).isAfter(DateTime(widget.first.year, widget.first.month));
-    final canNextMonth = DateTime(
-      _visible.year,
+    ).isBefore(firstMonth);
+    final canNextYear = !DateTime(
+      _visible.year + 1,
       _visible.month,
-    ).isBefore(DateTime(widget.last.year, widget.last.month));
+    ).isAfter(lastMonth);
 
     return AlertDialog(
       title: Text(
@@ -112,13 +119,13 @@ class _AppDateDialogState extends State<_AppDateDialog> {
                 _NavButton(
                   label: 'Ano anterior',
                   icon: Icons.arrow_back,
-                  enabled: canPrevMonth,
+                  enabled: canPrevYear,
                   onPressed: () => _shiftYear(-1),
                 ),
                 _NavButton(
                   label: 'Próximo ano',
                   icon: Icons.chevron_right,
-                  enabled: canNextMonth,
+                  enabled: canNextYear,
                   onPressed: () => _shiftYear(1),
                 ),
               ],
@@ -202,8 +209,9 @@ class _NavButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: label,
+      onTap: enabled ? onPressed : null,
       child: ExcludeSemantics(
-        child: IconButton(
+        child: AppIconButton(
           tooltip: label,
           onPressed: enabled ? onPressed : null,
           icon: Icon(icon),
@@ -228,7 +236,7 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppInkWell(
       onTap: enabled ? onPressed : null,
       child: Center(
         child: Text(

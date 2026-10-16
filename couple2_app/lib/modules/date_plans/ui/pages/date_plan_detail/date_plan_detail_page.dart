@@ -285,7 +285,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          MutationErrorBanner(message: _actionError),
+          ActionErrorReporter(message: _actionError),
           Align(
             alignment: Alignment.centerLeft,
             child: Chip(label: Text(plan.status.label)),

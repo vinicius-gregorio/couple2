@@ -220,7 +220,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          MutationErrorBanner(message: _error),
+          ActionErrorReporter(message: _error),
           const SizedBox(height: 24),
           LoadingButton(
             loading: _saving,

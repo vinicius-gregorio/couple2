@@ -115,7 +115,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       appBar: AppBar(leading: const AppBackButton(), title: AppText(list.name)),
       body: Column(
         children: [
-          MutationErrorBanner(message: state.actionError),
+          ActionErrorReporter(message: state.actionError),
           if (list.visibility == 'PRIVATE_FROM_PARTNER')
             ListTile(
               dense: true,
@@ -178,7 +178,13 @@ Future<void> _confirmDeleteItem(
     confirmKey: Key('confirm-delete-${item.id}'),
   );
   if (!accepted || !context.mounted) return;
-  await ref.read(listsViewModelProvider.notifier).deleteItem(listId, item.id);
+  final scope = MutationScope.maybeOf(context);
+  if (scope != null && !scope.claim(item)) return;
+  try {
+    await ref.read(listsViewModelProvider.notifier).deleteItem(listId, item.id);
+  } finally {
+    scope?.release(item);
+  }
 }
 
 class _ItemTile extends ConsumerWidget {
@@ -202,7 +208,7 @@ class _ItemTile extends ConsumerWidget {
       key: Key('list-item-${item.id}'),
       leading: MutationCheckbox(
         value: item.isCompleted,
-        loading: item.pending,
+        loading: item.pending && item.id.startsWith('pending-'),
         busyKey: const Key('item-pending'),
         onChanged: item.pending || MutationScope.busyOf(context)
             ? null
@@ -239,16 +245,18 @@ class _ItemTile extends ConsumerWidget {
           LoadingIconButton(
             key: Key('delete-item-${item.id}'),
             tooltip: 'Excluir item',
-            loading: item.pending,
+            loading: item.pending && !item.id.startsWith('pending-'),
             onPressed: item.pending
                 ? null
-                : () => _confirmDeleteItem(
-                    context,
-                    ref,
-                    listId,
-                    item,
-                    privateList: privateList,
-                  ),
+                : () {
+                    _confirmDeleteItem(
+                      context,
+                      ref,
+                      listId,
+                      item,
+                      privateList: privateList,
+                    );
+                  },
             icon: const Icon(Icons.delete_outline),
           ),
         ],
@@ -311,7 +319,7 @@ class _ItemTile extends ConsumerWidget {
           ),
         if (bought) const Text('comprado'),
         if (link != null)
-          IconButton(
+          AppIconButton(
             tooltip: 'Abrir link',
             visualDensity: VisualDensity.compact,
             onPressed: () => launchUrl(

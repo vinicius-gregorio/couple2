@@ -348,6 +348,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
+    await tester.pump();
     expect(
       find.text('Esse código expirou. Peça um código novo.'),
       findsOneWidget,

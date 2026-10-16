@@ -131,7 +131,20 @@ void main() {
       theme.switchTheme.trackColor!.resolve({WidgetState.selected}),
       _primary,
     );
-    expect(theme.checkboxTheme.side?.color, _primary);
+    final checkboxSide = theme.checkboxTheme.side;
+    expect(checkboxSide, isA<WidgetStateBorderSide>());
+    expect(
+      (checkboxSide! as WidgetStateBorderSide)
+          .resolve({WidgetState.selected})
+          ?.color,
+      _primary,
+    );
+    expect(
+      (checkboxSide as WidgetStateBorderSide)
+          .resolve({WidgetState.selected, WidgetState.disabled})
+          ?.color,
+      isNot(_primary),
+    );
     expect(theme.iconButtonTheme.style, isNotNull);
     expect(
       DefaultTextStyle.of(tester.element(find.text('Ocasião'))).style.color,

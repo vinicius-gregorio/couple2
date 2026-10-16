@@ -147,7 +147,8 @@ void main() {
 
     await tester.pump(const Duration(seconds: 13));
     await tester.pump();
-    expect(find.text('Como vocês estão'), findsOneWidget);
+    expect(find.byType(CardSkeleton), findsNothing);
+    expect(find.byType(LoadErrorCard), findsOneWidget);
     expect(find.text('Tentar de novo'), findsOneWidget);
     expect(find.text(slowConnectionMessage), findsOneWidget);
     expect(repo.currentCalls, 1);
@@ -184,7 +185,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 13));
     await tester.pump();
-    expect(find.text('O que rolou'), findsOneWidget);
+    expect(find.byType(LoadErrorCard), findsOneWidget);
     expect(find.text('Tentar de novo'), findsOneWidget);
     expect(find.text(slowConnectionMessage), findsOneWidget);
     expect(find.textContaining('Error connecting'), findsNothing);

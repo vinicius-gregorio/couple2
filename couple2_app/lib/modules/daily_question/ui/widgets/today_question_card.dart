@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
-import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
@@ -30,11 +29,19 @@ class TodayQuestionCard extends ConsumerWidget {
             partnerAnswered: question.partnerAnswered,
           );
 
+    if (failedWithoutData) {
+      return LoadErrorCard(
+        message: userFacingError(today.error!),
+        onRetry: () => ref.invalidate(todayQuestionProvider),
+        minHeight: 112,
+      );
+    }
+
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 112),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
-        child: InkWell(
+        child: AppInkWell(
           onTap: () => context.push(DailyQuestionRoutes.today),
           child: IgnorePointer(
             child: Padding(
@@ -52,13 +59,6 @@ class TodayQuestionCard extends ConsumerWidget {
                         const SizedBox(height: 8),
                         if (today.isLoading && !today.hasValue)
                           const SkeletonBox(height: 14)
-                        else if (failedWithoutData &&
-                            collapseThisError(context, today.error!))
-                          const AppText('Responda a pergunta de hoje')
-                        else if (failedWithoutData)
-                          AppText(
-                            userFacingError(today.error!),
-                          )
                         else if (copy != null)
                           AppText(copy.title)
                         else

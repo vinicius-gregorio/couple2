@@ -36,7 +36,7 @@ class MutationController extends ChangeNotifier {
 
   void report(Object error) {
     if (_disposed) return;
-    _error = userFacingError(error);
+    _error = error is String ? error : userFacingError(error);
     notifyListeners();
   }
 
@@ -80,6 +80,14 @@ class MutationScope extends StatefulWidget {
   }
 
   static bool busyOf(BuildContext context) => maybeOf(context)?.busy ?? false;
+
+  /// One SnackBar for a failed mutation. The nearest scope records it, and the
+  /// bar itself is always this standard SnackBar.
+  static void reportError(BuildContext context, Object error) {
+    maybeOf(context)?.report(error);
+    final message = error is String ? error : userFacingError(error);
+    showActionSnackBar(context, message);
+  }
 
   @override
   State<MutationScope> createState() => _MutationScopeState();
@@ -140,6 +148,66 @@ class _MutationInherited extends InheritedWidget {
   bool updateShouldNotify(_MutationInherited oldWidget) {
     return busy != oldWidget.busy || controller != oldWidget.controller;
   }
+}
+
+/// Standard SnackBar for a PT-BR action failure. It does not take layout space.
+void showActionSnackBar(BuildContext context, String message) {
+  if (!context.mounted) return;
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null) return;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// Watches a failure string and presents it through [MutationScope.reportError].
+///
+/// The widget itself is empty, so the message never pushes the page.
+class ActionErrorReporter extends StatefulWidget {
+  const ActionErrorReporter({super.key, this.message, this.onReported});
+
+  final String? message;
+  final VoidCallback? onReported;
+
+  @override
+  State<ActionErrorReporter> createState() => _ActionErrorReporterState();
+}
+
+class _ActionErrorReporterState extends State<ActionErrorReporter> {
+  String? _last;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(ActionErrorReporter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _schedule();
+  }
+
+  void _schedule() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final message = widget.message;
+      if (message == null || message.isEmpty) {
+        if (_last != null) {
+          ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+        }
+        _last = null;
+        return;
+      }
+      if (message == _last) return;
+      _last = message;
+      MutationScope.reportError(context, message);
+      widget.onReported?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Reports disabled while a mutation is in flight.

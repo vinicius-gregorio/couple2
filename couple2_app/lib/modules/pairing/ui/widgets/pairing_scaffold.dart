@@ -93,7 +93,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
         title: const AppText('Parear'),
         actions: [
           if (onRefresh != null)
-            IconButton(
+            AppIconButton(
               key: const Key('pairing-refresh'),
               tooltip: 'Atualizar',
               onPressed: _refreshing || !actionsEnabled ? null : _refresh,
@@ -106,7 +106,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
                     )
                   : const Icon(Icons.refresh),
             ),
-          IconButton(
+          AppIconButton(
             tooltip: 'Sair',
             onPressed: actionsEnabled
                 ? () async {

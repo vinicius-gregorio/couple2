@@ -73,9 +73,8 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     if (_rowLocked) return;
     setState(() => _actionError = null);
     final host = context;
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showAppSheet<bool>(
       context: host,
-      isScrollControlled: true,
       builder: (_) => CoupleDateSheet(
         existing: existing,
         hostContext: host,
@@ -174,7 +173,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          MutationErrorBanner(message: _actionError),
+          ActionErrorReporter(message: _actionError),
           const AppText(
             'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),
@@ -275,7 +274,7 @@ class _DateRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: InkWell(
+            child: AppInkWell(
               onTap: busy ? null : onOpen,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
@@ -291,7 +290,7 @@ class _DateRow extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
+          AppIconButton(
             tooltip: 'Editar',
             onPressed: busy ? null : onOpen,
             icon: Icon(Icons.edit_outlined, color: iconColor),
@@ -301,7 +300,11 @@ class _DateRow extends StatelessWidget {
             tooltip: 'Excluir',
             loading: deleting,
             icon: const Icon(Icons.delete_outline),
-            onPressed: busy ? null : () => onDelete(),
+            onPressed: busy
+                ? null
+                : () {
+                    onDelete();
+                  },
           ),
           const SizedBox(width: 4),
         ],

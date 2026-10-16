@@ -31,6 +31,34 @@ void main() {
     expect(hits, isEmpty, reason: hits.join('\n'));
   });
 
+  test('taps stay inside the theme components', () {
+    final pattern = RegExp(
+      r'(?<![A-Za-z])(IconButton|FloatingActionButton|InkWell|GestureDetector)\(',
+    );
+    const allow = {
+      'lib/design_system/widgets/loading_button.dart',
+      'lib/design_system/widgets/app_fab.dart',
+      'lib/design_system/widgets/app_icon_button.dart',
+      'lib/design_system/widgets/app_ink_well.dart',
+      'lib/modules/auth/ui/widgets/google_sign_in_button.dart',
+      'lib/modules/auth/ui/widgets/apple_sign_in_button.dart',
+    };
+    final hits = <String>[];
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final normalized = entity.path.replaceAll('\\', '/');
+      final rel = normalized.substring(normalized.indexOf('lib/'));
+      if (allow.contains(rel)) continue;
+      final lines = entity.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (pattern.hasMatch(lines[i])) {
+          hits.add('$rel:${i + 1}: ${lines[i].trim()}');
+        }
+      }
+    }
+    expect(hits, isEmpty, reason: hits.join('\n'));
+  });
+
   test('the error banner does not paint over content', () {
     final pattern = RegExp(
       r'OverlayPortal|OverlayEntry|\bOverlay\b|\bPositioned\b|\bStack\b',
@@ -44,6 +72,21 @@ void main() {
       }
     }
     expect(hits, isEmpty, reason: hits.join('\n'));
+
+    final overlay = RegExp(r'OverlayPortal|OverlayEntry|\bOverlay\b');
+    final overlayHits = <String>[];
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final normalized = entity.path.replaceAll('\\', '/');
+      final rel = normalized.substring(normalized.indexOf('lib/'));
+      final lines = entity.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (overlay.hasMatch(lines[i])) {
+          overlayHits.add('$rel:${i + 1}: ${lines[i].trim()}');
+        }
+      }
+    }
+    expect(overlayHits, isEmpty, reason: overlayHits.join('\n'));
   });
 
   test('session loads do not retry and share one in-flight call', () async {
@@ -145,38 +188,40 @@ void main() {
     expect(find.text('dados'), findsNothing);
   });
 
-  testWidgets('an inline error does not cover the next row', (tester) async {
+  testWidgets('an action error is a snackbar and does not move the row', (
+    tester,
+  ) async {
     const line = Key('next-row');
-    Widget page(String? message) {
-      return MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         theme: lightTheme,
         home: Scaffold(
           body: Column(
             children: [
-              MutationErrorBanner(message: message),
               const SizedBox(key: line, height: 24, child: Text('linha')),
+              Builder(
+                builder: (context) {
+                  return LoadingButton(
+                    onPressed: () {
+                      MutationScope.reportError(context, offlineUserMessage);
+                    },
+                    child: const Text('Falhar'),
+                  );
+                },
+              ),
             ],
           ),
         ),
-      );
-    }
-
-    await tester.pumpWidget(page(null));
-    await tester.pump();
-    expect(tester.getSize(find.byType(MutationErrorBanner)).height, 0);
-    final before = tester.getTopLeft(find.byKey(line));
-
-    await tester.pumpWidget(page(offlineUserMessage));
-    await tester.pump();
-    final banner = find.byType(MutationErrorBanner);
-    expect(tester.getSize(banner).height, greaterThan(0));
-    expect(find.text(offlineUserMessage), findsOneWidget);
-    final after = tester.getTopLeft(find.byKey(line));
-    expect(after.dy, greaterThan(before.dy));
-    expect(
-      tester.getRect(banner).overlaps(tester.getRect(find.byKey(line))),
-      isFalse,
+      ),
     );
+    final before = tester.getRect(find.byKey(line));
+    final button = tester.getRect(find.text('Falhar'));
+    await tester.tap(find.text('Falhar'));
+    await tester.pump();
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(tester.getRect(find.byKey(line)), before);
+    expect(tester.getRect(find.text('Falhar')), button);
   });
 }
 

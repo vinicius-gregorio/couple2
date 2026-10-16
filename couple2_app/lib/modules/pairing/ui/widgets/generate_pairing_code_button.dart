@@ -52,15 +52,7 @@ class _GeneratePairingCodeButtonState
           onPressed: widget.enabled ? _generate : null,
           child: const Text('Gerar código'),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          AppText(
-            _error!,
-            key: const Key('generate-pairing-code-error'),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
+        ActionErrorReporter(message: _error),
       ],
     );
   }

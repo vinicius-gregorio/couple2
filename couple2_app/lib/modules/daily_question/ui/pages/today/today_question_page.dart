@@ -62,7 +62,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
         leading: const AppBackButton(),
         title: const AppText('Pergunta do dia'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: 'Histórico',
             onPressed: state.isSaving
                 ? null
@@ -92,7 +92,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                   compact: true,
                 )
               else if (question != null) ...[
-                MutationErrorBanner(message: state.errorMessage),
+                ActionErrorReporter(message: state.errorMessage),
                 AppText(
                   questionCategoryLabel(question.question.category),
                   style: Theme.of(context).textTheme.labelLarge,

@@ -61,9 +61,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = _name(session?.partnerName);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 460),
-      child: mood.when(
+    return mood.when(
         skipError: true,
         data: (current) {
           if (current == null) {
@@ -79,7 +77,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 12),
-                    MutationErrorBanner(message: _nudgeError),
+                    ActionErrorReporter(message: _nudgeError),
                     _CareButton(
                       sending: _sending,
                       onTap: () => _send(NudgeKind.thinkingOfYou),
@@ -138,7 +136,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  MutationErrorBanner(message: _nudgeError),
+                  ActionErrorReporter(message: _nudgeError),
                   _CareButton(
                     sending: _sending,
                     onTap: () => _send(NudgeKind.thinkingOfYou),
@@ -176,78 +174,14 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           );
         },
         loading: () => const CardSkeleton(lines: 4, minHeight: 460),
-        error: (error, _) => Card(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppText(
-                  'Como vocês estão',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                if (!collapseThisError(context, error))
-                  ErrorView(
-                    message: userFacingError(error),
-                    compact: true,
-                    onRetry: () => ref.invalidate(currentMoodProvider),
-                  ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MoodSide(
-                        title: 'Você',
-                        snapshot: null,
-                        empty: 'Toque para dizer',
-                        onTap: () => showMoodPickerSheet(context),
-                      ),
-                    ),
-                    Expanded(
-                      child: _MoodSide(
-                        title: partnerName,
-                        snapshot: null,
-                        empty: 'Quando quiser',
-                        onTap: () => context.push(MoodRoutes.history),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                MutationErrorBanner(message: _nudgeError),
-                _CareButton(
-                  sending: _sending,
-                  onTap: () => _send(NudgeKind.thinkingOfYou),
-                  onLongPress: _sending ? null : _compose,
-                ),
-                LoadingButton(
-                  variant: LoadingButtonVariant.text,
-                  onPressed: _sending ? null : _compose,
-                  child: const Text('Escolher um carinho'),
-                ),
-                const SizedBox(height: 8),
-                LoadingButton(
-                  variant: LoadingButtonVariant.outlined,
-                  onPressed: () {
-                    context.push(MoodRoutes.history);
-                  },
-                  child: const Text('Histórico'),
-                ),
-                const SizedBox(height: 8),
-                LoadingButton(
-                  variant: LoadingButtonVariant.outlined,
-                  onPressed: () {
-                    context.push(MoodRoutes.nudges);
-                  },
-                  child: const Text('Carinhos recebidos'),
-                ),
-              ],
-            ),
-          ),
+        error: (error, _) => LoadErrorCard(
+          message: collapseThisError(context, error)
+              ? 'Não foi possível carregar o humor.'
+              : userFacingError(error),
+          onRetry: () => ref.invalidate(currentMoodProvider),
+          minHeight: 460,
         ),
-      ),
-    );
+      );
   }
 
   String _name(String? raw) {
@@ -274,7 +208,7 @@ class _MoodSide extends StatelessWidget {
   Widget build(BuildContext context) {
     final mood = snapshot;
     final faded = mood?.stale ?? false;
-    return InkWell(
+    return AppInkWell(
       onTap: onTap,
       child: Opacity(
         opacity: faded ? 0.45 : 1,

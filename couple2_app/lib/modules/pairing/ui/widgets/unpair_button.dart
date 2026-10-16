@@ -92,7 +92,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
                 },
           child: const Text('Desfazer o par'),
         ),
-        MutationErrorBanner(message: _error),
+        ActionErrorReporter(message: _error),
       ],
     );
   }

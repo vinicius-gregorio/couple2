@@ -111,7 +111,7 @@ class _NotificationPreferencesPageState
             )
           : ListView(
               children: [
-                MutationErrorBanner(message: _error),
+                ActionErrorReporter(message: _error),
                 MutationSwitch(
                   title: const Text('Alertas'),
                   value: prefs.pushEnabled,

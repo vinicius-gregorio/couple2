@@ -181,7 +181,7 @@ class ListsViewModel extends Notifier<ListsState> {
       lists: _replace(
         listId,
         itemId,
-        current.copyWith(isCompleted: !current.isCompleted, pending: true),
+        current.copyWith(isCompleted: !current.isCompleted),
       ),
       clearActionError: true,
     );

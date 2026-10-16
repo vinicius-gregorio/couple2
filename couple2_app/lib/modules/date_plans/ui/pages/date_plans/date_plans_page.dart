@@ -228,7 +228,7 @@ class _DateList extends StatelessWidget {
       onRefresh: onRefresh,
       child: Column(
         children: [
-          if (error != null) MutationErrorBanner(message: error),
+          if (error != null) ActionErrorReporter(message: error),
           Expanded(
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),

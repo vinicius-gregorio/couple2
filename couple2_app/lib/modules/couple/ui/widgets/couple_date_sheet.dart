@@ -177,7 +177,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
                     if (value != null) setState(() => _recurrence = value);
                   },
           ),
-          MutationErrorBanner(message: _error),
+          ActionErrorReporter(message: _error),
           const SizedBox(height: 16),
           LoadingButton(
             loading: _saving,

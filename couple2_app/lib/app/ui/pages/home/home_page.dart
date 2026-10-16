@@ -55,9 +55,8 @@ class HomePage extends ConsumerWidget {
                 ? null
                 : () {
                     final host = context;
-                    showModalBottomSheet<void>(
+                    showAppSheet<void>(
                       context: host,
-                      isScrollControlled: true,
                       builder: (_) =>
                           ProfileSheet(session: session, hostContext: host),
                     );
@@ -74,7 +73,7 @@ class HomePage extends ConsumerWidget {
             ),
           Builder(
             builder: (context) {
-              return IconButton(
+              return AppIconButton(
                 tooltip: 'Sair',
                 icon: const Icon(Icons.logout),
                 onPressed: MutationScope.busyOf(context)
@@ -171,15 +170,12 @@ class HomePage extends ConsumerWidget {
                                 },
                             );
                           },
-                          loading: () => const CardSkeleton(lines: 2),
-                          error: (error, _) =>
-                              collapseOffline && isOfflineFailure(error)
-                              ? const SizedBox.shrink()
-                              : ErrorView(
-                                  message: userFacingError(error),
-                                  compact: true,
-                                  onRetry: () => ref.invalidate(coupleProvider),
-                                ),
+                          loading: () => const CardSkeleton(lines: 2, minHeight: 160),
+                          error: (error, _) => LoadErrorCard(
+                            message: userFacingError(error),
+                            onRetry: () => ref.invalidate(coupleProvider),
+                            minHeight: 160,
+                          ),
                         ),
                       if (session.coupleId != null) ...[
                         const SizedBox(height: 16),
@@ -263,7 +259,7 @@ class _HomeTitle extends StatelessWidget {
           height: 14,
           width: double.infinity,
           child: offline
-              ? GestureDetector(
+              ? AppInkWell(
                   onTap: onRetry,
                   child: Text(
                     offlineUserMessage,
@@ -354,7 +350,7 @@ class _FeedBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locked = MutationScope.busyOf(context);
-    return IconButton(
+    return AppIconButton(
       tooltip: 'Notificações',
       onPressed: locked ? null : onPressed,
       icon: Badge(
@@ -393,7 +389,7 @@ class _AvatarButton extends StatelessWidget {
       label: 'Perfil',
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: InkWell(
+        child: AppInkWell(
           onTap: onPressed == null || locked ? null : onPressed,
           child: Tooltip(message: 'Perfil', child: avatar),
         ),

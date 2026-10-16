@@ -206,6 +206,16 @@ void main() {
     await tester.pump();
     expect(gate.calls, 1);
     expect(tester.getSize(row), before);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    final other = tester.widget<Checkbox>(find.byType(Checkbox));
+    final otherContext = tester.element(find.byType(Checkbox));
+    final scheme = Theme.of(otherContext).colorScheme;
+    final side = Theme.of(otherContext).checkboxTheme.side;
+    final border = side is WidgetStateBorderSide
+        ? side.resolve({WidgetState.disabled})
+        : side;
+    expect(other.onChanged, isNull);
+    expect(border?.color, isNot(scheme.primary));
     expect(
       tester.widget<IconButton>(
         find.byWidgetPredicate(
@@ -255,6 +265,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(gate.calls, 0);
     expect(find.text('Excluir item?'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     await tester.tap(find.text('Cancelar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -467,11 +478,13 @@ void main() {
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     expect(_filled(tester, 'Compartilhar').onPressed, isNull);
+    final sheet = tester.getSize(find.byType(MoodPickerSheet));
     gate.error();
     await _settle(tester);
     expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Como você está?'), findsOneWidget);
     expect(find.text('saudade'), findsOneWidget);
+    expect(tester.getSize(find.byType(MoodPickerSheet)), sheet);
     expect(find.text('Fechar'), findsOneWidget);
   });
 
@@ -875,7 +888,13 @@ void main() {
     tester,
   ) async {
     final gate = Gate();
-    await _pump(tester, _pairingScope(gate, const GeneratePairingCodeButton()));
+    await _pump(
+      tester,
+      _pairingScope(
+        gate,
+        const Scaffold(body: GeneratePairingCodeButton()),
+      ),
+    );
     await _doubleTap(tester, find.text('Gerar código'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -937,7 +956,10 @@ void main() {
     tester,
   ) async {
     final gate = Gate();
-    await _pump(tester, _pairingScope(gate, const UnpairButton()));
+    await _pump(
+      tester,
+      _pairingScope(gate, const Scaffold(body: UnpairButton())),
+    );
     await tester.tap(find.text('Desfazer o par'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1022,88 +1044,17 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump();
 }
 
-/// The failure text is on screen, and its banner does not cover a control.
+/// The failure is a SnackBar. The page itself does not gain an error block.
 void expectInlineError(
   WidgetTester tester,
   String message, {
   Matcher count = findsOneWidget,
 }) {
-  final errors = find.text(message);
-  expect(errors, count);
-  final errorElements = errors.evaluate().toList();
-  final errorRects = <Rect>[];
-  for (final element in errorElements) {
-    final rect = _rectOf(_bannerOf(element) ?? element);
-    expect(rect, isNotNull, reason: 'error "$message" has no size');
-    errorRects.add(rect!);
-  }
-
-  final controls = find.byWidgetPredicate((widget) {
-    return widget is ButtonStyleButton ||
-        widget is IconButton ||
-        widget is FloatingActionButton ||
-        widget is ListTile ||
-        widget is Card ||
-        widget is Checkbox ||
-        widget is Switch ||
-        widget is TextField ||
-        widget is InkWell;
-  });
-  for (final control in controls.evaluate()) {
-    if (_hostsAny(control, errorElements)) continue;
-    final route = ModalRoute.of(control);
-    final sameRoute = errorElements.any(
-      (error) => ModalRoute.of(error) == route,
-    );
-    if (!sameRoute) continue;
-    final rect = _rectOf(control);
-    if (rect == null || rect.width <= 0 || rect.height <= 0) continue;
-    for (var i = 0; i < errorElements.length; i++) {
-      if (ModalRoute.of(errorElements[i]) != route) continue;
-      expect(
-        errorRects[i].overlaps(rect),
-        isFalse,
-        reason: '${control.widget.runtimeType} overlaps "$message"',
-      );
-    }
-  }
-}
-
-Element? _bannerOf(Element element) {
-  Element? banner;
-  element.visitAncestorElements((ancestor) {
-    if (ancestor.widget is MutationErrorBanner) {
-      banner = ancestor;
-      return false;
-    }
-    return true;
-  });
-  return banner;
-}
-
-bool _hostsAny(Element root, List<Element> targets) {
-  var hosts = false;
-  void walk(Element node) {
-    if (hosts) return;
-    if (targets.contains(node)) {
-      hosts = true;
-      return;
-    }
-    node.visitChildren(walk);
-  }
-
-  walk(root);
-  return hosts;
-}
-
-Rect? _rectOf(Element element) {
-  final object = element.renderObject;
-  if (object is! RenderBox || !object.attached || !object.hasSize) {
-    return null;
-  }
-  return object.localToGlobal(Offset.zero) & object.size;
+  expect(find.text(message), count);
+  expect(find.byType(SnackBar), findsWidgets);
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {

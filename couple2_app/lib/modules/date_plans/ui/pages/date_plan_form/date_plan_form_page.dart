@@ -155,7 +155,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          MutationErrorBanner(message: _error),
+          ActionErrorReporter(message: _error),
           TextField(
             controller: _title,
             enabled: !_saving,

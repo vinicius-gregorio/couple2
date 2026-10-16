@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_ink_well.dart';
 import 'loading_button.dart';
 import 'mutation_scope.dart';
 
@@ -163,7 +164,7 @@ class _MutationSwitchState extends State<MutationSwitch> {
             ),
     );
     if (widget.title == null && widget.subtitle == null) return control;
-    return InkWell(
+    return AppInkWell(
       onTap: locked ? null : () => _change(!widget.value),
       child: Padding(
         padding:

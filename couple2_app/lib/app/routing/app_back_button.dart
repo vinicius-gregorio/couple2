@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../design_system/widgets/app_icon_button.dart';
 import '../../design_system/widgets/mutation_scope.dart';
 import '../../design_system/widgets/pop_guard.dart';
 import 'pop_or_go.dart';
@@ -31,7 +32,7 @@ class _AppBackButtonState extends State<AppBackButton> {
   @override
   Widget build(BuildContext context) {
     final locked = MutationScope.busyOf(context);
-    return IconButton(
+    return AppIconButton(
       tooltip: 'Voltar',
       icon: const BackButtonIcon(),
       onPressed: widget.enabled && !locked

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session_provider.dart';
-import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/feed_providers.dart';
 import '../../domain/domain.dart';
@@ -18,6 +17,14 @@ class FeedPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preview = ref.watch(feedPreviewProvider);
     final session = ref.watch(sessionProvider).asData?.value;
+
+    if (preview.hasError && !preview.hasValue) {
+      return LoadErrorCard(
+        message: userFacingError(preview.error!),
+        onRetry: () => ref.invalidate(feedPreviewProvider),
+        minHeight: 220,
+      );
+    }
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 220),
@@ -39,16 +46,6 @@ class FeedPreview extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (preview.hasError &&
-                  !preview.hasValue &&
-                  !collapseThisError(context, preview.error!))
-                ErrorView(
-                  message: userFacingError(
-                    preview.error!,
-                  ),
-                  compact: true,
-                  onRetry: () => ref.invalidate(feedPreviewProvider),
-                ),
               _FeedLines(
                 loading: preview.isLoading && !preview.hasValue,
                 items: preview.hasValue ? preview.value : null,

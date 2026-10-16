@@ -58,7 +58,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
         leading: const AppBackButton(),
         title: const AppText('O que rolou'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: 'Notificações',
             icon: const Icon(Icons.tune),
             onPressed: () => context.push(NotificationRoutes.preferences),

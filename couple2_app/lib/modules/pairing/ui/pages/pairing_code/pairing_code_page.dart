@@ -54,34 +54,25 @@ class PairingCodePage extends ConsumerWidget {
           const AppText(
             'Mostre o seu código ou digite o do seu par. O pedido pode ser aceito ou recusado. A Home abre quando o par existir.',
           ),
-          if (declined != null) ...[
-            const SizedBox(height: 12),
-            MutationErrorBanner(
-              message: declined,
-              tone: MutationBannerTone.info,
-            ),
-          ],
+          ActionErrorReporter(message: declined),
           const SizedBox(height: 20),
           if (statusAsync.isLoading && shown.code == null)
-            const CardSkeleton(lines: 2)
+            const CardSkeleton(lines: 2, minHeight: 200)
           else ...[
             if (statusAsync.hasError && shown.code == null)
-              ErrorView(
+              LoadErrorCard(
                 message: pairingErrorMessage(
                   statusAsync.error!,
                   action: PairingAction.status,
                 ),
-                compact: true,
                 onRetry: () => _reload(ref),
+                minHeight: 200,
               )
             else if (statusAsync.hasError)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AppText(
-                  pairingErrorMessage(
-                    statusAsync.error!,
-                    action: PairingAction.status,
-                  ),
+              ActionErrorReporter(
+                message: pairingErrorMessage(
+                  statusAsync.error!,
+                  action: PairingAction.status,
                 ),
               ),
             PairingCodeCard(

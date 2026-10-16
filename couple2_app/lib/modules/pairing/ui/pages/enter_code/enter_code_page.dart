@@ -177,7 +177,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
               if (_canSubmit) _submit();
             },
           ),
-          MutationErrorBanner(message: _shownError),
+          ActionErrorReporter(message: _shownError),
           const SizedBox(height: 24),
           LoadingButton(
             key: const Key('submit-partner-code'),

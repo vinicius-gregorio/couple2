@@ -10,9 +10,8 @@ Future<void> showNudgeComposerSheet(
   BuildContext context, {
   required Future<void> Function(NudgeDraft draft) onSend,
 }) {
-  return showModalBottomSheet<void>(
+  return showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
     builder: (_) => NudgeComposerSheet(onSend: onSend),
@@ -89,7 +88,7 @@ class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
                     labelText: 'Uma frase, se quiser',
                   ),
                 ),
-                MutationErrorBanner(message: _error),
+                ActionErrorReporter(message: _error),
                 const SizedBox(height: 8),
                 LoadingButton(
                   onPressed: () async {

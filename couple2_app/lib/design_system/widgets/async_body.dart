@@ -41,7 +41,10 @@ class AsyncBody extends StatelessWidget {
     if (error != null && !hasData) {
       final failure = error;
       final message = failure is String ? failure : userFacingError(failure!);
-      return ErrorView(message: message, onRetry: onRetry);
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [LoadErrorCard(message: message, onRetry: onRetry)],
+      );
     }
     if (isEmpty) {
       return EmptyView(message: emptyMessage);
@@ -91,64 +94,71 @@ class AsyncValueView<T> extends StatelessWidget {
   }
 }
 
-/// Inline PT-BR failure for a mutation that should stay on screen.
+/// Load failure that replaces a card or a screen at the skeleton's height.
 ///
-/// An empty message takes no space, so idle screens do not keep a blank band.
-/// A message is a normal block in the column, above the next control, and
-/// never paints over a button or a row. [MutationBannerTone.info] is a notice,
-/// such as a declined request.
-enum MutationBannerTone { error, info }
-
-class MutationErrorBanner extends StatelessWidget {
-  const MutationErrorBanner({
+/// The message is Portuguese. Retry is the tertiary text button.
+class LoadErrorCard extends StatelessWidget {
+  const LoadErrorCard({
     super.key,
-    this.message,
-    this.tone = MutationBannerTone.error,
+    required this.message,
+    this.onRetry,
+    this.minHeight,
+    this.margin = const EdgeInsets.symmetric(horizontal: 24),
+    this.retryKey = ErrorView.retryKey,
   });
 
-  static const bannerKey = Key('mutation-error');
-
-  final String? message;
-  final MutationBannerTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = message;
-    if (text == null || text.isEmpty) return const SizedBox.shrink();
-    return _ErrorLine(message: text, tone: tone);
-  }
-}
-
-class _ErrorLine extends StatelessWidget {
-  const _ErrorLine({required this.message, required this.tone});
-
   final String message;
-  final MutationBannerTone tone;
+  final VoidCallback? onRetry;
+
+  /// When set, the card is exactly this tall — the same height as the skeleton
+  /// it replaces, including when the message wraps.
+  final double? minHeight;
+  final EdgeInsetsGeometry margin;
+  final Key retryKey;
+
+  static const retryLabel = 'Tentar de novo';
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // Info is body text. Primary is wine and reads as the error red.
-    final color = tone == MutationBannerTone.info
-        ? scheme.onSurface
-        : scheme.error;
-    return SizedBox(
-      height: 40,
-      width: double.infinity,
+    final theme = Theme.of(context);
+    final fixed = minHeight != null;
+    final text = Text(
+      message,
+      textAlign: TextAlign.center,
+      maxLines: fixed ? 4 : null,
+      overflow: fixed ? TextOverflow.ellipsis : TextOverflow.visible,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        color: theme.colorScheme.error,
+      ),
+    );
+    final card = Card(
+      margin: margin,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Center(
-          child: Text(
-            message,
-            key: MutationErrorBanner.bannerKey,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: color, height: 1.2),
-          ),
+        padding: EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: fixed ? 12 : 20,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: fixed ? MainAxisSize.max : MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (fixed) Flexible(child: Center(child: text)) else text,
+            if (onRetry != null) ...[
+              const SizedBox(height: 8),
+              LoadingButton(
+                key: retryKey,
+                variant: LoadingButtonVariant.text,
+                onPressed: onRetry,
+                child: const Text(retryLabel),
+              ),
+            ],
+          ],
         ),
       ),
     );
+    if (!fixed) return card;
+    return SizedBox(height: minHeight, width: double.infinity, child: card);
   }
 }
 
@@ -170,42 +180,16 @@ class ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final content = Padding(
-      padding: EdgeInsets.all(compact ? 12 : 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: compact ? 28 : 40,
-            color: theme.colorScheme.error,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            LoadingButton(
-              key: retryKey,
-              variant: LoadingButtonVariant.text,
-              onPressed: onRetry,
-              child: Text(retryLabel),
-            ),
-          ],
-        ],
-      ),
+    final card = LoadErrorCard(
+      message: message,
+      onRetry: onRetry,
+      retryKey: retryKey,
+      margin: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 24),
     );
-
-    if (compact) return content;
+    if (compact) return card;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [const SizedBox(height: 48), content],
+      children: [const SizedBox(height: 48), card],
     );
   }
 }

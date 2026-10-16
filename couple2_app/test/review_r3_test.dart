@@ -170,10 +170,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsNWidgets(4));
+    expect(find.text('Não foi possível carregar o humor.'), findsOneWidget);
+    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsNWidgets(5));
     expect(find.text('Atualizar'), findsNothing);
-    expect(find.text('Tentar de novo'), findsNothing);
-    expect(find.text('💗 Pensando em você'), findsOneWidget);
+    expect(find.text('💗 Pensando em você'), findsNothing);
   });
 
   test('a slow list item stays visible when a refresh lands first', () async {
@@ -458,15 +460,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    final before = tester.getSize(find.text('Gerar código'));
     await tester.tap(find.text('Gerar código'));
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    final text = tester.widget<Text>(
-      find.descendant(
-        of: find.byKey(const Key('generate-pairing-code-error')),
-        matching: find.byType(Text),
-      ),
-    );
-    expect(text.style?.color, lightColorScheme.error);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(tester.getSize(find.text('Gerar código')), before);
   });
 
   testWidgets('mood sheet stays up for the second tap of Compartilhar', (

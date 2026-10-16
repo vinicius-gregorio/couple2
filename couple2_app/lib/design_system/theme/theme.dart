@@ -184,11 +184,21 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
     iconButtonTheme: iconButtonTheme(scheme),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return scheme.primary;
+        final disabled = states.contains(WidgetState.disabled);
+        if (states.contains(WidgetState.selected)) {
+          return disabled
+              ? scheme.onSurface.withValues(alpha: 0.38)
+              : scheme.primary;
+        }
         return Colors.transparent;
       }),
       checkColor: WidgetStatePropertyAll(scheme.onPrimary),
-      side: BorderSide(color: scheme.primary, width: 2),
+      side: WidgetStateBorderSide.resolveWith((states) {
+        final color = states.contains(WidgetState.disabled)
+            ? scheme.onSurface.withValues(alpha: 0.38)
+            : scheme.primary;
+        return BorderSide(color: color, width: 2);
+      }),
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((states) {
