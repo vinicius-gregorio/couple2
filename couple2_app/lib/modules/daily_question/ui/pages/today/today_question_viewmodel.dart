@@ -57,11 +57,11 @@ class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
       state = TodayQuestionState(question: question);
       ref.invalidate(todayQuestionProvider);
     } catch (error) {
-      state = TodayQuestionState(
-        errorMessage: userFacingError(
-          error,
-        ),
-      );
+      if (state.question != null) {
+        state = state.copyWith(isLoading: false, clearError: true);
+        return;
+      }
+      state = TodayQuestionState(errorMessage: userFacingError(error));
     }
   }
 

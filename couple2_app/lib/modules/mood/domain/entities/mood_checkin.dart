@@ -47,6 +47,13 @@ class MoodSnapshot {
       stale: json['stale'] as bool? ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'mood': mood.apiValue,
+    'note': note,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'stale': stale,
+  };
 }
 
 class MoodCurrent {
@@ -67,6 +74,11 @@ class MoodCurrent {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'me': me?.toJson(),
+    'partner': partner?.toJson(),
+  };
 }
 
 class MoodCheckin {

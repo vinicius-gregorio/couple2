@@ -81,12 +81,11 @@ class ListsViewModel extends Notifier<ListsState> {
       state = const ListsState(isLoading: false, needsPairing: true);
     } catch (e) {
       if (gen != _fetchGen) return;
-      final message = userFacingError(e);
       if (state.lists.isNotEmpty) {
-        state = state.copyWith(isLoading: false, errorMessage: message);
+        state = state.copyWith(isLoading: false);
         return;
       }
-      state = ListsState(isLoading: false, errorMessage: message);
+      state = ListsState(isLoading: false, errorMessage: userFacingError(e));
     }
   }
 

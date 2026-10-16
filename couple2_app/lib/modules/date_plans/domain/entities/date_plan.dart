@@ -25,6 +25,23 @@ enum DatePlanStatus {
     }
   }
 
+  String get apiValue {
+    switch (this) {
+      case DatePlanStatus.proposed:
+        return 'PROPOSED';
+      case DatePlanStatus.accepted:
+        return 'ACCEPTED';
+      case DatePlanStatus.declined:
+        return 'DECLINED';
+      case DatePlanStatus.cancelled:
+        return 'CANCELLED';
+      case DatePlanStatus.done:
+        return 'DONE';
+      case DatePlanStatus.expired:
+        return 'EXPIRED';
+    }
+  }
+
   String get label {
     switch (this) {
       case DatePlanStatus.proposed:
@@ -67,6 +84,14 @@ class DatePlanSourceItem {
       listId: json['listId'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'content': content,
+    'isCompleted': isCompleted,
+    'listType': listType,
+    'listId': listId,
+  };
 }
 
 class DatePlan {
@@ -156,6 +181,26 @@ class DatePlan {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'coupleId': coupleId,
+    'proposerId': proposerId,
+    'title': title,
+    'description': description,
+    'location': location,
+    'scheduledAt': scheduledAt.toUtc().toIso8601String(),
+    'status': status.apiValue,
+    'responseNote': responseNote,
+    'respondedAt': respondedAt?.toUtc().toIso8601String(),
+    'completedAt': completedAt?.toUtc().toIso8601String(),
+    'reminderSentAt': reminderSentAt?.toUtc().toIso8601String(),
+    'sourceListItemId': sourceListItemId,
+    'sourceListItem': sourceListItem?.toJson(),
+    'createdById': createdById,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
 }
 
 class DatePlanPage {

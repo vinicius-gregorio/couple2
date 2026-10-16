@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:couple2_app/app/read_cache.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/app/ui/home_failure_scope.dart';
@@ -13,8 +14,13 @@ import 'package:couple2_app/modules/couple/ui/pages/important_dates/important_da
 import 'package:couple2_app/modules/couple/ui/widgets/days_together_card.dart';
 import 'package:couple2_app/modules/couple/ui/widgets/profile_sheet.dart';
 import 'package:couple2_app/modules/daily_question/data/daily_question_providers.dart';
+import 'package:couple2_app/modules/daily_question/data/daily_question_repository.dart';
+import 'package:couple2_app/modules/daily_question/domain/domain.dart';
 import 'package:couple2_app/modules/date_plans/data/date_plans_providers.dart';
+import 'package:couple2_app/modules/date_plans/data/date_plans_repository.dart';
+import 'package:couple2_app/modules/date_plans/domain/domain.dart';
 import 'package:couple2_app/modules/feed/data/feed_providers.dart';
+import 'package:couple2_app/modules/feed/data/feed_repository.dart';
 import 'package:couple2_app/modules/feed/domain/domain.dart';
 import 'package:couple2_app/modules/lists/data/lists_providers.dart';
 import 'package:couple2_app/modules/lists/data/lists_repository.dart';
@@ -22,11 +28,13 @@ import 'package:couple2_app/modules/lists/domain/domain.dart';
 import 'package:couple2_app/modules/lists/ui/pages/list_detail/list_detail_page.dart';
 import 'package:couple2_app/modules/lists/ui/pages/lists/lists_page.dart';
 import 'package:couple2_app/modules/mood/data/mood_providers.dart';
+import 'package:couple2_app/modules/mood/data/mood_repository.dart';
 import 'package:couple2_app/modules/mood/domain/domain.dart';
 import 'package:couple2_app/modules/mood/ui/widgets/mood_home_card.dart';
 import 'package:couple2_app/modules/mood/ui/widgets/mood_picker_sheet.dart';
 import 'package:couple2_app/modules/mood/ui/widgets/nudge_composer_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -539,6 +547,65 @@ void main() {
     expect(find.text('Nova data'), findsNothing);
     expect(find.text('Aniversario lento'), findsOneWidget);
   });
+
+  testWidgets('offline refresh keeps every home card and one notice', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(ReadCache.clear);
+    SharedPreferences.setMockInitialValues({});
+
+    final repos = _HomeCacheRepos();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => _Session(_ada)),
+          coupleRepositoryProvider.overrideWithValue(repos.couple),
+          moodRepositoryProvider.overrideWithValue(repos.mood),
+          datePlansRepositoryProvider.overrideWithValue(repos.dates),
+          dailyQuestionRepositoryProvider.overrideWithValue(repos.questions),
+          feedRepositoryProvider.overrideWithValue(repos.feed),
+        ],
+        child: MaterialApp(theme: lightTheme, home: const HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1020 dias juntos'), findsOneWidget);
+    expect(find.text('Como vocês estão'), findsOneWidget);
+    expect(find.text('💗 Pensando em você'), findsOneWidget);
+    expect(find.textContaining('Japonês'), findsOneWidget);
+    expect(find.text('Responda a pergunta de hoje'), findsOneWidget);
+    expect(find.textContaining('mandou um carinho'), findsOneWidget);
+    expect(find.byType(LoadErrorCard), findsNothing);
+    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
+
+    repos.offline = true;
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HomePage)),
+    );
+    container
+      ..invalidate(coupleProvider)
+      ..invalidate(currentMoodProvider)
+      ..invalidate(nextDateProvider)
+      ..invalidate(todayQuestionProvider)
+      ..invalidate(feedPreviewProvider)
+      ..invalidate(unreadCountProvider);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1020 dias juntos'), findsOneWidget);
+    expect(find.text('Como vocês estão'), findsOneWidget);
+    expect(find.text('💗 Pensando em você'), findsOneWidget);
+    expect(find.textContaining('Japonês'), findsOneWidget);
+    expect(find.text('Responda a pergunta de hoje'), findsOneWidget);
+    expect(find.textContaining('mandou um carinho'), findsOneWidget);
+    expect(find.byType(LoadErrorCard), findsNothing);
+    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+  });
 }
 
 class _SlowDatesRepo implements ICoupleRepository {
@@ -581,6 +648,227 @@ class _SlowDatesRepo implements ICoupleRepository {
   @override
   Future<void> deleteDate(String id) async {}
 }
+
+class _OfflineFlag {
+  var offline = false;
+
+  Future<T> gate<T>(T value) async {
+    if (offline) throw const CPLHttpNoInternetConnectionException();
+    return value;
+  }
+}
+
+class _HomeCacheRepos {
+  final flag = _OfflineFlag();
+  late final couple = _CoupleHomeRepo(flag);
+  late final mood = _MoodHomeRepo(flag);
+  late final dates = _DateHomeRepo(flag);
+  late final questions = _QuestionHomeRepo(flag);
+  late final feed = _FeedHomeRepo(flag);
+
+  set offline(bool value) => flag.offline = value;
+}
+
+class _CoupleHomeRepo implements ICoupleRepository {
+  _CoupleHomeRepo(this.flag);
+
+  final _OfflineFlag flag;
+
+  static final _couple = Couple(
+    id: 'couple-1',
+    pairedAt: DateTime.utc(2024, 1, 1),
+    anniversaryDate: '2024-01-01',
+    timezone: 'America/Sao_Paulo',
+    daysTogether: 1020,
+    partner: const CouplePartner(id: 'bruno', name: 'Bruno'),
+    upcoming: const [],
+  );
+
+  static final _mood = MoodCurrent(
+    me: MoodSnapshot(
+      mood: MoodLevel.good,
+      createdAt: DateTime.utc(2026, 10, 1),
+      stale: false,
+    ),
+    partner: MoodSnapshot(
+      mood: MoodLevel.ok,
+      createdAt: DateTime.utc(2026, 10, 1),
+      stale: false,
+    ),
+  );
+
+  static final _plan = DatePlan(
+    id: 'plan-1',
+    coupleId: 'couple-1',
+    proposerId: 'bruno',
+    title: 'Japonês',
+    scheduledAt: DateTime.utc(2026, 10, 20, 20),
+    status: DatePlanStatus.accepted,
+    createdById: 'bruno',
+    createdAt: DateTime.utc(2026, 10, 1),
+    updatedAt: DateTime.utc(2026, 10, 1),
+  );
+
+  static const _question = CoupleQuestion(
+    id: 'q1',
+    date: '2026-10-16',
+    question: QuestionPrompt(text: 'O que te faz rir?', category: 'FUN'),
+    partnerAnswered: false,
+    answerable: true,
+  );
+
+  static final _feed = FeedPageResult(
+    items: [
+      ActivityEvent(
+        id: 'e1',
+        coupleId: 'couple-1',
+        type: 'NUDGE_SENT',
+        entityType: 'nudge',
+        entityId: 'n1',
+        actorId: 'bruno',
+        payload: const {'actorName': 'Bruno'},
+        createdAt: DateTime.utc(2026, 10, 16),
+      ),
+    ],
+  );
+
+  @override
+  Future<Couple> getCouple() => flag.gate(_couple);
+
+  @override
+  Future<List<CoupleDate>> getDates() async => const [];
+
+  @override
+  Future<Couple> updateCouple({String? anniversaryDate, String? timezone}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyBirthDate(String? birthDate) async {}
+
+  @override
+  Future<CoupleDate> createDate({
+    required String title,
+    required String date,
+    String? recurrence,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<CoupleDate> updateDate(
+    String id, {
+    String? title,
+    String? date,
+    String? recurrence,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteDate(String id) async {}
+}
+
+class _MoodHomeRepo implements IMoodRepository {
+  _MoodHomeRepo(this.flag);
+
+  final _OfflineFlag flag;
+
+  @override
+  Future<MoodCurrent> current() => flag.gate(_CoupleHomeRepo._mood);
+
+  @override
+  Future<MoodCheckin> create({required MoodLevel mood, String? note}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<MoodHistory> history({int days = 30}) => throw UnimplementedError();
+}
+
+class _DateHomeRepo implements IDatePlansRepository {
+  _DateHomeRepo(this.flag);
+
+  final _OfflineFlag flag;
+
+  @override
+  Future<DatePlanPage> list({required String scope, String? cursor}) =>
+      flag.gate(DatePlanPage(items: [_CoupleHomeRepo._plan]));
+
+  @override
+  Future<DatePlan> create({
+    required String title,
+    required DateTime scheduledAt,
+    String? location,
+    String? description,
+    String? sourceListItemId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<DatePlan> get(String id) => throw UnimplementedError();
+
+  @override
+  Future<DatePlan> update(
+    String id, {
+    String? title,
+    DateTime? scheduledAt,
+    String? location,
+    String? description,
+    String? sourceListItemId,
+    bool clearLocation = false,
+    bool clearDescription = false,
+    bool clearSource = false,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<DatePlan> accept(String id) => throw UnimplementedError();
+
+  @override
+  Future<DatePlan> decline(String id, {String? note}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DatePlan> counter(
+    String id, {
+    required DateTime scheduledAt,
+    String? note,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<DatePlan> cancel(String id, {String? note}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DatePlan> done(String id) => throw UnimplementedError();
+}
+
+class _QuestionHomeRepo implements IDailyQuestionRepository {
+  _QuestionHomeRepo(this.flag);
+
+  final _OfflineFlag flag;
+
+  @override
+  Future<CoupleQuestion> getToday() => flag.gate(_CoupleHomeRepo._question);
+
+  @override
+  Future<CoupleQuestion> answer(String coupleQuestionId, String text) =>
+      throw UnimplementedError();
+
+  @override
+  Future<QuestionHistoryPageResult> history({String? cursor, int limit = 20}) =>
+      throw UnimplementedError();
+}
+
+class _FeedHomeRepo implements IFeedRepository {
+  _FeedHomeRepo(this.flag);
+
+  final _OfflineFlag flag;
+
+  @override
+  Future<FeedPageResult> getFeed({String? cursor, int limit = 20}) =>
+      flag.gate(_CoupleHomeRepo._feed);
+
+  @override
+  Future<int> unreadCount() => flag.gate(0);
+
+  @override
+  Future<void> markSeen() async {}
+}
+
 Rect _globalSemanticsRect(SemanticsNode node) {
   var rect = node.rect;
   SemanticsNode? current = node;

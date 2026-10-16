@@ -70,12 +70,14 @@ class FeedViewModel extends Notifier<FeedState> {
       );
       state = FeedState(items: page.items, nextCursor: page.nextCursor);
     } catch (error) {
+      if (state.items.isNotEmpty) {
+        state = state.copyWith(isLoading: false, clearError: true);
+        return;
+      }
       state = state.copyWith(
         isLoading: false,
         items: state.items,
-        errorMessage: userFacingError(
-          error,
-        ),
+        errorMessage: userFacingError(error),
       );
     }
   }

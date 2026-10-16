@@ -94,10 +94,10 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
           fallback: 'Não consegui carregar os encontros.',
         );
         if (isUpcoming) {
-          _upcomingError = message;
+          if (_upcoming.isEmpty) _upcomingError = message;
           _loadingUpcoming = false;
         } else {
-          _pastError = message;
+          if (_past.isEmpty) _pastError = message;
           _loadingPast = false;
         }
       });

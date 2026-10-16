@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/core.dart';
+import '../../../read_cache.dart';
 import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
@@ -39,7 +40,10 @@ class HomePage extends ConsumerWidget {
     final sessionFailed = sessionAsync.hasError && session == null;
     final paired = session?.coupleId != null;
     final showCoupleHome = paired || sessionFailed;
-    final showNotice = sessionFailed || _offlineCount(ref, sessionAsync) >= 1;
+    final showNotice =
+        sessionFailed ||
+        _offlineCount(ref, sessionAsync) >= 1 ||
+        ref.watch(staleReadsProvider).isNotEmpty;
     final noticeMessage = sessionFailed
         ? userFacingError(sessionAsync.error!)
         : offlineUserMessage;
@@ -184,7 +188,12 @@ class HomePage extends ConsumerWidget {
             child: RefreshIndicator(
               onRefresh: () async {
                 await _retryHome(ref);
-                await ref.read(coupleProvider.future);
+                try {
+                  await ref.read(coupleProvider.future);
+                } catch (_) {
+                  // A failed refresh keeps the cached couple. The future still
+                  // completes with the error when nothing was stored yet.
+                }
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -199,6 +208,7 @@ class HomePage extends ConsumerWidget {
                       homeDaysCardHeight,
                       coupleAsync.when(
                         skipError: true,
+                        skipLoadingOnReload: true,
                         data: (couple) {
                           if (couple == null) {
                             return LoadErrorCard(

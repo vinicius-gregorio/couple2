@@ -65,6 +65,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
       height: homeMoodCardHeight,
       child: mood.when(
         skipError: true,
+        skipLoadingOnReload: true,
         data: (current) {
           if (current == null) {
             return Card(

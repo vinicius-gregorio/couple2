@@ -69,11 +69,11 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
       );
       ref.invalidate(todayQuestionProvider);
     } catch (error) {
-      state = QuestionHistoryState(
-        errorMessage: userFacingError(
-          error,
-        ),
-      );
+      if (state.items.isNotEmpty) {
+        state = state.copyWith(isLoading: false, clearError: true);
+        return;
+      }
+      state = QuestionHistoryState(errorMessage: userFacingError(error));
     }
   }
 

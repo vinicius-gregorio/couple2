@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
+import '../../../app/read_cache.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -72,8 +73,15 @@ final coupleProvider = FutureProvider<Couple?>((ref) async {
     sessionProvider.select((async) => async.asData?.value?.coupleId),
   );
   if (coupleId == null) return null;
+  final repo = ref.watch(coupleRepositoryProvider);
   try {
-    return await loadOrTimeout(ref.watch(coupleRepositoryProvider).getCouple());
+    return await loadKeepingCache(
+      ref: ref,
+      key: 'couple:$coupleId',
+      load: () => repo.getCouple(),
+      encode: (couple) => couple?.toJson(),
+      decode: (json) => json == null ? null : Couple.fromJson(cacheMap(json)),
+    );
   } on CPLHttpForbiddenException {
     return null;
   }

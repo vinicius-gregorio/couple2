@@ -20,6 +20,7 @@ class NextDateCard extends ConsumerWidget {
       height: homeNextDateCardHeight,
       child: next.when(
         skipError: true,
+        skipLoadingOnReload: true,
         loading: () => const CardSkeleton(
           lines: 2,
           minHeight: homeNextDateCardHeight,
