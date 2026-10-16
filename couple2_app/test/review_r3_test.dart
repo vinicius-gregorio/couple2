@@ -169,8 +169,9 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
+    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
     expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(find.text('Atualizar'), findsOneWidget);
+    expect(find.text('Atualizar'), findsNothing);
     expect(find.text('Tentar de novo'), findsNothing);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
   });

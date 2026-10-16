@@ -39,6 +39,7 @@ class FeedPreview extends ConsumerWidget {
                 ),
               ),
               if (preview.hasError &&
+                  !preview.hasValue &&
                   !collapseThisError(context, preview.error!))
                 ErrorView(
                   message: userFacingError(
@@ -49,9 +50,9 @@ class FeedPreview extends ConsumerWidget {
                   onRetry: () => ref.invalidate(feedPreviewProvider),
                 ),
               _FeedLines(
-                loading: preview.isLoading && preview.value == null,
-                items: preview.value,
-                failed: preview.hasError,
+                loading: preview.isLoading && !preview.hasValue,
+                items: preview.hasValue ? preview.value : null,
+                failed: preview.hasError && !preview.hasValue,
                 sessionId: session?.id,
                 onOpen: onOpen,
               ),

@@ -74,6 +74,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 460),
       child: mood.when(
+        skipError: true,
         data: (current) {
           if (current == null) {
             return Card(

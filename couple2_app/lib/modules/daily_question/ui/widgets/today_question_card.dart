@@ -19,7 +19,8 @@ class TodayQuestionCard extends ConsumerWidget {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = session?.partnerName ?? '';
 
-    final question = today.asData?.value;
+    final question = today.hasValue ? today.value : null;
+    final failedWithoutData = today.hasError && !today.hasValue;
     final copy = question == null
         ? null
         : todayCardCopy(
@@ -49,12 +50,12 @@ class TodayQuestionCard extends ConsumerWidget {
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                         const SizedBox(height: 8),
-                        if (today.isLoading && question == null)
+                        if (today.isLoading && !today.hasValue)
                           const SkeletonBox(height: 14)
-                        else if (today.hasError &&
+                        else if (failedWithoutData &&
                             collapseThisError(context, today.error!))
                           const AppText('Responda a pergunta de hoje')
-                        else if (today.hasError)
+                        else if (failedWithoutData)
                           AppText(
                             userFacingError(
                               today.error!,

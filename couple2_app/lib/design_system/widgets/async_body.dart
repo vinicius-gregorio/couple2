@@ -107,8 +107,9 @@ class MutationErrorBanner extends StatelessWidget {
     final text = message;
     final visible = text != null && text.isNotEmpty;
     final scheme = Theme.of(context).colorScheme;
+    // Info is body text. Primary is wine and reads as the error red.
     final color = tone == MutationBannerTone.info
-        ? scheme.primary
+        ? scheme.onSurface
         : scheme.error;
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),

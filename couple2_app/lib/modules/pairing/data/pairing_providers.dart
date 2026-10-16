@@ -133,7 +133,18 @@ class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
       if (snapshot.phase == PairingPhase.paired) {
         await refreshSessionAfterPairing();
       }
-      state = AsyncData(snapshot);
+      // A new instance so a successful poll notifies even when the fields
+      // match the previous snapshot. The waiting page clears its error then.
+      state = AsyncData(
+        PairingSnapshot(
+          phase: snapshot.phase,
+          message: snapshot.message,
+          pairingCode: snapshot.pairingCode,
+          pairingCodeExpiresAt: snapshot.pairingCodeExpiresAt,
+          pendingCode: snapshot.pendingCode,
+          partner: snapshot.partner,
+        ),
+      );
       return snapshot.phase;
     } catch (_) {
       return state.asData?.value.phase;

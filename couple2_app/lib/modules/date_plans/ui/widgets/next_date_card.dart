@@ -20,6 +20,7 @@ class NextDateCard extends ConsumerWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 160),
       child: next.when(
+        skipError: true,
         loading: () => const CardSkeleton(lines: 2, minHeight: 160),
         error: (error, _) => collapseThisError(context, error)
             ? _emptyCard(context, theme)

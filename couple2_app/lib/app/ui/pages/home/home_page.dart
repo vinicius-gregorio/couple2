@@ -23,6 +23,9 @@ import '../../../../modules/lists/routing/routes.dart';
 import '../../../providers.dart';
 import '../../home_failure_scope.dart';
 
+const homeHeaderAvatarKey = Key('home-header-avatar');
+const offlineHomeNoticeKey = Key('offline-home-notice');
+
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -32,13 +35,18 @@ class HomePage extends ConsumerWidget {
     final coupleAsync = ref.watch(coupleProvider);
     final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
-    final needsPairing = sessionNeedsPairing(sessionAsync.asData?.value);
     final paired = sessionAsync.asData?.value?.coupleId != null;
     final collapseOffline = _offlineCount(ref, sessionAsync) >= 2;
 
     return Scaffold(
       appBar: AppBar(
-        title: AppText(needsPairing ? 'Parear' : 'Início'),
+        // Left of the actions so the notice stays in the free slot and
+        // cannot paint over the leading avatar or the body.
+        centerTitle: false,
+        title: _HomeTitle(
+          offline: collapseOffline,
+          onRetry: () => _retryHome(ref),
+        ),
         leading: sessionAsync.when(
           data: (session) => _AvatarButton(
             pictureUrl: session?.picture,
@@ -91,49 +99,48 @@ class HomePage extends ConsumerWidget {
 
           return HomeFailureScope(
             collapseOffline: collapseOffline,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                RefreshIndicator(
-                  onRefresh: () async {
-                    await ref.read(sessionProvider.notifier).refresh();
-                    ref.invalidate(coupleProvider);
-                    ref.invalidate(unreadCountProvider);
-                    ref.invalidate(feedPreviewProvider);
-                    ref.invalidate(todayQuestionProvider);
-                    ref.invalidate(currentMoodProvider);
-                    ref.invalidate(nextDateProvider);
-                    await ref.read(coupleProvider.future);
-                  },
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    children: [
-                      if (session.picture != null)
-                        Center(
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundImage: NetworkImage(session.picture!),
-                            onBackgroundImageError: (_, __) {},
-                          ),
-                        )
-                      else
-                        Center(
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.onPrimary,
-                            child: Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref.read(sessionProvider.notifier).refresh();
+                ref.invalidate(coupleProvider);
+                ref.invalidate(unreadCountProvider);
+                ref.invalidate(feedPreviewProvider);
+                ref.invalidate(todayQuestionProvider);
+                ref.invalidate(currentMoodProvider);
+                ref.invalidate(nextDateProvider);
+                await ref.read(coupleProvider.future);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                children: [
+                  if (session.picture != null)
+                    Center(
+                      child: CircleAvatar(
+                        key: homeHeaderAvatarKey,
+                        radius: 50,
+                        backgroundImage: NetworkImage(session.picture!),
+                        onBackgroundImageError: (_, __) {},
+                      ),
+                    )
+                  else
+                    Center(
+                      child: CircleAvatar(
+                        key: homeHeaderAvatarKey,
+                        radius: 50,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primary,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary,
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
+                      ),
+                    ),
                       const SizedBox(height: 16),
                       AppText(
                         'Bem-vindo, ${session.name}!',
@@ -143,6 +150,7 @@ class HomePage extends ConsumerWidget {
                       const SizedBox(height: 24),
                       if (session.coupleId != null)
                         coupleAsync.when(
+                          skipError: true,
                           data: (couple) {
                             if (couple == null) return const SizedBox.shrink();
                             return ConstrainedBox(
@@ -190,26 +198,8 @@ class HomePage extends ConsumerWidget {
                           label: const Text('Nossas listas'),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                if (collapseOffline)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Material(
-                      elevation: 2,
-                      color: Theme.of(context).colorScheme.surface,
-                      child: ErrorView(
-                        message: offlineUserMessage,
-                        compact: true,
-                        retryLabel: 'Atualizar',
-                        onRetry: () => _retryHome(ref),
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -247,6 +237,45 @@ void _retryHome(WidgetRef ref) {
   ref.invalidate(nextDateProvider);
   ref.invalidate(todayQuestionProvider);
   ref.invalidate(feedPreviewProvider);
+}
+
+class _HomeTitle extends StatelessWidget {
+  const _HomeTitle({required this.offline, required this.onRetry});
+
+  final bool offline;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Início', maxLines: 1, overflow: TextOverflow.ellipsis),
+        SizedBox(
+          height: 14,
+          width: double.infinity,
+          child: offline
+              ? GestureDetector(
+                  onTap: onRetry,
+                  child: Text(
+                    offlineUserMessage,
+                    key: offlineHomeNoticeKey,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.1,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
 }
 
 class _BootBody extends StatelessWidget {

@@ -123,6 +123,13 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
     ref.listen(pairingStatusProvider, (previous, next) {
       final was = previous?.asData?.value.phase;
       final now = next.asData?.value.phase;
+      if (next is AsyncData<PairingSnapshot> &&
+          _error != null &&
+          !_cancelling &&
+          !_confirming &&
+          !(was == PairingPhase.pending && now == PairingPhase.unpaired)) {
+        setState(() => _error = null);
+      }
       if (was != PairingPhase.pending || now != PairingPhase.unpaired) return;
       if (_cancelling || _confirming) return;
       ref

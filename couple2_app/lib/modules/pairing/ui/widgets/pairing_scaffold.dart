@@ -58,9 +58,8 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
     final screenLocked = ref.watch(pairingControlsLockedProvider) > 0;
     final actionsEnabled = widget.actionsEnabled && !screenLocked;
     final incoming = ref.watch(incomingPairingRequestsProvider);
-    final requests = incoming.asData?.value ?? const [];
-    final showNotice =
-        requests.isNotEmpty || (incoming.hasError && requests.isEmpty);
+    final requests = incoming.value ?? const [];
+    final showNotice = requests.isNotEmpty;
     final body = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(24, 16, 24, showNotice ? 240 : 32),

@@ -13,13 +13,11 @@ class IncomingPairingNotice extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(incomingPairingRequestsProvider);
-    final requests = async.asData?.value ?? const <IncomingPairingRequest>[];
-    if (async.hasError && requests.isEmpty) {
-      return AppText(
-        pairingErrorMessage(async.error!, action: PairingAction.status),
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
-      );
-    }
+    // A failed refresh keeps the last list. An error with nothing to show
+    // stays quiet so it does not stack a second message on the page error.
+    final requests = async.hasValue
+        ? (async.value ?? const <IncomingPairingRequest>[])
+        : const <IncomingPairingRequest>[];
     if (requests.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
