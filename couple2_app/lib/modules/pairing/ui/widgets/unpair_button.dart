@@ -44,6 +44,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
           'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
       confirmLabel: 'Desfazer',
       confirmKey: const Key('confirm-unpair'),
+      danger: true,
     );
     if (!mounted) return;
     if (accepted != true) {

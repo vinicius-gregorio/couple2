@@ -194,10 +194,17 @@ class ListsViewModel extends Notifier<ListsState> {
     try {
       final updated = await _repo.toggleItem(itemId);
       state = state.copyWith(lists: _replace(listId, itemId, updated));
-    } catch (_) {
+    } catch (error) {
       state = state.copyWith(
-        lists: _replace(listId, itemId, current),
-        actionError: 'Não foi possível atualizar o item.',
+        lists: _replace(
+          listId,
+          itemId,
+          current.copyWith(isCompleted: !current.isCompleted),
+        ),
+        actionError: userFacingError(
+          error,
+          fallback: 'Não foi possível atualizar o item.',
+        ),
       );
     } finally {
       _inflight.remove(key);

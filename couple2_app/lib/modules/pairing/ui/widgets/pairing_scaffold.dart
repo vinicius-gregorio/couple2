@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../app/routing/app_back_button.dart';
+import '../../routing/routes.dart';
 
 const _stepLabels = ['Seu código', 'Código do par', 'Confirmação'];
 
@@ -68,8 +70,16 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
       ],
     );
 
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: canPop
+            ? AppBackButton(
+                enabled: actionsEnabled,
+                fallback: PairingRoutes.hub,
+              )
+            : null,
         title: const AppText('Parear'),
         actions: [
           if (onRefresh != null)

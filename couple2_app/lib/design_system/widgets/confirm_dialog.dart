@@ -13,6 +13,7 @@ Future<bool> confirmDestructive(
   required String message,
   required String confirmLabel,
   Key? confirmKey,
+  bool danger = false,
 }) async {
   final accepted = await showDialog<bool>(
     context: context,
@@ -29,6 +30,12 @@ Future<bool> confirmDestructive(
               ),
               FilledButton(
                 key: confirmKey,
+                style: danger
+                    ? FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                      )
+                    : null,
                 onPressed: () => pop.pop(context, true),
                 child: Text(confirmLabel),
               ),

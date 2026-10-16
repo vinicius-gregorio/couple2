@@ -26,6 +26,8 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   Object? _error;
   bool _loading = true;
   String? _busyAction;
+  bool _confirming = false;
+  String? _actionError;
 
   @override
   void initState() {
@@ -64,11 +66,16 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       ref.read(datePlansChangedProvider.notifier).bump();
       if (!mounted) return;
       setState(() => _plan = plan);
-    } on CPLHttpException catch (error) {
-      _toast(datePlanErrorMessage(error.response?.statusCode));
-      await _load();
-    } catch (_) {
-      _toast('Não consegui salvar agora.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _actionError = userFacingError(
+          error,
+          fallback: datePlanErrorMessage(
+            error is CPLHttpException ? error.response?.statusCode : null,
+          ),
+        );
+      });
     } finally {
       if (mounted) setState(() => _busyAction = null);
     }
@@ -82,7 +89,11 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   }
 
   Future<void> _decline() async {
+    if (_busyAction != null || _confirming) return;
+    setState(() => _confirming = true);
     final note = await _askNote(title: 'Recusar date', confirm: 'Recusar');
+    if (!mounted) return;
+    setState(() => _confirming = false);
     if (note == null) return;
     await _run(
       'decline',
@@ -92,7 +103,14 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   }
 
   Future<void> _cancel() async {
+    if (_busyAction != null || _confirming) return;
+    setState(() {
+      _confirming = true;
+      _actionError = null;
+    });
     final note = await _askNote(title: 'Cancelar date', confirm: 'Cancelar');
+    if (!mounted) return;
+    setState(() => _confirming = false);
     if (note == null) return;
     await _run(
       'cancel',
@@ -262,12 +280,13 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),
+        leading: AppBackButton(enabled: _busyAction == null && !_confirming),
         title: AppText(plan.title),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          MutationErrorBanner(message: _actionError),
           Align(
             alignment: Alignment.centerLeft,
             child: Chip(label: Text(plan.status.label)),
@@ -307,6 +326,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
               plan: plan,
               me: me,
               busyAction: _busyAction,
+              confirming: _confirming,
               onAccept: _accept,
               onDecline: _decline,
               onCounter: _counter,
@@ -325,6 +345,7 @@ class _Actions extends StatelessWidget {
     required this.plan,
     required this.me,
     required this.busyAction,
+    required this.confirming,
     required this.onAccept,
     required this.onDecline,
     required this.onCounter,
@@ -336,6 +357,7 @@ class _Actions extends StatelessWidget {
   final DatePlan plan;
   final String me;
   final String? busyAction;
+  final bool confirming;
   final Future<void> Function() onAccept;
   final Future<void> Function() onDecline;
   final Future<void> Function() onCounter;
@@ -345,48 +367,48 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final locked = busyAction != null;
+    final locked = busyAction != null || confirming;
     final buttons = <Widget>[
       if (plan.canAccept(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
           loading: busyAction == 'accept',
-          onPressed: locked ? null : onAccept,
+          onPressed: locked ? null : () { onAccept(); },
           child: const Text('Aceitar'),
         ),
       if (plan.canDecline(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'decline',
-          onPressed: locked ? null : onDecline,
+          onPressed: locked ? null : () { onDecline(); },
           child: const Text('Recusar'),
         ),
       if (plan.canCounter(me))
         LoadingButton(
           variant: LoadingButtonVariant.text,
           loading: busyAction == 'counter',
-          onPressed: locked ? null : onCounter,
+          onPressed: locked ? null : () { onCounter(); },
           child: const Text('Sugerir outro horário'),
         ),
       if (plan.canEdit(me))
         LoadingButton(
-          variant: LoadingButtonVariant.filled,
+          variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'edit',
-          onPressed: locked ? null : onEdit,
+          onPressed: locked ? null : () { onEdit(); },
           child: const Text('Editar'),
         ),
       if (plan.canCancel(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
           loading: busyAction == 'cancel',
-          onPressed: locked ? null : onCancel,
+          onPressed: locked ? null : () { onCancel(); },
           child: const Text('Cancelar'),
         ),
       if (plan.canDone(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
           loading: busyAction == 'done',
-          onPressed: locked ? null : onDone,
+          onPressed: locked ? null : () { onDone(); },
           child: const Text('Marcar como feito'),
         ),
     ];

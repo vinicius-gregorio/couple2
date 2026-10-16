@@ -19,6 +19,7 @@ class TodayQuestionPage extends ConsumerStatefulWidget {
 class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
   final _controller = TextEditingController();
   String? _filledFor;
+  bool _editing = false;
 
   @override
   void initState() {
@@ -112,30 +113,54 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                     AppText(partnerAlreadyAnsweredLine(partnerName)),
                     const SizedBox(height: 16),
                   ],
-                  TextField(
-                    controller: _controller,
-                    maxLength: 1000,
-                    minLines: 4,
-                    maxLines: 8,
-                    enabled: !state.isSaving,
-                    decoration: const InputDecoration(
-                      hintText: 'Sua resposta',
-                      alignLabelWithHint: true,
+                  if (question.answeredByMe && !_editing) ...[
+                    AppText(_controller.text.isEmpty
+                        ? 'Resposta enviada.'
+                        : _controller.text),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 160,
+                        child: OutlinedButton(
+                          onPressed: () => setState(() => _editing = true),
+                          child: const Text('Editar'),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: LoadingButton(
-                      variant: LoadingButtonVariant.filled,
-                      loading: state.isSaving,
-                      onPressed:
-                          state.isSaving || _controller.text.trim().isEmpty
-                          ? null
-                          : () => viewModel.submit(_controller.text),
-                      child: Text(question.answeredByMe ? 'Editar' : 'Enviar'),
+                  ] else ...[
+                    TextField(
+                      controller: _controller,
+                      maxLength: 1000,
+                      minLines: 4,
+                      maxLines: 8,
+                      enabled: !state.isSaving,
+                      decoration: const InputDecoration(
+                        hintText: 'Sua resposta',
+                        alignLabelWithHint: true,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 160,
+                        child: LoadingButton(
+                          variant: LoadingButtonVariant.filled,
+                          loading: state.isSaving,
+                          onPressed:
+                              state.isSaving || _controller.text.trim().isEmpty
+                              ? null
+                              : () => viewModel.submit(_controller.text),
+                          child: Text(
+                            state.isSaving
+                                ? 'Salvando…'
+                                : (question.answeredByMe ? 'Salvar' : 'Enviar'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (question.answeredByMe && !question.partnerAnswered)
                     const Padding(
                       padding: EdgeInsets.only(top: 16),

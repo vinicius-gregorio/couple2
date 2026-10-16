@@ -110,7 +110,14 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
         children: [
           MutationErrorBanner(message: state.actionError),
           if (list.visibility == 'PRIVATE_FROM_PARTNER')
-            const ListTile(dense: true, title: Text('🔒 Só você vê')),
+            ListTile(
+              dense: true,
+              leading: Icon(
+                Icons.lock_outline,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Só você vê'),
+            ),
           Expanded(
             child: list.items.isEmpty
                 ? const EmptyView(message: 'Nenhum item ainda.')
@@ -221,6 +228,7 @@ class _ItemTile extends ConsumerWidget {
               },
               child: const Text('Planejar date'),
             ),
+          const SizedBox(width: 12),
           LoadingIconButton(
             key: Key('delete-item-${item.id}'),
             tooltip: 'Excluir item',

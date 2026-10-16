@@ -49,6 +49,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test('session cache round-trips and the boot splash is not a card skeleton', () async {
     SharedPreferences.setMockInitialValues({});
     const session = Session(
@@ -69,6 +73,7 @@ void main() {
   });
 
   testWidgets('session splash does not paint home card skeletons', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       const MaterialApp(home: SessionSplash()),
     );
@@ -113,21 +118,18 @@ void main() {
         child: MaterialApp.router(theme: lightTheme, routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(find.byTooltip('Notificações'), findsOneWidget);
     expect(find.byTooltip('O que rolou'), findsNothing);
     expect(find.byType(FilledButton), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Nossas listas'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Planejar um date'),
-      findsOneWidget,
-    );
+    expect(_outlinedLabel('Nossas listas'), findsOneWidget);
+    expect(_outlinedLabel('Planejar um date'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Planejar um date'));
     await tester.tap(find.text('Planejar um date'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('formulario-date'), findsOneWidget);
     expect(find.text('pagina-listas'), findsNothing);
   });
@@ -162,9 +164,10 @@ void main() {
         child: MaterialApp(theme: lightTheme, home: const HomePage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Atualizar'), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
   });
 
@@ -213,6 +216,7 @@ void main() {
   testWidgets('delete list does not spin behind the confirm dialog', (
     tester,
   ) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -221,7 +225,7 @@ void main() {
         child: const MaterialApp(home: ListsPage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.byTooltip('Nova lista'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Excluir lista'));
@@ -234,6 +238,7 @@ void main() {
   testWidgets('a failed date stays in the sheet with the typed title', (
     tester,
   ) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -247,7 +252,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'AuditDate');
     await tester.pump();
     await tester.tap(find.text('Adicionar'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Nova data'), findsOneWidget);
     expect(find.text('AuditDate'), findsOneWidget);
     expect(find.textContaining('Sem conexão'), findsOneWidget);
@@ -277,9 +282,20 @@ void main() {
         child: const MaterialApp(home: CoupleSettingsPage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.text('Salvar'));
     await tester.pump();
+    expect(
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byTooltip('Voltar'),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
     expect(
       tester
           .widget<LoadingButton>(find.byKey(const Key('unpair-button')))
@@ -287,12 +303,13 @@ void main() {
       isNull,
     );
     hang.completeError(const CPLHttpNoInternetConnectionException());
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.textContaining('Confira o fuso'), findsNothing);
     expect(find.text(offlineUserMessage), findsOneWidget);
   });
 
   testWidgets('unpair locks Salvar while it is running', (tester) async {
+    _pinSurface(tester);
     final gate = Completer<void>();
     await tester.pumpWidget(
       ProviderScope(
@@ -307,13 +324,23 @@ void main() {
           pairingPollIntervalProvider.overrideWithValue(null),
           sessionProvider.overrideWith(_Session.new),
         ],
-          child: const MaterialApp(home: Scaffold(body: _SaveProbe())),
+          child: MaterialApp(
+            theme: lightTheme,
+            home: const Scaffold(body: _SaveProbe()),
+          ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.text('Desfazer o par'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    final confirm = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm-unpair')),
+    );
+    expect(
+      confirm.style?.backgroundColor?.resolve({}),
+      lightColorScheme.error,
+    );
     await tester.tap(find.byKey(const Key('confirm-unpair')));
     await tester.pump();
     expect(find.text('Desfazendo…'), findsOneWidget);
@@ -323,12 +350,13 @@ void main() {
       isNull,
     );
     gate.complete();
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
   });
 
   testWidgets('enter code keeps Atualizar and locks Sair while sending', (
     tester,
   ) async {
+    _pinSurface(tester);
     final gate = Completer<PairResult>();
     final repo = _Pairing(
       const PairingSnapshot(phase: PairingPhase.unpaired, pairingCode: 'ABC123'),
@@ -357,7 +385,7 @@ void main() {
         child: MaterialApp.router(theme: lightTheme, routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.byTooltip('Atualizar'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('partner-code-field')), 'XYZ789');
     await tester.pump();
@@ -389,12 +417,13 @@ void main() {
     gate.complete(
       const PairResult(phase: PairingPhase.pending, message: 'ok'),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(repo.pairs, 1);
     expect(repo.statusReads, 1);
   });
 
   testWidgets('pairing generate error is red', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -410,9 +439,9 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.text('Gerar código'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     final text = tester.widget<Text>(
       find.descendant(
         of: find.byKey(const Key('generate-pairing-code-error')),
@@ -425,6 +454,7 @@ void main() {
   testWidgets('mood sheet stays up for the second tap of Compartilhar', (
     tester,
   ) async {
+    _pinSurface(tester);
     var behind = 0;
     await tester.pumpWidget(
       ProviderScope(
@@ -454,7 +484,7 @@ void main() {
       ),
     );
     await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Como você está?'), findsOneWidget);
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('Compartilhar')),
@@ -517,17 +547,18 @@ void main() {
       ),
     );
     await tester.tap(find.text('perfil'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.text('Escolher data'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Ada'), findsOneWidget);
     await tester.tap(find.text('15').first);
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Ada'), findsOneWidget);
     expect(find.text('Salvar'), findsOneWidget);
   });
 
   testWidgets('carinho snackbar names the kind', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -538,9 +569,9 @@ void main() {
         child: const MaterialApp(home: Scaffold(body: MoodHomeCard())),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.text('💗 Pensando em você'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Carinho enviado: Pensando em você'), findsOneWidget);
   });
 }
@@ -802,4 +833,23 @@ class _Nudges implements INudgesRepository {
   Future<Nudge> markSeen(String id) {
     return send(kind: NudgeKind.thinkingOfYou);
   }
+}
+
+/// [OutlinedButton.icon] is a private subclass, so an exact [OutlinedButton]
+/// lookup misses it on some Flutter versions.
+Finder _outlinedLabel(String label) {
+  return find.ancestor(
+    of: find.text(label),
+    matching: find.byWidgetPredicate((widget) {
+      return widget is ButtonStyleButton &&
+          widget.runtimeType.toString().contains('OutlinedButton');
+    }),
+  );
+}
+
+void _pinSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(900, 1800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }

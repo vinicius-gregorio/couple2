@@ -155,8 +155,8 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),
-        title: AppText(_editing ? 'Editar o encontro' : 'Planejar um date'),
+        leading: AppBackButton(enabled: !_saving),
+        title: AppText(_editing ? 'Editar o date' : 'Planejar um date'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),

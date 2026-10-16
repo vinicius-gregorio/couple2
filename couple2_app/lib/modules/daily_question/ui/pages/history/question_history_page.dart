@@ -203,7 +203,11 @@ class _HistoryTile extends StatelessWidget {
                   onPressed: saving || draft.text.trim().isEmpty
                       ? null
                       : onSubmit,
-                  child: Text(showAnswer ? 'Enviar' : 'Editar'),
+                  child: Text(
+                    saving
+                        ? 'Salvando…'
+                        : (showAnswer ? 'Enviar' : 'Salvar'),
+                  ),
                 ),
               ),
             ],

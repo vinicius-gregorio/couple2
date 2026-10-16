@@ -21,6 +21,21 @@ void main() {
       const CPLHttpException(message: 'Error connecting to the server'),
     );
     expect(wrapped, offlineUserMessage);
+    expect(
+      userFacingError(
+        const CPLHttpException(
+          message:
+              'The connection errored: The XMLHttpRequest onError callback was called.',
+        ),
+      ),
+      offlineUserMessage,
+    );
+    expect(
+      userFacingError(
+        Exception("Couldn't save right now"),
+      ),
+      isNot(contains('Couldn')),
+    );
     expect(wrapped, isNot(contains('Source stack')));
 
     expect(

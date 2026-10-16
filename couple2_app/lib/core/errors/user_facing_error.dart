@@ -98,8 +98,11 @@ bool _looksOffline(String raw) {
       raw.contains('network is unreachable') ||
       raw.contains('connection abort') ||
       raw.contains('connection refused') ||
+      raw.contains('connection errored') ||
+      raw.contains('connection error') ||
       raw.contains('error connecting') ||
       raw.contains('network-request-failed') ||
-      raw.contains('xmlhttprequest error') ||
+      raw.contains('xmlhttprequest') ||
+      raw.contains('failed to fetch') ||
       raw.contains('clientexception');
 }

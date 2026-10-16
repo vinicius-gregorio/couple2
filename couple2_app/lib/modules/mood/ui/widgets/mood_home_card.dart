@@ -45,10 +45,14 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não consegui enviar agora.')),
+        SnackBar(
+          content: Text(
+            userFacingError(error, fallback: 'Não consegui enviar agora.'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -69,7 +73,33 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
 
     return mood.when(
       data: (current) {
-        if (current == null) return const SizedBox.shrink();
+        if (current == null) {
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppText(
+                    'Como vocês estão',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  _CareButton(
+                    sending: _sending,
+                    onTap: () => _send(NudgeKind.thinkingOfYou),
+                    onLongPress: _sending ? null : _compose,
+                  ),
+                  TextButton(
+                    onPressed: _sending ? null : _compose,
+                    child: const Text('Escolher um carinho'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         final caring = suggestCaringNudge(current.partner?.mood);
         final theme = Theme.of(context);
         return Card(

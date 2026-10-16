@@ -35,7 +35,7 @@ class PairingCodePage extends ConsumerWidget {
     final pending = status?.phase == PairingPhase.pending;
 
     return PairingPoller(
-      enabled: pending,
+      enabled: status?.phase != PairingPhase.paired,
       child: PairingScaffold(
         step: 1,
         onRefresh: () => _reload(ref),
@@ -105,21 +105,25 @@ class PairingCodePage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AppText(
-                      'Pedido enviado',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    AppText(
+                      () {
+                        final sent = status?.pendingCode;
+                        if (sent == null || sent.isEmpty) {
+                          return 'Pedido recebido';
+                        }
+                        return 'Pedido enviado';
+                      }(),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
-                    AppText(
-                      status?.pendingCode == null
-                          ? 'Esperando a outra pessoa digitar o seu código.'
-                          : 'Esperando a outra pessoa digitar o seu código. Você enviou ${status!.pendingCode}.',
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () => context.push(PairingRoutes.waiting),
-                      child: const Text('Acompanhar pedido'),
-                    ),
+                    AppText(pairingRequestNotice(status!)),
+                    if ((status.pendingCode ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () => context.push(PairingRoutes.waiting),
+                        child: const Text('Acompanhar pedido'),
+                      ),
+                    ],
                   ],
                 ),
               ),

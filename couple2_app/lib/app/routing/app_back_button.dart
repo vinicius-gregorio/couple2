@@ -9,9 +9,16 @@ import 'routes.dart';
 /// A pushed page pops. A deep link has an empty stack, so the arrow goes to
 /// [fallback] instead of disappearing. A second tap does not pop again.
 class AppBackButton extends StatefulWidget {
-  const AppBackButton({super.key, this.fallback = APPRoutes.home});
+  const AppBackButton({
+    super.key,
+    this.fallback = APPRoutes.home,
+    this.enabled = true,
+  });
 
   final String fallback;
+
+  /// False while a save or confirm is in flight, so the arrow cannot leave.
+  final bool enabled;
 
   @override
   State<AppBackButton> createState() => _AppBackButtonState();
@@ -25,7 +32,9 @@ class _AppBackButtonState extends State<AppBackButton> {
     return IconButton(
       tooltip: 'Voltar',
       icon: const BackButtonIcon(),
-      onPressed: () => popOrGo(context, widget.fallback, guard: _pop),
+      onPressed: widget.enabled
+          ? () => popOrGo(context, widget.fallback, guard: _pop)
+          : null,
     );
   }
 }

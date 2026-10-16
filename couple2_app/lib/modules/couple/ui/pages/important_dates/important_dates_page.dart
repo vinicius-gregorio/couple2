@@ -20,6 +20,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   List<CoupleDate> _dates = const [];
   bool _loading = true;
   String? _deletingId;
+  String? _confirmingId;
   String? _loadError;
   String? _actionError;
 
@@ -69,7 +70,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   }
 
   Future<void> _openSheet([CoupleDate? existing]) async {
-    if (_deletingId != null) return;
+    if (_rowLocked) return;
     setState(() => _actionError = null);
     final host = context;
     final saved = await showModalBottomSheet<bool>(
@@ -112,8 +113,14 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     }
   }
 
+  bool get _rowLocked => _deletingId != null || _confirmingId != null;
+
   Future<void> _delete(CoupleDate date) async {
-    if (_deletingId != null) return;
+    if (_rowLocked) return;
+    setState(() {
+      _confirmingId = date.id;
+      _actionError = null;
+    });
     final confirmed = await confirmDestructive(
       context,
       title: 'Excluir data?',
@@ -121,8 +128,12 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       confirmLabel: 'Excluir',
       confirmKey: const Key('confirm-delete-date'),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      if (mounted) setState(() => _confirmingId = null);
+      return;
+    }
     setState(() {
+      _confirmingId = null;
       _deletingId = date.id;
       _actionError = null;
     });
@@ -157,12 +168,12 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
 
     return Scaffold(
       appBar: AppBar(
-        leading: AppBackButton(),
+        leading: AppBackButton(enabled: !_rowLocked),
         title: AppText('Datas importantes'),
       ),
       floatingActionButton: AppFab(
         tooltip: 'Adicionar data',
-        onPressed: _deletingId != null ? null : () => _openSheet(),
+        onPressed: _rowLocked ? null : () => _openSheet(),
         icon: const Icon(Icons.add),
       ),
       body: ListView(
@@ -222,7 +233,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
               (date) => _DateRow(
                 date: date,
                 deleting: _deletingId == date.id,
-                locked: _deletingId != null,
+                locked: _rowLocked,
                 onOpen: () => _openSheet(date),
                 onDelete: () {
                   _delete(date);
@@ -284,6 +295,7 @@ class _DateRow extends StatelessWidget {
             onPressed: busy ? null : onOpen,
             icon: Icon(Icons.edit_outlined, color: iconColor),
           ),
+          const SizedBox(width: 8),
           LoadingIconButton(
             tooltip: 'Excluir',
             loading: deleting,

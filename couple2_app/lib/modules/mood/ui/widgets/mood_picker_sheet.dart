@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/core.dart';
 import '../../../feed/data/feed_providers.dart';
 import '../../data/mood_providers.dart';
 import '../../domain/domain.dart';
@@ -63,7 +64,10 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Não consegui guardar agora. Tenta de novo?';
+        _error = userFacingError(
+          error,
+          fallback: 'Não consegui guardar agora. Tenta de novo?',
+        );
       });
     }
   }
@@ -92,16 +96,22 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final level in MoodLevel.values)
-                _EmojiChoice(
-                  level: level,
-                  selected: level == _mood,
-                  onTap: _saving ? null : () => setState(() => _mood = level),
-                ),
-            ],
+          IgnorePointer(
+            ignoring: _saving,
+            child: Opacity(
+              opacity: _saving ? 0.38 : 1,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (final level in MoodLevel.values)
+                    _EmojiChoice(
+                      level: level,
+                      selected: level == _mood,
+                      onTap: () => setState(() => _mood = level),
+                    ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(

@@ -98,6 +98,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
       returnToHubWhenUnpaired: true,
       child: PairingScaffold(
         step: 3,
+        actionsEnabled: !_cancelling && !_confirming,
         onRefresh: _refresh,
         children: [
           const AppText(

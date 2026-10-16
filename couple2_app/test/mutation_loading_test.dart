@@ -126,7 +126,7 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não foi possível atualizar o item.'), findsOneWidget);
-    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
     expect(find.text('Pão'), findsOneWidget);
   });
 
@@ -324,7 +324,7 @@ void main() {
     await _doubleTap(tester, find.text('Enviar'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
-    expect(_filled(tester, 'Enviar').onPressed, isNull);
+    expect(_filled(tester, 'Salvando…').onPressed, isNull);
     gate.error();
     await _settle(tester);
     expect(find.text('Não foi possível enviar a resposta.'), findsOneWidget);
@@ -353,7 +353,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'Texto novo');
     await tester.pump();
-    await _doubleTap(tester, find.widgetWithText(FilledButton, 'Editar'));
+    await _doubleTap(tester, find.widgetWithText(FilledButton, 'Salvar'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
@@ -372,6 +372,17 @@ void main() {
     await _doubleTap(tester, find.text('Salvar'));
     expect(gate.calls, 1);
     expect(_filled(tester, 'Salvando…').onPressed, isNull);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byTooltip('Voltar'),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
     for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(field.enabled, isFalse);
     }
@@ -397,7 +408,7 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
-    expect(find.text('Editar o encontro'), findsOneWidget);
+    expect(find.text('Editar o date'), findsOneWidget);
     expect(find.text('Jantar cedo'), findsOneWidget);
   });
 
@@ -466,6 +477,8 @@ void main() {
     await tester.tap(find.text('Cancelar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(FilledButton), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Cancelar'));
     await tester.pump();
     expect(gate.calls, 1);

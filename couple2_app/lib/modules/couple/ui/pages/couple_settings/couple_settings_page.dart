@@ -181,7 +181,10 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Nosso começo')),
+      appBar: AppBar(
+        leading: AppBackButton(enabled: !_locked),
+        title: AppText('Nosso começo'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

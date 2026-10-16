@@ -19,6 +19,7 @@ import 'app_back_button.dart';
 import '../session_provider.dart';
 import '../ui/pages/home/home_page.dart';
 import 'auth_redirect.dart';
+import 'pairing_redirect.dart';
 import 'routes.dart';
 import 'session_redirect.dart';
 
@@ -100,7 +101,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final session = ref.read(sessionProvider);
       final target = resolveAppRedirect(
         loggedIn: gate.loggedIn,
-        matchedLocation: state.matchedLocation,
+        matchedLocation: routeLocation(
+          matchedLocation: state.matchedLocation,
+          fragment: state.uri.fragment,
+        ),
         restoreLocation: gate.restoreLocation,
         sessionReady: sessionReadyForPairing(session, loggedIn: gate.loggedIn),
         needsPairing: sessionNeedsPairing(session.asData?.value),

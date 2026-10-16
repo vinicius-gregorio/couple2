@@ -23,7 +23,7 @@ const _typeLabels = {
   'MOVIES': 'Filmes',
   'MILESTONES': 'Marcos',
   'TRAVEL': 'Viagem',
-  'GIFT_IDEAS': 'Ideias de presente 🎁',
+  'GIFT_IDEAS': 'Ideias de presente',
 };
 
 const _typeIcons = {
@@ -238,8 +238,18 @@ class _ListCard extends ConsumerWidget {
                             child: AppText('$label · $done/$total feitos'),
                           ),
                           if (isPrivate)
-                            const IgnorePointer(
-                              child: AppText('🔒 Só você vê'),
+                            IgnorePointer(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock_outline,
+                                    size: 16,
+                                    color: scheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const AppText('Só você vê'),
+                                ],
+                              ),
                             ),
                         ],
                       ),
@@ -250,17 +260,19 @@ class _ListCard extends ConsumerWidget {
               ),
             ),
           ),
-          LoadingIconButton(
-            tooltip: 'Excluir lista',
-            loading: deleting,
-            icon: const Icon(Icons.delete_outline),
-            onPressed: deleting
-                ? null
-                : () {
-                    _confirmDeleteList(context, ref, list);
-                  },
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 8),
+            child: LoadingIconButton(
+              tooltip: 'Excluir lista',
+              loading: deleting,
+              icon: const Icon(Icons.delete_outline),
+              onPressed: deleting
+                  ? null
+                  : () {
+                      _confirmDeleteList(context, ref, list);
+                    },
+            ),
           ),
-          const SizedBox(width: 4),
         ],
       ),
     );
@@ -281,6 +293,7 @@ class _CreateListSheet extends StatefulWidget {
 class _CreateListSheetState extends State<_CreateListSheet> {
   String _selectedType = _listTypes.first;
   bool _hideFromPartner = true;
+  bool _saving = false;
   String? _error;
   final _nameController = TextEditingController();
   final _pop = PopGuard();
@@ -334,15 +347,18 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                   ),
                 )
                 .toList(),
-            onChanged: (v) => setState(() {
-              _selectedType = v!;
-              if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
-            }),
+            onChanged: _saving
+                ? null
+                : (v) => setState(() {
+                    _selectedType = v!;
+                    if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
+                  }),
             decoration: const InputDecoration(labelText: 'Tipo'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _nameController,
+            enabled: !_saving,
             decoration: const InputDecoration(labelText: 'Nome'),
             autofocus: true,
           ),
@@ -355,16 +371,20 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                 '$_partnerLabel não verá esta lista nem receberá notificações',
               ),
               value: _hideFromPartner,
-              onChanged: (value) => setState(() => _hideFromPartner = value),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _hideFromPartner = value),
             ),
           ],
           const SizedBox(height: 16),
           MutationErrorBanner(message: _error),
           LoadingButton(
-            onPressed: _nameController.text.trim().isEmpty || _pop.used
+            onPressed:
+                _saving || _nameController.text.trim().isEmpty || _pop.used
                 ? null
                 : () async {
-                    if (_pop.used) return;
+                    if (_pop.used || _saving) return;
+                    setState(() => _saving = true);
                     final name = _nameController.text.trim();
                     final visibility = isGift
                         ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
@@ -379,7 +399,10 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                       _pop.pop(context);
                       return;
                     }
-                    setState(() => _error = message);
+                    setState(() {
+                      _saving = false;
+                      _error = message;
+                    });
                   },
             child: const Text('Criar'),
           ),

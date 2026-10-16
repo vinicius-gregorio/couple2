@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 
 const _wine = Color(0xFF9D174D);
@@ -70,7 +71,12 @@ const _ana = Session(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('double tap on Enviar pops the composer once', (tester) async {
+    _pinSurface(tester);
     final pops = _Pops();
     await _push(
       tester,
@@ -90,9 +96,9 @@ void main() {
       ),
     );
     await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     _pressTwice(tester, find.widgetWithText(FilledButton, 'Enviar'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(find.text('composer-page'), findsOneWidget);
@@ -100,6 +106,7 @@ void main() {
   });
 
   testWidgets('double tap on Excluir closes the dialog once', (tester) async {
+    _pinSurface(tester);
     final pops = _Pops();
     await _push(
       tester,
@@ -124,9 +131,9 @@ void main() {
       ),
     );
     await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     _pressTwice(tester, find.widgetWithText(FilledButton, 'Excluir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(find.text('dialog-page'), findsOneWidget);
@@ -136,6 +143,7 @@ void main() {
   testWidgets('double tap on Adicionar pops the date sheet once', (
     tester,
   ) async {
+    _pinSurface(tester);
     final pops = _Pops();
     await _push(
       tester,
@@ -159,11 +167,11 @@ void main() {
       ),
     );
     await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.enterText(find.byType(TextField), 'Aniversário');
     await tester.pump();
     _pressTwice(tester, find.widgetWithText(FilledButton, 'Adicionar'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(find.text('date-page'), findsOneWidget);
@@ -173,6 +181,7 @@ void main() {
   testWidgets('double tap on Criar pops the new-list sheet once', (
     tester,
   ) async {
+    _pinSurface(tester);
     final pops = _Pops();
     final repo = _Lists();
     await _push(
@@ -187,7 +196,7 @@ void main() {
     expect(find.text('Nossas listas'), findsOneWidget);
 
     await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.enterText(find.byType(TextField), 'Mercado');
     await tester.pump();
     tester
@@ -199,7 +208,7 @@ void main() {
       tester.widget<FilledButton>(again).onPressed?.call();
       await tester.pump();
     }
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(repo.creates, 1);
@@ -210,6 +219,7 @@ void main() {
   testWidgets('double tap on Salvar pops the profile sheet once', (
     tester,
   ) async {
+    _pinSurface(tester);
     final pops = _Pops();
     final repo = _Birth();
     await _push(
@@ -239,7 +249,7 @@ void main() {
       ],
     );
     await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     final salvar = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Salvar'),
     );
@@ -251,7 +261,7 @@ void main() {
       tester.widget<FilledButton>(again).onPressed?.call();
       await tester.pump();
     }
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(repo.saves, 1);
@@ -260,6 +270,7 @@ void main() {
   });
 
   testWidgets('back pops the top page once', (tester) async {
+    _pinSurface(tester);
     final pops = _Pops();
     final router = GoRouter(
       observers: [pops],
@@ -284,11 +295,11 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     router.push('/middle');
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     router.push('/inner');
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     final back = tester.widget<IconButton>(
       find.descendant(
@@ -298,7 +309,7 @@ void main() {
     );
     back.onPressed!();
     back.onPressed!();
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(pops.pops, 1);
     expect(find.text('middle-page'), findsOneWidget);
@@ -308,6 +319,7 @@ void main() {
   testWidgets('Enviar pedido is white on wine and shows a spinner', (
     tester,
   ) async {
+    _pinSurface(tester);
     final gate = Completer<PairResult>();
     addTearDown(() {
       if (!gate.isCompleted) {
@@ -333,7 +345,7 @@ void main() {
         child: MaterialApp(theme: lightTheme, home: const EnterCodePage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.enterText(
       find.byKey(const Key('partner-code-field')),
       'XYZ789',
@@ -374,6 +386,7 @@ void main() {
   });
 
   testWidgets('pairing hub keeps a single filled button', (tester) async {
+    _pinSurface(tester);
     Future<void> pump(PairingSnapshot status, Session session) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -386,7 +399,7 @@ void main() {
           child: MaterialApp(theme: lightTheme, home: const PairingCodePage()),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
     }
 
     await pump(const PairingSnapshot(phase: PairingPhase.unpaired), _ana);
@@ -415,6 +428,7 @@ void main() {
   });
 
   testWidgets('waiting page does not add a second primary', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -433,7 +447,7 @@ void main() {
         child: MaterialApp(theme: lightTheme, home: const WaitingPage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(_outlinedLabel('Copiar'), findsOneWidget);
     expect(_outlinedLabel('Compartilhar'), findsOneWidget);
@@ -448,6 +462,7 @@ void main() {
   testWidgets('delete icon is outside the row tap and private copy differs', (
     tester,
   ) async {
+    _pinSurface(tester);
     final router = GoRouter(
       initialLocation: '/',
       routes: [
@@ -470,7 +485,7 @@ void main() {
         child: MaterialApp.router(theme: lightTheme, routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(
       find.ancestor(
@@ -480,6 +495,8 @@ void main() {
       findsNothing,
     );
 
+    expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    expect(find.textContaining('🔒'), findsNothing);
     await tester.tap(find.byTooltip('Excluir lista'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -490,15 +507,16 @@ void main() {
     expect(find.text('Lista aberta'), findsNothing);
 
     await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.byIcon(Icons.chevron_right));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Lista aberta'), findsOneWidget);
   });
 
   testWidgets('a shared list still says it disappears for both', (
     tester,
   ) async {
+    _pinSurface(tester);
     await _listsHome(tester, [_list('Mercado')]);
     await tester.tap(find.byTooltip('Excluir lista'));
     await tester.pump();
@@ -507,6 +525,7 @@ void main() {
   });
 
   testWidgets('a private list item is not described as shared', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -526,7 +545,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     await tester.tap(find.byTooltip('Excluir item'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -537,6 +556,7 @@ void main() {
   testWidgets('the mood note keeps the first characters after focus', (
     tester,
   ) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: Scaffold(body: MoodPickerSheet())),
@@ -575,7 +595,7 @@ Future<void> _push(
   tester
       .state<NavigatorState>(find.byType(Navigator))
       .push(MaterialPageRoute<void>(builder: (_) => page));
-  await tester.pumpAndSettle();
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
 }
 
 /// [OutlinedButton.icon] is not runtimeType [OutlinedButton].
@@ -617,7 +637,7 @@ Future<void> _listsHome(WidgetTester tester, List<PartnerList> lists) async {
       child: MaterialApp(theme: lightTheme, home: const ListsPage()),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
 }
 
 PartnerList _list(
@@ -756,4 +776,11 @@ class _Pairing implements IPairingRepository {
 
   @override
   Future<void> ensurePairingCode() async {}
+}
+
+void _pinSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(900, 1800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }

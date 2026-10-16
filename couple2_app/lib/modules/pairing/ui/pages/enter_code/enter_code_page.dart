@@ -11,6 +11,7 @@ import '../../../../../app/session_provider.dart';
 import '../../../data/pairing_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
+import '../../widgets/pairing_poller.dart';
 import '../../widgets/pairing_scaffold.dart';
 
 class EnterCodePage extends ConsumerStatefulWidget {
@@ -103,16 +104,22 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statusAsync = ref.watch(pairingStatusProvider);
+    final status = statusAsync.asData?.value;
     if (statusAsync.isLoading && !statusAsync.hasValue) {
-      return PairingScaffold(
+      return PairingPoller(
+        enabled: true,
+        child: PairingScaffold(
         step: 2,
         actionsEnabled: !_submitting,
         onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
         children: const [CardSkeleton(lines: 2)],
+        ),
       );
     }
 
-    return PairingScaffold(
+    return PairingPoller(
+      enabled: status?.phase != PairingPhase.paired,
+      child: PairingScaffold(
       step: 2,
       actionsEnabled: !_submitting,
       onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
@@ -126,6 +133,13 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
           'Digite o código de 6 caracteres que a outra pessoa mostrou. Ela também precisa digitar o seu.',
         ),
         const SizedBox(height: 20),
+        if (status?.phase == PairingPhase.pending) ...[
+          AppText(
+            pairingRequestNotice(status!),
+            style: TextStyle(color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 16),
+        ],
         TextField(
           key: const Key('partner-code-field'),
           controller: _controller,
@@ -169,6 +183,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
           child: const Text('Voltar ao meu código'),
         ),
       ],
+      ),
     );
   }
 }

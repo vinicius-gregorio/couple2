@@ -86,6 +86,16 @@ class PairResult {
   }
 }
 
+/// Copy for a pending pairing. A code we already sent is an outgoing
+/// request. Pending with no code is the other person asking us to finish.
+String pairingRequestNotice(PairingSnapshot status) {
+  final sent = status.pendingCode;
+  if (sent != null && sent.isNotEmpty) {
+    return 'Pedido enviado ($sent). Falta a outra pessoa digitar o seu código.';
+  }
+  return 'Seu par enviou um pedido de pareamento. Digite o código dele para concluir.';
+}
+
 /// Code to show the user. Pending status does not include `pairingCode`;
 /// that value stays on `GET /auth/me`.
 class ShownPairingCode {

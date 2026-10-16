@@ -30,9 +30,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
 
   test('timezone ids are shown in portuguese', () {
     expect(timezoneLabel('America/Sao_Paulo'), 'Brasília (São Paulo)');
@@ -40,6 +45,7 @@ void main() {
   });
 
   testWidgets('unknown route hides the GoException', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       MaterialApp(theme: lightTheme, home: const UnknownRoutePage()),
     );
@@ -51,6 +57,7 @@ void main() {
   });
 
   testWidgets('character counter uses portuguese', (tester) async {
+    _pinSurface(tester);
     final semantics = tester.ensureSemantics();
     await tester.pumpWidget(
       const MaterialApp(
@@ -78,6 +85,7 @@ void main() {
   });
 
   testWidgets('confirm dialog uses a filled primary action', (tester) async {
+    _pinSurface(tester);
     await tester.pumpWidget(
       MaterialApp(
         theme: lightTheme,
@@ -99,7 +107,7 @@ void main() {
       ),
     );
     await tester.tap(find.text('Abrir'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.widgetWithText(TextButton, 'Cancelar'), findsOneWidget);
     final confirm = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Excluir'),
@@ -119,6 +127,7 @@ void main() {
   testWidgets('home mood card leaves the skeleton when the network hangs', (
     tester,
   ) async {
+    _pinSurface(tester);
     final repo = _HangMood();
     await tester.pumpWidget(
       ProviderScope(
@@ -158,6 +167,7 @@ void main() {
   testWidgets('feed preview shows a portuguese retry when offline', (
     tester,
   ) async {
+    _pinSurface(tester);
     final repo = _HangFeed();
     await tester.pumpWidget(
       ProviderScope(
@@ -225,11 +235,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     await tester.tap(find.byTooltip('Notificações'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Feed aberto'), findsOneWidget);
   });
 
   testWidgets('a presentes row opens on the first tap', (tester) async {
+    _pinSurface(tester);
     final router = GoRouter(
       initialLocation: '/',
       routes: [
@@ -253,13 +264,14 @@ void main() {
     expect(find.text('Presentes'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.chevron_right));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Lista aberta'), findsOneWidget);
   });
 
   testWidgets('nudges mark seen and ver mais stay in portuguese', (
     tester,
   ) async {
+    _pinSurface(tester);
     final repo = _Nudges();
     await tester.pumpWidget(
       ProviderScope(
@@ -334,7 +346,7 @@ class _Nudges implements INudgesRepository {
             senderId: 'bruno',
             receiverId: 'ada',
             kind: NudgeKind.hug,
-            createdAt: DateTime.now(),
+            createdAt: DateTime.utc(2026, 1, 1),
           ),
         ],
         nextCursor: 'c2',
@@ -435,3 +447,10 @@ final _couple = Couple(
   partner: const CouplePartner(id: 'bruno', name: 'Bruno'),
   upcoming: const [],
 );
+
+void _pinSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(900, 1800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}

@@ -92,18 +92,30 @@ class MutationErrorBanner extends StatelessWidget {
 
   final String? message;
 
+  /// Kept even when [message] is empty so the page does not jump.
+  static const double slotHeight = 40;
+
   @override
   Widget build(BuildContext context) {
     final text = message;
-    if (text == null || text.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Text(
-        text,
-        key: bannerKey,
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
-      ),
+    final visible = text != null && text.isNotEmpty;
+    return SizedBox(
+      height: slotHeight,
+      child: visible
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                child: Text(
+                  text,
+                  key: bannerKey,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            )
+          : null,
     );
   }
 }
@@ -113,6 +125,7 @@ class ErrorView extends StatelessWidget {
     super.key,
     required this.message,
     this.onRetry,
+    this.retryLabel = 'Tentar de novo',
     this.compact = false,
   });
 
@@ -120,6 +133,7 @@ class ErrorView extends StatelessWidget {
 
   final String message;
   final VoidCallback? onRetry;
+  final String retryLabel;
   final bool compact;
 
   @override
@@ -139,14 +153,16 @@ class ErrorView extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.error,
+            ),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
             TextButton(
               key: retryKey,
               onPressed: onRetry,
-              child: const Text('Tentar de novo'),
+              child: Text(retryLabel),
             ),
           ],
         ],
@@ -190,7 +206,7 @@ class EmptyView extends StatelessWidget {
           Icon(
             Icons.inbox_outlined,
             size: compact ? 28 : 40,
-            color: theme.colorScheme.onSurfaceVariant,
+            color: theme.colorScheme.primary,
           ),
           const SizedBox(height: 12),
           Text(

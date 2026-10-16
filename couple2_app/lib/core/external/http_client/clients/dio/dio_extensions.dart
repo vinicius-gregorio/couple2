@@ -24,24 +24,13 @@ extension CPLHttpDioExceptionX<T> on DioException {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return const CPLHttpDeadlineExceededException();
+      case DioExceptionType.connectionError:
+        return _offline();
       default:
-        if (response?.statusCode != 400) {
-          final errorMessage =
-              message?.toLowerCase() ?? error?.toString().toLowerCase();
-          if ((errorMessage?.contains('failed host lookup') ?? false) ||
-              (errorMessage?.contains('connection abort') ?? false)) {
-            return CPLHttpNoInternetConnectionException(
-              response: CPLHttpResponse(
-                data: response?.data,
-                headers: response?.headers.map,
-                statusCode: response?.statusCode,
-                statusMessage: response?.statusMessage,
-              ),
-              error: error,
-              stackTrace: stackTrace,
-              message: 'Sem conexão. Verifique a internet e tente de novo.',
-            );
-          }
+        final offlineBlob = '${message ?? ''} ${error ?? ''}'.toLowerCase();
+        if (response?.statusCode != 400 &&
+            (response == null || _isOfflineBlob(offlineBlob))) {
+          return _offline();
         }
 
         switch (response?.statusCode) {
@@ -146,6 +135,32 @@ extension CPLHttpDioExceptionX<T> on DioException {
         }
     }
   }
+
+  CPLHttpNoInternetConnectionException _offline() {
+    return CPLHttpNoInternetConnectionException(
+      response: CPLHttpResponse(
+        data: response?.data,
+        headers: response?.headers.map,
+        statusCode: response?.statusCode,
+        statusMessage: response?.statusMessage,
+      ),
+      error: error,
+      stackTrace: stackTrace,
+      message: 'Sem conexão. Verifique a internet e tente de novo.',
+    );
+  }
+}
+
+bool _isOfflineBlob(String raw) {
+  return raw.contains('failed host lookup') ||
+      raw.contains('connection abort') ||
+      raw.contains('connection refused') ||
+      raw.contains('connection errored') ||
+      raw.contains('connection error') ||
+      raw.contains('xmlhttprequest') ||
+      raw.contains('network is unreachable') ||
+      raw.contains('failed to fetch') ||
+      raw.contains('socketexception');
 }
 
 extension CPLHttpHeadersX<T> on CPLHttpHeaders {

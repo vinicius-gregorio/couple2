@@ -140,6 +140,7 @@ class HomePage extends ConsumerWidget {
                   ErrorView(
                     message: offlineUserMessage,
                     compact: true,
+                    retryLabel: 'Atualizar',
                     onRetry: () => _retryHome(ref),
                   ),
                 if (session.coupleId != null)
