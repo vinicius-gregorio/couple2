@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:couple2_app/core/errors/user_facing_error.dart';
+import 'package:couple2_app/core/external/http_client/exceptions/cpl_http_no_internet_connection_exception.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/design_system/design_system.dart';
@@ -59,6 +60,10 @@ class Gate {
 
   void error() {
     if (!_done.isCompleted) _done.completeError(Exception('fail'));
+  }
+
+  void fail(Object error) {
+    if (!_done.isCompleted) _done.completeError(error);
   }
 }
 
@@ -173,8 +178,59 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text(fallbackUserMessage), findsOneWidget);
-    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
     expect(find.text('Pão'), findsOneWidget);
+  });
+
+  testWidgets('slow check locks every control and keeps the row height', (
+    tester,
+  ) async {
+    final gate = Gate();
+    await _pump(
+      tester,
+      _listsScope(
+        _ListsRepo(
+          gate,
+          op: 'toggle',
+          lists: [
+            _list(items: [_item('a', 'Pão'), _item('b', 'Leite')]),
+          ],
+        ),
+        const ListDetailPage(listId: 'list-1'),
+      ),
+    );
+    final row = find.byKey(const Key('list-item-a'));
+    final before = tester.getSize(row);
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.tap(find.byType(Checkbox).first, warnIfMissed: false);
+    await tester.pump();
+    expect(gate.calls, 1);
+    expect(tester.getSize(row), before);
+    expect(
+      tester.widget<IconButton>(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'Voltar',
+        ),
+      ).onPressed,
+      isNull,
+    );
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).onChanged, isNull);
+    for (final button in tester.widgetList<IconButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Excluir item',
+      ),
+    )) {
+      expect(button.onPressed, isNull);
+    }
+    gate.error();
+    await _settle(tester);
+    expect(find.text(offlineUserMessage), findsNothing);
+    expect(tester.widgetList<Checkbox>(find.byType(Checkbox)), hasLength(2));
+    expect(
+      tester.widgetList<Checkbox>(find.byType(Checkbox)).first.value,
+      isFalse,
+    );
   });
 
   testWidgets('delete list item stays pending and comes back on failure', (
@@ -654,6 +710,56 @@ void main() {
     expect(find.text('Natal'), findsWidgets);
   });
 
+  testWidgets('slow date delete disables the other row in semantics', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final gate = Gate();
+    try {
+    await _pump(
+      tester,
+      _coupleScope(
+        gate,
+        const ImportantDatesPage(),
+        dates: [
+          _coupleDate('Natal'),
+          const CoupleDate(
+            id: 'date-2',
+            coupleId: 'couple-1',
+            type: 'CUSTOM',
+            title: 'Ano novo',
+            date: '2026-01-01',
+            recurrence: 'YEARLY',
+            createdById: 'ada',
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Excluir').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('confirm-delete-date')));
+    await tester.pump();
+    expect(gate.calls, 1);
+    final node = tester.getSemantics(
+      find.byKey(const Key('date-row-date-2')),
+    );
+    expect(node.flagsCollection.isEnabled, isFalse);
+    for (final button in tester.widgetList<IconButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Editar',
+      ),
+    )) {
+      expect(button.onPressed, isNull);
+    }
+    gate.error();
+    await _settle(tester);
+    } finally {
+      handle.dispose();
+    }
+  });
+
   testWidgets('profile birth date shows a spinner and an error', (
     tester,
   ) async {
@@ -813,32 +919,32 @@ void main() {
       ),
     );
     await tester.pump();
-    final before = tester
-        .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Alertas'))
-        .value;
+    final alertas = find.widgetWithText(MutationSwitch, 'Alertas');
+    final before = tester.widget<MutationSwitch>(alertas).value;
     await tester.tap(find.text('Alertas'));
     await tester.pump();
     await tester.tap(find.text('Alertas'), warnIfMissed: false);
     expect(gate.calls, 1);
-    expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
     expect(
-      tester
-          .widget<SwitchListTile>(
-            find.widgetWithText(SwitchListTile, 'Alertas'),
-          )
-          .onChanged,
-      isNull,
+      find.descendant(of: alertas, matching: find.byType(Switch)),
+      findsNothing,
     );
-    gate.error();
+    expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
+    final other = tester.widget<Switch>(
+      find.descendant(
+        of: find.widgetWithText(MutationSwitch, 'Listas'),
+        matching: find.byType(Switch),
+      ),
+    );
+    expect(other.onChanged, isNull);
+    gate.fail(const CPLHttpNoInternetConnectionException());
     await _settle(tester);
-    expect(
-      find.text(fallbackUserMessage),
-      findsOneWidget,
-    );
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(tester.widget<MutationSwitch>(alertas).value, before);
     expect(
       tester
-          .widget<SwitchListTile>(
-            find.widgetWithText(SwitchListTile, 'Alertas'),
+          .widget<Switch>(
+            find.descendant(of: alertas, matching: find.byType(Switch)),
           )
           .value,
       before,

@@ -68,7 +68,6 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
       setState(() {
         _error = userFacingError(
           error,
-          fallback: 'Não foi possível carregar os carinhos.',
         );
         _loading = false;
       });
@@ -97,7 +96,6 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
         _loadingMore = false;
         _error = userFacingError(
           error,
-          fallback: 'Não foi possível carregar os carinhos.',
         );
       });
     }
@@ -121,7 +119,6 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
           setState(() {
             _error = userFacingError(
               error,
-              fallback: 'Não foi possível atualizar os carinhos.',
             );
           });
         }
@@ -139,7 +136,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
           isLoading: _loading,
           hasData: _items.isNotEmpty,
           error: _error,
-          errorMessage: _error ?? 'Não foi possível carregar os carinhos.',
+          errorMessage: _error ?? fallbackUserMessage,
           onRetry: _refresh,
           isEmpty: _items.isEmpty,
           emptyMessage: 'Os carinhos que você receber aparecem aqui.',

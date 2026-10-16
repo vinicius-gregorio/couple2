@@ -189,10 +189,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                 ),
                 if (!collapseThisError(context, error))
                   ErrorView(
-                    message: userFacingError(
-                      error,
-                      fallback: 'Não foi possível carregar o humor',
-                    ),
+                    message: userFacingError(error),
                     compact: true,
                     onRetry: () => ref.invalidate(currentMoodProvider),
                   ),

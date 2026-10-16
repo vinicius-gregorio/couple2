@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
+import '../../../../../core/core.dart';
 import '../../../../../design_system/design_system.dart';
 import '../../../../pairing/routing/routes.dart';
 import '../../../domain/domain.dart';
@@ -107,7 +108,7 @@ class _ListsPageState extends ConsumerState<ListsPage>
             isLoading: state.isLoading,
             hasData: state.lists.isNotEmpty,
             error: state.errorMessage,
-            errorMessage: 'Não foi possível carregar as listas.',
+            errorMessage: state.errorMessage ?? fallbackUserMessage,
             onRetry: _refresh,
             isEmpty: state.lists.isEmpty,
             emptyMessage: 'Nenhuma lista ainda. Crie uma!',
@@ -367,7 +368,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
           ),
           if (isGift) ...[
             const SizedBox(height: 8),
-            SwitchListTile(
+            MutationSwitch(
               contentPadding: EdgeInsets.zero,
               title: Text('Esconder de $_partnerLabel'),
               subtitle: Text(

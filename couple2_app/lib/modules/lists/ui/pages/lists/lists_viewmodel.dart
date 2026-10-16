@@ -81,10 +81,7 @@ class ListsViewModel extends Notifier<ListsState> {
       state = const ListsState(isLoading: false, needsPairing: true);
     } catch (e) {
       if (gen != _fetchGen) return;
-      final message = userFacingError(
-        e,
-        fallback: 'Não foi possível carregar as listas.',
-      );
+      final message = userFacingError(e);
       if (state.lists.isNotEmpty) {
         state = state.copyWith(isLoading: false, errorMessage: message);
         return;
@@ -193,11 +190,7 @@ class ListsViewModel extends Notifier<ListsState> {
       state = state.copyWith(lists: _replace(listId, itemId, updated));
     } catch (error) {
       state = state.copyWith(
-        lists: _replace(
-          listId,
-          itemId,
-          current.copyWith(isCompleted: !current.isCompleted),
-        ),
+        lists: _replace(listId, itemId, current),
         actionError: userFacingError(error),
       );
     } finally {
@@ -270,16 +263,10 @@ class ListsViewModel extends Notifier<ListsState> {
     state = state.copyWith(clearActionError: true);
   }
 
-  /// A list payload that omits items must not wipe rows we already showed.
+  /// A payload that omits `items` must not wipe rows we already showed.
+  /// An explicit empty list is the server's answer, including a partner delete.
   List<PartnerList> _preserveLocalItems(List<PartnerList> fresh) {
-    final local = {for (final list in state.lists) list.id: list};
-    return [
-      for (final next in fresh)
-        if (next.items.isEmpty && (local[next.id]?.items.isNotEmpty ?? false))
-          next.copyWith(items: local[next.id]!.items)
-        else
-          next,
-    ];
+    return preserveLocalItems(state.lists, fresh);
   }
 
   List<PartnerList> _keepPending(List<PartnerList> fresh) {

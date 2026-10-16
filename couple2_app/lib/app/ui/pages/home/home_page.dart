@@ -176,11 +176,7 @@ class HomePage extends ConsumerWidget {
                               collapseOffline && isOfflineFailure(error)
                               ? const SizedBox.shrink()
                               : ErrorView(
-                                  message: userFacingError(
-                                    error,
-                                    fallback:
-                                        'Não foi possível carregar o casal.',
-                                  ),
+                                  message: userFacingError(error),
                                   compact: true,
                                   onRetry: () => ref.invalidate(coupleProvider),
                                 ),
@@ -217,10 +213,7 @@ class HomePage extends ConsumerWidget {
         },
         loading: () => const _BootBody(),
         error: (error, _) => ErrorView(
-          message: userFacingError(
-            error,
-            fallback: 'Não foi possível carregar a sessão.',
-          ),
+          message: userFacingError(error),
           onRetry: () => ref.read(sessionProvider.notifier).refresh(),
         ),
       ),

@@ -160,7 +160,8 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     final upcoming =
         coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(
         leading: AppBackButton(enabled: !_rowLocked),
         title: AppText('Datas importantes'),
@@ -187,24 +188,27 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
             const AppText('Nada nos próximos 60 dias.')
           else
             ...upcoming.map(
-              (entry) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: IgnorePointer(
-                  child: AppText(
-                    nextDateLine(entry).replaceFirst('Próxima data: ', ''),
+              (entry) => MutationLock(
+                locked: _rowLocked,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: IgnorePointer(
+                    child: AppText(
+                      nextDateLine(entry).replaceFirst('Próxima data: ', ''),
+                    ),
                   ),
+                  subtitle: IgnorePointer(
+                    child: AppText(formatDisplayDate(entry.date)),
+                  ),
+                  onTap: _rowLocked || entry.coupleDateId == null
+                      ? null
+                      : () {
+                          final match = _dates.where(
+                            (date) => date.id == entry.coupleDateId,
+                          );
+                          if (match.isNotEmpty) _openSheet(match.first);
+                        },
                 ),
-                subtitle: IgnorePointer(
-                  child: AppText(formatDisplayDate(entry.date)),
-                ),
-                onTap: entry.coupleDateId == null
-                    ? null
-                    : () {
-                        final match = _dates.where(
-                          (date) => date.id == entry.coupleDateId,
-                        );
-                        if (match.isNotEmpty) _openSheet(match.first);
-                      },
               ),
             ),
           const SizedBox(height: 16),
@@ -225,17 +229,17 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           else ...[
             ..._dates.map(
               (date) => _DateRow(
+                key: Key('date-row-${date.id}'),
                 date: date,
                 deleting: _deletingId == date.id,
                 locked: _rowLocked,
                 onOpen: () => _openSheet(date),
-                onDelete: () {
-                  _delete(date);
-                },
+                onDelete: () => _delete(date),
               ),
             ),
           ],
         ],
+      ),
       ),
     );
   }
@@ -243,6 +247,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
 
 class _DateRow extends StatelessWidget {
   const _DateRow({
+    super.key,
     required this.date,
     required this.deleting,
     required this.locked,
@@ -254,7 +259,7 @@ class _DateRow extends StatelessWidget {
   final bool deleting;
   final bool locked;
   final VoidCallback onOpen;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +268,9 @@ class _DateRow extends StatelessWidget {
     final iconColor = busy
         ? scheme.onSurface.withValues(alpha: 0.38)
         : scheme.primary;
-    return Card(
+    return MutationLock(
+      locked: busy,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
@@ -294,14 +301,11 @@ class _DateRow extends StatelessWidget {
             tooltip: 'Excluir',
             loading: deleting,
             icon: const Icon(Icons.delete_outline),
-            onPressed: busy
-                ? null
-                : () {
-                    onDelete();
-                  },
+            onPressed: busy ? null : () => onDelete(),
           ),
           const SizedBox(width: 4),
         ],
+      ),
       ),
     );
   }

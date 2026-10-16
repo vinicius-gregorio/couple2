@@ -21,7 +21,6 @@ class _NotificationPreferencesPageState
   String? _error;
   bool _loading = true;
   bool _saving = false;
-  var _switchEpoch = 0;
 
   @override
   void initState() {
@@ -71,7 +70,6 @@ class _NotificationPreferencesPageState
       if (!mounted) return;
       setState(() {
         _prefs = previous;
-        _switchEpoch++;
         _error = userFacingError(error);
       });
     } finally {
@@ -108,71 +106,55 @@ class _NotificationPreferencesPageState
           ? const FormSkeleton()
           : prefs == null
           ? ErrorView(
-              message: _error ?? 'Não foi possível carregar',
+              message: _error ?? fallbackUserMessage,
               onRetry: _load,
             )
           : ListView(
               children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Center(child: AppSpinner(size: 22)),
-                  ),
                 MutationErrorBanner(message: _error),
-                SwitchListTile(
-                  key: ValueKey('push-${prefs.pushEnabled}-$_switchEpoch'),
+                MutationSwitch(
                   title: const Text('Alertas'),
                   value: prefs.pushEnabled,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'pushEnabled': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey('lists-${prefs.lists}-$_switchEpoch'),
+                MutationSwitch(
                   title: const Text('Listas'),
                   value: prefs.lists,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'lists': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey(
-                    'important-dates-${prefs.importantDates}-$_switchEpoch',
-                  ),
+                MutationSwitch(
                   title: const Text('Datas importantes'),
                   value: prefs.importantDates,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'importantDates': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey(
-                    'daily-question-${prefs.dailyQuestion}-$_switchEpoch',
-                  ),
+                MutationSwitch(
                   title: const Text('Pergunta do dia'),
                   value: prefs.dailyQuestion,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'dailyQuestion': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey('mood-${prefs.mood}-$_switchEpoch'),
+                MutationSwitch(
                   title: const Text('Humor'),
                   value: prefs.mood,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'mood': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey('nudges-${prefs.nudges}-$_switchEpoch'),
+                MutationSwitch(
                   title: const Text('Carinhos'),
                   value: prefs.nudges,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'nudges': value}),
                 ),
-                SwitchListTile(
-                  key: ValueKey('date-plans-${prefs.datePlans}-$_switchEpoch'),
+                MutationSwitch(
                   title: const Text('Planos de encontro'),
                   value: prefs.datePlans,
                   onChanged: _saving

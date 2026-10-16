@@ -45,7 +45,6 @@ class FeedPreview extends ConsumerWidget {
                 ErrorView(
                   message: userFacingError(
                     preview.error!,
-                    fallback: 'Não foi possível carregar o feed',
                   ),
                   compact: true,
                   onRetry: () => ref.invalidate(feedPreviewProvider),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../notifications/routing/routes.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/activity_icon.dart';
@@ -70,8 +71,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
           error: state.errorMessage,
-          errorMessage:
-              state.errorMessage ?? 'Não foi possível carregar o feed.',
+          errorMessage: state.errorMessage ?? fallbackUserMessage,
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nada por aqui ainda.',

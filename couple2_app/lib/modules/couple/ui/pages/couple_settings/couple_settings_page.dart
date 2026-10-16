@@ -171,7 +171,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           title: AppText('Nosso começo'),
         ),
         body: ErrorView(
-          message: 'Não foi possível carregar o casal.',
+          message: userFacingError(coupleAsync.error!),
           onRetry: () => ref.invalidate(coupleProvider),
         ),
       );

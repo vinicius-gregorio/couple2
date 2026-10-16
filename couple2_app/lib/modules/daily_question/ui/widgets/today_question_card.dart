@@ -57,11 +57,7 @@ class TodayQuestionCard extends ConsumerWidget {
                           const AppText('Responda a pergunta de hoje')
                         else if (failedWithoutData)
                           AppText(
-                            userFacingError(
-                              today.error!,
-                              fallback:
-                                  'Não foi possível carregar a pergunta. Toque para abrir.',
-                            ),
+                            userFacingError(today.error!),
                           )
                         else if (copy != null)
                           AppText(copy.title)

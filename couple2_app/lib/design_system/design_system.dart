@@ -12,6 +12,7 @@ export 'widgets/confirm_dialog.dart';
 export 'widgets/async_body.dart';
 export 'widgets/app_date_picker.dart';
 export 'widgets/loading_button.dart';
+export 'widgets/mutation_check.dart';
 export 'widgets/mutation_scope.dart';
 export 'widgets/pop_guard.dart';
 export 'widgets/session_splash.dart';

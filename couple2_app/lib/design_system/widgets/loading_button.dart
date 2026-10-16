@@ -14,13 +14,17 @@ class AppSpinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final paint = color ?? scheme.primary;
+    // Explicit box plus a full track. A bare indicator is clamped to the
+    // label line and paints as a dot.
     return SizedBox(
       key: LoadingButton.spinnerKey,
       width: size,
       height: size,
       child: CircularProgressIndicator(
-        strokeWidth: 2.5,
-        color: color ?? scheme.primary,
+        strokeWidth: 3,
+        backgroundColor: paint.withValues(alpha: 0.24),
+        color: paint,
       ),
     );
   }
@@ -105,29 +109,45 @@ class _LoadingButtonState extends State<LoadingButton> {
       data: IconThemeData(color: labelColor),
       child: DefaultTextStyle.merge(
         style: TextStyle(color: labelColor),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_showSpinner) ...[
-              AppSpinner(size: 22, color: spinnerColor),
-              const SizedBox(width: 12),
-            ] else if (widget.icon != null) ...[
-              IconTheme.merge(
-                data: IconThemeData(color: labelColor),
-                child: widget.icon!,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 24),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: _showSpinner ? 0 : 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.icon != null) ...[
+                      IconTheme.merge(
+                        data: IconThemeData(color: labelColor),
+                        child: widget.icon!,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: DefaultTextStyle.merge(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        child: widget.child,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
+              if (_showSpinner)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AppSpinner(size: 24, color: spinnerColor),
+                    ),
+                  ),
+                ),
             ],
-            Flexible(
-              child: DefaultTextStyle.merge(
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                child: widget.child,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -325,10 +345,15 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
         : scheme.onSurface.withValues(alpha: 0.38);
     return IconButton(
       tooltip: widget.tooltip,
+      iconSize: 24,
       onPressed: enabled ? _press : null,
-      icon: _showSpinner
-          ? AppSpinner(size: 22, color: scheme.primary)
-          : _tinted(widget.icon, foreground),
+      icon: SizedBox(
+        width: 24,
+        height: 24,
+        child: _showSpinner
+            ? AppSpinner(size: 24, color: scheme.primary)
+            : _tinted(widget.icon, foreground),
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import 'question_history_viewmodel.dart';
@@ -90,8 +91,7 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
           error: state.items.isEmpty ? state.errorMessage : null,
-          errorMessage:
-              state.errorMessage ?? 'Não foi possível carregar o histórico.',
+          errorMessage: state.errorMessage ?? fallbackUserMessage,
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nenhuma pergunta ainda.',

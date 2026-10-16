@@ -75,7 +75,6 @@ class FeedViewModel extends Notifier<FeedState> {
         items: state.items,
         errorMessage: userFacingError(
           error,
-          fallback: 'Não foi possível carregar o feed.',
         ),
       );
     }
@@ -102,7 +101,6 @@ class FeedViewModel extends Notifier<FeedState> {
         isLoadingMore: false,
         errorMessage: userFacingError(
           error,
-          fallback: 'Não foi possível carregar o feed.',
         ),
       );
     }

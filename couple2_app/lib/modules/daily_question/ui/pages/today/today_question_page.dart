@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -87,7 +88,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                 )
               else if (question == null && state.errorMessage == null)
                 const EmptyView(
-                  message: 'Não foi possível carregar a pergunta.',
+                  message: fallbackUserMessage,
                   compact: true,
                 )
               else if (question != null) ...[

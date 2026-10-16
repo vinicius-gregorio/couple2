@@ -60,7 +60,6 @@ class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
       state = TodayQuestionState(
         errorMessage: userFacingError(
           error,
-          fallback: 'Não foi possível carregar a pergunta.',
         ),
       );
     }

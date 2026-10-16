@@ -50,13 +50,12 @@ class SessionNotifier extends AsyncNotifier<Session?> {
   }
 
   Future<Session?> _load() {
-    final existing = _loadFlight;
-    if (existing != null) return existing;
-    final flight = _loadOnce();
-    _loadFlight = flight;
-    return flight.whenComplete(() {
-      if (identical(_loadFlight, flight)) _loadFlight = null;
-    });
+    return shareInFlight(
+      current: _loadFlight,
+      read: () => _loadFlight,
+      store: (flight) => _loadFlight = flight,
+      start: _loadOnce,
+    );
   }
 
   Future<Session?> _loadOnce() async {

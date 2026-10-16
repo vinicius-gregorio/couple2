@@ -72,7 +72,6 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
       state = QuestionHistoryState(
         errorMessage: userFacingError(
           error,
-          fallback: 'Não foi possível carregar o histórico.',
         ),
       );
     }
@@ -101,7 +100,6 @@ class QuestionHistoryViewModel extends Notifier<QuestionHistoryState> {
         isLoadingMore: false,
         errorMessage: userFacingError(
           error,
-          fallback: 'Não foi possível carregar o histórico.',
         ),
       );
     }

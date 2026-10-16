@@ -141,3 +141,26 @@ class _MutationInherited extends InheritedWidget {
     return busy != oldWidget.busy || controller != oldWidget.controller;
   }
 }
+
+/// Reports disabled while a mutation is in flight.
+///
+/// A grey icon with a live semantics node still reads as enabled. This wrapper
+/// removes the children's nodes and exposes one disabled control instead.
+class MutationLock extends StatelessWidget {
+  const MutationLock({super.key, required this.child, this.locked = false});
+
+  final Widget child;
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = locked || MutationScope.busyOf(context);
+    if (!busy) return child;
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: false,
+      child: ExcludeSemantics(child: IgnorePointer(child: child)),
+    );
+  }
+}

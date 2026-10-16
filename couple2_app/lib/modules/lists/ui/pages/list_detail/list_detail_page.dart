@@ -200,21 +200,21 @@ class _ItemTile extends ConsumerWidget {
 
     return ListTile(
       key: Key('list-item-${item.id}'),
-      leading: item.pending
-          ? const AppSpinner(key: Key('item-pending'), size: 24)
-          : Checkbox(
-              value: item.isCompleted,
-              onChanged: item.pending || MutationScope.busyOf(context)
-                  ? null
-                  : (_) => vm.toggleItem(listId, item.id),
-            ),
+      leading: MutationCheckbox(
+        value: item.isCompleted,
+        loading: item.pending,
+        busyKey: const Key('item-pending'),
+        onChanged: item.pending || MutationScope.busyOf(context)
+            ? null
+            : (_) => vm.toggleItem(listId, item.id),
+      ),
       title: Text(
         item.content,
         style: item.isCompleted
             ? const TextStyle(decoration: TextDecoration.lineThrough)
             : null,
       ),
-      subtitle: item.pending
+      subtitle: item.pending && item.id.startsWith('pending-')
           ? const Text('Salvando…')
           : _buildSubtitle(item, listType),
       trailing: Row(
@@ -466,11 +466,13 @@ class _AddItemBarState extends State<_AddItemBar> {
                 ],
                 onChanged: widget.onOccasion,
               ),
-              SwitchListTile(
+              MutationSwitch(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Já comprei'),
                 value: widget.bought,
-                onChanged: widget.onBought,
+                onChanged: widget.busy || MutationScope.busyOf(context)
+                    ? null
+                    : widget.onBought,
               ),
             ],
             Row(

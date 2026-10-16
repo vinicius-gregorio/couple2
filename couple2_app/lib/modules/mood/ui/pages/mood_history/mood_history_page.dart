@@ -46,7 +46,6 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
       setState(() {
         _error = userFacingError(
           error,
-          fallback: 'Não foi possível carregar o histórico.',
         );
         _loading = false;
       });
@@ -65,7 +64,7 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
           isLoading: _loading,
           hasData: history != null && history.items.isNotEmpty,
           error: _error,
-          errorMessage: _error ?? 'Não foi possível carregar o histórico.',
+          errorMessage: _error ?? fallbackUserMessage,
           onRetry: _load,
           isEmpty: history == null || history.items.isEmpty,
           emptyMessage: 'Quando vocês quiserem, os check-ins aparecem aqui.',
