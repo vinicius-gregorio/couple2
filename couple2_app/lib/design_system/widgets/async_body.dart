@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/user_facing_error.dart';
@@ -94,13 +93,13 @@ class AsyncValueView<T> extends StatelessWidget {
 
 /// Inline PT-BR failure for a mutation that should stay on screen.
 ///
-/// An empty error takes no space. A message is painted on the overlay at the
-/// anchor, so the form and the rows do not move, and taps pass through to the
-/// control underneath. [MutationBannerTone.info] is a notice, such as a
-/// declined request, and stays in the flow only while it has text.
+/// An empty message takes no space, so idle screens do not keep a blank band.
+/// A message is a normal block in the column, above the next control, and
+/// never paints over a button or a row. [MutationBannerTone.info] is a notice,
+/// such as a declined request.
 enum MutationBannerTone { error, info }
 
-class MutationErrorBanner extends StatefulWidget {
+class MutationErrorBanner extends StatelessWidget {
   const MutationErrorBanner({
     super.key,
     this.message,
@@ -113,195 +112,10 @@ class MutationErrorBanner extends StatefulWidget {
   final MutationBannerTone tone;
 
   @override
-  State<MutationErrorBanner> createState() => _MutationErrorBannerState();
-}
-
-class _MutationErrorBannerState extends State<MutationErrorBanner> {
-  final _portal = OverlayPortalController();
-  final _anchor = GlobalKey();
-  OverlayEntry? _entry;
-
-  bool get _visible {
-    final text = widget.message;
-    return text != null && text.isNotEmpty;
-  }
-
-  /// A zero-extent [ListView] child is dropped by the sliver. A banner nested
-  /// in a [Column] stays reachable, so only a direct row uses [OverlayEntry].
-  bool get _directLazyChild {
-    var nested = false;
-    var lazy = false;
-    context.visitAncestorElements((element) {
-      final ancestor = element.widget;
-      if (ancestor is ListView ||
-          ancestor is SliverList ||
-          ancestor is SliverGrid) {
-        lazy = true;
-        return false;
-      }
-      if (ancestor is Flex || ancestor is Wrap || ancestor is Stack) {
-        nested = true;
-        return false;
-      }
-      return true;
-    });
-    return lazy && !nested;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Showing before the first frame keeps the message in this build, instead
-    // of waiting for a later frame that tests never pump.
-    if (widget.tone == MutationBannerTone.error) _portal.show();
-  }
-
-  @override
-  void dispose() {
-    _removeEntry();
-    super.dispose();
-  }
-
-  void _syncEntry() {
-    if (!mounted || widget.tone != MutationBannerTone.error || !_directLazyChild) {
-      _removeEntry();
-      return;
-    }
-    if (!_visible) {
-      _removeEntry();
-      return;
-    }
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-    final entry = _entry ??= OverlayEntry(builder: _entryLine);
-    if (entry.mounted) {
-      entry.markNeedsBuild();
-    } else {
-      overlay.insert(entry);
-    }
-  }
-
-  void _removeEntry() {
-    final entry = _entry;
-    _entry = null;
-    if (entry != null && entry.mounted) entry.remove();
-  }
-
-  Widget _entryLine(BuildContext context) {
-    final box = _anchor.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize || !box.attached) {
-      return const SizedBox.shrink();
-    }
-    final offset = box.localToGlobal(Offset.zero);
-    final scheme = Theme.of(context).colorScheme;
-    return Positioned(
-      left: offset.dx,
-      top: offset.dy,
-      width: box.size.width,
-      height: 40,
-      child: IgnorePointer(
-        child: Material(
-          color: scheme.surface,
-          child: _ErrorLine(
-            message: widget.message!,
-            tone: MutationBannerTone.error,
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.tone == MutationBannerTone.info) {
-      if (!_visible) return const SizedBox.shrink();
-      return _ErrorLine(message: widget.message!, tone: widget.tone);
-    }
-    if (_directLazyChild) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _syncEntry();
-      });
-      return SizedBox(
-        key: _anchor,
-        width: double.infinity,
-        height: 0,
-      );
-    }
-    _removeEntry();
-    return _ZeroExtent(
-      active: _visible,
-      child: OverlayPortal.overlayChildLayoutBuilder(
-        controller: _portal,
-        overlayChildBuilder: (context, info) {
-          if (!_visible) return const SizedBox.shrink();
-          final translation = info.childPaintTransform.getTranslation();
-          final width = info.childSize.width > 0
-              ? info.childSize.width
-              : info.overlaySize.width;
-          final scheme = Theme.of(context).colorScheme;
-          return Positioned(
-            left: translation.x,
-            top: translation.y,
-            width: width,
-            height: 40,
-            child: IgnorePointer(
-              child: Material(
-                color: scheme.surface,
-                child: _ErrorLine(
-                  message: widget.message!,
-                  tone: MutationBannerTone.error,
-                ),
-              ),
-            ),
-          );
-        },
-        child: const SizedBox(width: double.infinity, height: 0),
-      ),
-    );
-  }
-}
-
-/// Layout height stays 0 so the next row does not move. [paintBounds] is tall
-/// while a message is showing, because a list skips a child whose paint box
-/// has no extent and then widget tests cannot see the overlay message.
-class _ZeroExtent extends SingleChildRenderObjectWidget {
-  const _ZeroExtent({required this.active, required super.child});
-
-  final bool active;
-
-  @override
-  _RenderZeroExtent createRenderObject(BuildContext context) {
-    return _RenderZeroExtent(active: active);
-  }
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderZeroExtent renderObject) {
-    renderObject.active = active;
-  }
-}
-
-class _RenderZeroExtent extends RenderProxyBox {
-  _RenderZeroExtent({required bool active}) : _active = active;
-
-  bool _active;
-
-  set active(bool value) {
-    if (_active == value) return;
-    _active = value;
-    markNeedsPaint();
-  }
-
-  @override
-  void performLayout() {
-    child?.layout(constraints, parentUsesSize: false);
-    final width = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
-    size = Size(width, 0);
-  }
-
-  @override
-  Rect get paintBounds {
-    if (!_active) return Offset.zero & size;
-    return Rect.fromLTWH(0, 0, size.width, 40);
+    final text = message;
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    return _ErrorLine(message: text, tone: tone);
   }
 }
 

@@ -148,7 +148,7 @@ void main() {
     expect(_icon(tester, 'Adicionar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Salvando…'), findsNothing);
     expect(find.text('Leite'), findsOneWidget);
     expect(find.text('Nenhum item ainda.'), findsOneWidget);
@@ -177,7 +177,7 @@ void main() {
     expect(find.byType(Checkbox), findsNothing);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
     expect(find.text('Pão'), findsOneWidget);
   });
@@ -274,7 +274,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Pão'), findsOneWidget);
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
   });
@@ -298,7 +298,7 @@ void main() {
     expect(_filled(tester, 'Criar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsWidgets);
+    expectInlineError(tester, fallbackUserMessage, count: findsWidgets);
     expect(find.text('Nova lista'), findsOneWidget);
   });
 
@@ -330,8 +330,75 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Mercado'), findsOneWidget);
+  });
+
+  testWidgets('slow list delete locks every control and sends once', (
+    tester,
+  ) async {
+    final gate = Gate();
+    await _pump(
+      tester,
+      _listsScope(
+        _ListsRepo(
+          gate,
+          op: 'delete-list',
+          lists: [
+            _list(name: 'Mercado'),
+            _list(id: 'list-2', type: 'MOVIES', name: 'Filmes'),
+          ],
+        ),
+        const ListsPage(),
+      ),
+    );
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(find.text('Filmes'), findsOneWidget);
+    final deletes = find.ancestor(
+      of: find.byTooltip('Excluir lista'),
+      matching: find.byType(IconButton),
+    );
+    expect(deletes, findsNWidgets(2));
+    await tester.tap(deletes.first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gate.calls, 0);
+    expect(find.text('Excluir lista?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-delete-list')));
+    await tester.pump();
+    expect(gate.calls, 1);
+    expect(_icon(tester, 'Voltar').onPressed, isNull);
+    expect(
+      tester
+          .widget<FloatingActionButton>(find.byType(FloatingActionButton))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester.widgetList<IconButton>(deletes).every(
+        (button) => button.onPressed == null,
+      ),
+      isTrue,
+    );
+    expect(
+      tester
+          .widgetList<InkWell>(
+            find.descendant(
+              of: find.byType(Card),
+              matching: find.byType(InkWell),
+            ),
+          )
+          .every((ink) => ink.onTap == null),
+      isTrue,
+    );
+    await tester.tap(deletes.at(1), warnIfMissed: false);
+    await tester.pump();
+    expect(gate.calls, 1);
+    gate.error();
+    await _settle(tester);
+    expectInlineError(tester, fallbackUserMessage);
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(find.text('Filmes'), findsOneWidget);
   });
 
   testWidgets('gift idea add locks and rolls the draft back', (tester) async {
@@ -354,7 +421,7 @@ void main() {
     expect(find.text('Salvando…'), findsOneWidget);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Flores'), findsOneWidget);
     expect(find.text('Salvando…'), findsNothing);
   });
@@ -381,7 +448,7 @@ void main() {
     expect(_filled(tester, '💗 Pensando em você').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
   });
 
@@ -402,10 +469,7 @@ void main() {
     expect(_filled(tester, 'Compartilhar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(
-      find.text(fallbackUserMessage),
-      findsOneWidget,
-    );
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Como você está?'), findsOneWidget);
     expect(find.text('saudade'), findsOneWidget);
     expect(find.text('Fechar'), findsOneWidget);
@@ -436,7 +500,7 @@ void main() {
     expect(_filled(tester, 'Enviar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('O café'), findsOneWidget);
     expect(find.text('Enviar'), findsOneWidget);
   });
@@ -467,7 +531,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Texto novo'), findsOneWidget);
   });
 
@@ -497,7 +561,7 @@ void main() {
     }
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Jantar'), findsOneWidget);
     expect(find.text('Planejar um encontro'), findsOneWidget);
   });
@@ -516,7 +580,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Editar o encontro'), findsOneWidget);
     expect(find.text('Jantar cedo'), findsOneWidget);
   });
@@ -530,7 +594,7 @@ void main() {
     expect(_outlined(tester, 'Recusar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -553,7 +617,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -575,7 +639,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -608,7 +672,7 @@ void main() {
     );
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Jantar'), findsOneWidget);
     expect(find.text('Proposto'), findsOneWidget);
   });
@@ -627,7 +691,7 @@ void main() {
     expect(_filled(tester, 'Marcar como feito').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Confirmado'), findsOneWidget);
   });
 
@@ -651,7 +715,7 @@ void main() {
     expect(find.text('Adicionar'), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Lua de mel'), findsOneWidget);
     expect(find.text('Nova data'), findsOneWidget);
   });
@@ -681,7 +745,7 @@ void main() {
     expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Editar data'), findsOneWidget);
     expect(find.text('Natal cedo'), findsOneWidget);
   });
@@ -706,7 +770,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Natal'), findsWidgets);
   });
 
@@ -787,7 +851,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.text('Ada'), findsOneWidget);
   });
 
@@ -802,7 +866,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text(fallbackUserMessage), findsOneWidget);
+    expectInlineError(tester, fallbackUserMessage);
     expect(find.textContaining('Confira o fuso'), findsNothing);
     expect(find.text('Nosso começo'), findsOneWidget);
   });
@@ -817,9 +881,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(
-      find.text('Não foi possível gerar o código. Tente de novo.'),
-      findsOneWidget,
+    expectInlineError(
+      tester,
+      'Não foi possível gerar o código. Tente de novo.',
     );
   });
 
@@ -834,10 +898,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(
-      find.text('Não foi possível parear agora. Tente de novo.'),
-      findsOneWidget,
-    );
+    expectInlineError(tester, 'Não foi possível parear agora. Tente de novo.');
     expect(find.text('XYZ123'), findsOneWidget);
   });
 
@@ -865,9 +926,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(
-      find.text('Não foi possível cancelar o pedido. Tente de novo.'),
-      findsOneWidget,
+    expectInlineError(
+      tester,
+      'Não foi possível cancelar o pedido. Tente de novo.',
     );
     expect(find.text('Aguardando confirmação'), findsOneWidget);
   });
@@ -898,10 +959,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(
-      find.text('Não foi possível desfazer o par. Tente de novo.'),
-      findsOneWidget,
-    );
+    expectInlineError(tester, 'Não foi possível desfazer o par. Tente de novo.');
     expect(find.text('Desfazer o par'), findsOneWidget);
   });
 
@@ -939,7 +997,7 @@ void main() {
     expect(other.onChanged, isNull);
     gate.fail(const CPLHttpNoInternetConnectionException());
     await _settle(tester);
-    expect(find.text(offlineUserMessage), findsOneWidget);
+    expectInlineError(tester, offlineUserMessage);
     expect(tester.widget<MutationSwitch>(alertas).value, before);
     expect(
       tester
@@ -964,6 +1022,88 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
+}
+
+/// The failure text is on screen, and its banner does not cover a control.
+void expectInlineError(
+  WidgetTester tester,
+  String message, {
+  Matcher count = findsOneWidget,
+}) {
+  final errors = find.text(message);
+  expect(errors, count);
+  final errorElements = errors.evaluate().toList();
+  final errorRects = <Rect>[];
+  for (final element in errorElements) {
+    final rect = _rectOf(_bannerOf(element) ?? element);
+    expect(rect, isNotNull, reason: 'error "$message" has no size');
+    errorRects.add(rect!);
+  }
+
+  final controls = find.byWidgetPredicate((widget) {
+    return widget is ButtonStyleButton ||
+        widget is IconButton ||
+        widget is FloatingActionButton ||
+        widget is ListTile ||
+        widget is Card ||
+        widget is Checkbox ||
+        widget is Switch ||
+        widget is TextField ||
+        widget is InkWell;
+  });
+  for (final control in controls.evaluate()) {
+    if (_hostsAny(control, errorElements)) continue;
+    final route = ModalRoute.of(control);
+    final sameRoute = errorElements.any(
+      (error) => ModalRoute.of(error) == route,
+    );
+    if (!sameRoute) continue;
+    final rect = _rectOf(control);
+    if (rect == null || rect.width <= 0 || rect.height <= 0) continue;
+    for (var i = 0; i < errorElements.length; i++) {
+      if (ModalRoute.of(errorElements[i]) != route) continue;
+      expect(
+        errorRects[i].overlaps(rect),
+        isFalse,
+        reason: '${control.widget.runtimeType} overlaps "$message"',
+      );
+    }
+  }
+}
+
+Element? _bannerOf(Element element) {
+  Element? banner;
+  element.visitAncestorElements((ancestor) {
+    if (ancestor.widget is MutationErrorBanner) {
+      banner = ancestor;
+      return false;
+    }
+    return true;
+  });
+  return banner;
+}
+
+bool _hostsAny(Element root, List<Element> targets) {
+  var hosts = false;
+  void walk(Element node) {
+    if (hosts) return;
+    if (targets.contains(node)) {
+      hosts = true;
+      return;
+    }
+    node.visitChildren(walk);
+  }
+
+  walk(root);
+  return hosts;
+}
+
+Rect? _rectOf(Element element) {
+  final object = element.renderObject;
+  if (object is! RenderBox || !object.attached || !object.hasSize) {
+    return null;
+  }
+  return object.localToGlobal(Offset.zero) & object.size;
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
@@ -1082,12 +1222,13 @@ class _Session extends SessionNotifier {
 }
 
 PartnerList _list({
+  String id = 'list-1',
   String type = 'SHOPPING_CART',
   String name = 'Mercado',
   List<ListItem> items = const [],
 }) {
   return PartnerList(
-    id: 'list-1',
+    id: id,
     type: type,
     name: name,
     ownerId: 'ada',

@@ -31,6 +31,21 @@ void main() {
     expect(hits, isEmpty, reason: hits.join('\n'));
   });
 
+  test('the error banner does not paint over content', () {
+    final pattern = RegExp(
+      r'OverlayPortal|OverlayEntry|\bOverlay\b|\bPositioned\b|\bStack\b',
+    );
+    const file = 'lib/design_system/widgets/async_body.dart';
+    final lines = File(file).readAsLinesSync();
+    final hits = <String>[];
+    for (var i = 0; i < lines.length; i++) {
+      if (pattern.hasMatch(lines[i])) {
+        hits.add('$file:${i + 1}: ${lines[i].trim()}');
+      }
+    }
+    expect(hits, isEmpty, reason: hits.join('\n'));
+  });
+
   test('session loads do not retry and share one in-flight call', () async {
     expect(noProviderRetry(0, Exception('offline')), isNull);
     expect(noProviderRetry(12, Exception('offline')), isNull);
@@ -130,7 +145,7 @@ void main() {
     expect(find.text('dados'), findsNothing);
   });
 
-  testWidgets('an error overlay does not move the next row', (tester) async {
+  testWidgets('an inline error does not cover the next row', (tester) async {
     const line = Key('next-row');
     Widget page(String? message) {
       return MaterialApp(
@@ -153,10 +168,15 @@ void main() {
 
     await tester.pumpWidget(page(offlineUserMessage));
     await tester.pump();
-    await tester.pump();
-    expect(tester.getTopLeft(find.byKey(line)), before);
+    final banner = find.byType(MutationErrorBanner);
+    expect(tester.getSize(banner).height, greaterThan(0));
     expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(tester.getSize(find.byType(MutationErrorBanner)).height, 0);
+    final after = tester.getTopLeft(find.byKey(line));
+    expect(after.dy, greaterThan(before.dy));
+    expect(
+      tester.getRect(banner).overlaps(tester.getRect(find.byKey(line))),
+      isFalse,
+    );
   });
 }
 

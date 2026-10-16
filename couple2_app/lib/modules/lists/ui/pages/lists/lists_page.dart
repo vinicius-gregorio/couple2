@@ -194,7 +194,13 @@ Future<void> _confirmDeleteList(
     confirmKey: const Key('confirm-delete-list'),
   );
   if (!accepted || !context.mounted) return;
-  await ref.read(listsViewModelProvider.notifier).deleteList(list.id);
+  final scope = MutationScope.maybeOf(context);
+  if (scope != null && !scope.claim(list)) return;
+  try {
+    await ref.read(listsViewModelProvider.notifier).deleteList(list.id);
+  } finally {
+    scope?.release(list);
+  }
 }
 
 class _ListCard extends ConsumerWidget {
@@ -214,13 +220,16 @@ class _ListCard extends ConsumerWidget {
         .watch(listsViewModelProvider)
         .deletingListIds
         .contains(list.id);
+    final busy = deleting || MutationScope.busyOf(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Expanded(
             child: InkWell(
-              onTap: () async {
+              onTap: busy
+                  ? null
+                  : () async {
                 await context.push(
                   ListsRoutes.listDetail.replaceFirst(':id', list.id),
                 );
@@ -270,7 +279,7 @@ class _ListCard extends ConsumerWidget {
               tooltip: 'Excluir lista',
               loading: deleting,
               icon: const Icon(Icons.delete_outline),
-              onPressed: deleting
+              onPressed: busy
                   ? null
                   : () {
                       _confirmDeleteList(context, ref, list);
