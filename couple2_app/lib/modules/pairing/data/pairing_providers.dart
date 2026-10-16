@@ -47,11 +47,14 @@ class PairingStatusNotifier extends AsyncNotifier<PairingSnapshot> {
     }
   }
 
+  /// One `POST /pairing/pair`. A pending result does not reload status or the
+  /// session. A paired result waits for `GET /auth/me` so Home has `coupleId`.
+  /// Couple data reloads when Home watches [coupleProvider].
   Future<PairResult> submitCode(String raw) async {
     final code = normalizePairingCode(raw);
     final result = await ref.read(pairingRepositoryProvider).pair(code);
     if (result.phase == PairingPhase.paired) {
-      await refreshSessionAfterPairing();
+      await ref.read(sessionProvider.notifier).refresh();
       state = AsyncData(
         PairingSnapshot(
           phase: PairingPhase.paired,

@@ -6,6 +6,7 @@ export 'theme/divider_theme.dart';
 export 'theme/input_decoration_theme.dart';
 export 'theme/text_theme.dart';
 export 'theme/theme.dart';
+export 'widgets/app_fab.dart';
 export 'widgets/app_text.dart';
 export 'widgets/confirm_dialog.dart';
 export 'widgets/async_body.dart';

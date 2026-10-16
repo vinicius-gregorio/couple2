@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
@@ -48,6 +49,9 @@ class TodayQuestionCard extends ConsumerWidget {
                       const SizedBox(height: 8),
                       if (today.isLoading && question == null)
                         const SkeletonBox(height: 14)
+                      else if (today.hasError &&
+                          collapseThisError(context, today.error!))
+                        const AppText('Toque para tentar de novo')
                       else if (today.hasError)
                         AppText(
                           userFacingError(

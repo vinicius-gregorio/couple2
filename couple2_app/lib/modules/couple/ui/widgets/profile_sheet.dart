@@ -8,9 +8,13 @@ import '../../data/couple_providers.dart';
 import '../../domain/domain.dart';
 
 class ProfileSheet extends ConsumerStatefulWidget {
-  const ProfileSheet({super.key, required this.session});
+  const ProfileSheet({super.key, required this.session, this.hostContext});
 
   final Session session;
+
+  /// Page under the sheet. The birthday picker must use it so a day tap does
+  /// not pop this sheet.
+  final BuildContext? hostContext;
 
   @override
   ConsumerState<ProfileSheet> createState() => _ProfileSheetState();
@@ -30,13 +34,19 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final host = widget.hostContext;
+    final navigator = Navigator.of(
+      host != null && host.mounted ? host : context,
+      rootNavigator: true,
+    );
     final picked = await showDatePicker(
-      context: context,
+      context: navigator.context,
+      useRootNavigator: true,
       initialDate: _birthDate ?? DateTime(now.year - 25, now.month, now.day),
       firstDate: DateTime(1900),
       lastDate: DateTime(now.year, now.month, now.day),
     );
-    if (picked != null) setState(() => _birthDate = picked);
+    if (picked != null && mounted) setState(() => _birthDate = picked);
   }
 
   Future<void> _save() async {
@@ -103,7 +113,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
           LoadingButton(
             loading: _saving,
             onPressed: _saving || _pop.used ? null : _save,
-            child: Text(_saving ? 'Salvando...' : 'Salvar'),
+            child: Text(_saving ? 'Salvando…' : 'Salvar'),
           ),
         ],
       ),

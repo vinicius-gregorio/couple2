@@ -21,6 +21,7 @@ import '../../../../modules/feed/routing/routes.dart';
 import '../../../../modules/feed/ui/widgets/feed_preview.dart';
 import '../../../../modules/lists/routing/routes.dart';
 import '../../../providers.dart';
+import '../../home_failure_scope.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -33,6 +34,7 @@ class HomePage extends ConsumerWidget {
     final logout = ref.read(logoutActionProvider);
     final needsPairing = sessionNeedsPairing(sessionAsync.asData?.value);
     final paired = sessionAsync.asData?.value?.coupleId != null;
+    final collapseOffline = _offlineCount(ref, sessionAsync) >= 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -43,10 +45,14 @@ class HomePage extends ConsumerWidget {
             onPressed: session == null
                 ? null
                 : () {
+                    final host = context;
                     showModalBottomSheet<void>(
-                      context: context,
+                      context: host,
                       isScrollControlled: true,
-                      builder: (_) => ProfileSheet(session: session),
+                      builder: (_) => ProfileSheet(
+                        session: session,
+                        hostContext: host,
+                      ),
                     );
                   },
           ),
@@ -76,16 +82,18 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: sessionAsync.when(
-        data: (session) {
+          data: (session) {
           if (session == null) {
-            return const ListSkeleton(rows: 4);
+            return const _BootBody();
           }
 
           if (sessionNeedsPairing(session)) {
             return const _NeedsPairingBody();
           }
 
-          return RefreshIndicator(
+          return HomeFailureScope(
+            collapseOffline: collapseOffline,
+            child: RefreshIndicator(
             onRefresh: () async {
               await ref.read(sessionProvider.notifier).refresh();
               ref.invalidate(coupleProvider);
@@ -128,40 +136,59 @@ class HomePage extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
+                if (collapseOffline)
+                  ErrorView(
+                    message: offlineUserMessage,
+                    compact: true,
+                    onRetry: () => _retryHome(ref),
+                  ),
                 if (session.coupleId != null)
-                  coupleAsync.when(
-                    data: (couple) {
-                      if (couple == null) return const SizedBox.shrink();
-                      return DaysTogetherCard(
-                        couple: couple,
-                        onOpenSettings: () =>
-                            context.push(CoupleRoutes.settings),
-                        onOpenDates: () => context.push(CoupleRoutes.dates),
-                      );
-                    },
-                    loading: () => const CardSkeleton(),
-                    error: (error, _) => ErrorView(
-                      message: userFacingError(
-                        error,
-                        fallback: 'Não foi possível carregar o casal.',
-                      ),
-                      compact: true,
-                      onRetry: () => ref.invalidate(coupleProvider),
+                  _HomeSlot(
+                    minHeight: 160,
+                    child: coupleAsync.when(
+                      data: (couple) {
+                        if (couple == null) return const SizedBox.shrink();
+                        return DaysTogetherCard(
+                          couple: couple,
+                          onOpenSettings: () =>
+                              context.push(CoupleRoutes.settings),
+                          onOpenDates: () => context.push(CoupleRoutes.dates),
+                        );
+                      },
+                      loading: () => const CardSkeleton(),
+                      error: (error, _) =>
+                          collapseOffline && isOfflineFailure(error)
+                          ? QuietRetry(
+                              onRetry: () => ref.invalidate(coupleProvider),
+                            )
+                          : ErrorView(
+                              message: userFacingError(
+                                error,
+                                fallback: 'Não foi possível carregar o casal.',
+                              ),
+                              compact: true,
+                              onRetry: () => ref.invalidate(coupleProvider),
+                            ),
                     ),
                   ),
                 if (session.coupleId != null) ...[
                   const SizedBox(height: 16),
-                  const MoodHomeCard(),
+                  const _HomeSlot(minHeight: 420, child: MoodHomeCard()),
                   const SizedBox(height: 16),
-                  const NextDateCard(),
+                  const _HomeSlot(minHeight: 148, child: NextDateCard()),
                   const SizedBox(height: 16),
-                  const TodayQuestionCard(),
+                  const _HomeSlot(minHeight: 96, child: TodayQuestionCard()),
                   const SizedBox(height: 16),
-                  FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
+                  _HomeSlot(
+                    minHeight: 160,
+                    child: FeedPreview(
+                      onOpen: () => context.push(FeedRoutes.feed),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 Center(
-                  child: FilledButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () => context.push(ListsRoutes.lists),
                     icon: const Icon(Icons.list),
                     label: const Text('Nossas listas'),
@@ -169,9 +196,10 @@ class HomePage extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
           );
         },
-        loading: () => const ListSkeleton(rows: 4),
+        loading: () => const _BootBody(),
         error: (error, _) => ErrorView(
           message: userFacingError(
             error,
@@ -180,6 +208,67 @@ class HomePage extends ConsumerWidget {
           onRetry: () => ref.read(sessionProvider.notifier).refresh(),
         ),
       ),
+    );
+  }
+}
+
+int _offlineCount(WidgetRef ref, AsyncValue<Session?> session) {
+  if (session.asData?.value?.coupleId == null) return 0;
+  var count = 0;
+  void add(AsyncValue<dynamic> value) {
+    if (value.hasError && isOfflineFailure(value.error!)) count++;
+  }
+
+  add(ref.watch(coupleProvider));
+  add(ref.watch(currentMoodProvider));
+  add(ref.watch(nextDateProvider));
+  add(ref.watch(todayQuestionProvider));
+  add(ref.watch(feedPreviewProvider));
+  return count;
+}
+
+void _retryHome(WidgetRef ref) {
+  ref.invalidate(coupleProvider);
+  ref.invalidate(currentMoodProvider);
+  ref.invalidate(nextDateProvider);
+  ref.invalidate(todayQuestionProvider);
+  ref.invalidate(feedPreviewProvider);
+}
+
+class _BootBody extends StatelessWidget {
+  const _BootBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(height: 16),
+          AppText('Abrindo a sessão…'),
+        ],
+      ),
+    );
+  }
+}
+
+/// Keeps the controls under a loading card from sliding under the finger.
+class _HomeSlot extends StatelessWidget {
+  const _HomeSlot({required this.minHeight, required this.child});
+
+  final double minHeight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: child,
     );
   }
 }
@@ -230,7 +319,7 @@ class _FeedBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'O que rolou',
+      tooltip: 'Notificações',
       onPressed: onPressed,
       icon: Badge(
         isLabelVisible: count > 0,

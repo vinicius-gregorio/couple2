@@ -136,14 +136,15 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFab(
+        tooltip: 'Planejar um date',
+        label: 'Planejar um date',
+        icon: const Icon(Icons.add),
         onPressed: () async {
           await context.push(DatePlanRoutes.create);
           if (!mounted) return;
           await _refreshAll();
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Planejar um date'),
       ),
       body: TabBarView(
         controller: _tabs,

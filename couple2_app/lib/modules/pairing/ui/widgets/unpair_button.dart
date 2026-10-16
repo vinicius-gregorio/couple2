@@ -10,7 +10,10 @@ import '../../domain/domain.dart';
 import '../../routing/routes.dart';
 
 class UnpairButton extends ConsumerStatefulWidget {
-  const UnpairButton({super.key});
+  const UnpairButton({super.key, this.enabled = true, this.onBusyChanged});
+
+  final bool enabled;
+  final ValueChanged<bool>? onBusyChanged;
 
   @override
   ConsumerState<UnpairButton> createState() => _UnpairButtonState();
@@ -21,9 +24,18 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
   var _confirming = false;
   String? _error;
 
+  void _setBusy(bool confirming, bool busy) {
+    final was = _busy || _confirming;
+    _confirming = confirming;
+    _busy = busy;
+    final now = _busy || _confirming;
+    if (was != now) widget.onBusyChanged?.call(now);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _confirm() async {
-    if (_busy || _confirming) return;
-    _confirming = true;
+    if (_busy || _confirming || !widget.enabled) return;
+    _setBusy(true, false);
     setState(() => _error = null);
     final accepted = await confirmDestructive(
       context,
@@ -35,15 +47,13 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
     );
     if (!mounted) return;
     if (accepted != true) {
-      setState(() => _confirming = false);
+      _error = null;
+      _setBusy(false, false);
       return;
     }
 
-    setState(() {
-      _confirming = false;
-      _busy = true;
-      _error = null;
-    });
+    _error = null;
+    _setBusy(false, true);
     try {
       await ref.read(pairingStatusProvider.notifier).unpair();
       if (!mounted) return;
@@ -62,7 +72,7 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
         _error = pairingErrorMessage(error, action: PairingAction.unpair);
       });
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) _setBusy(false, false);
     }
   }
 
@@ -76,12 +86,12 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
           key: const Key('unpair-button'),
           variant: LoadingButtonVariant.outlined,
           loading: _busy,
-          onPressed: _busy || _confirming
+          onPressed: _busy || _confirming || !widget.enabled
               ? null
               : () {
                   _confirm();
                 },
-          child: Text(_busy ? 'Desfazendo...' : 'Desfazer o par'),
+          child: Text(_busy ? 'Desfazendo…' : 'Desfazer o par'),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

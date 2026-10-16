@@ -28,7 +28,7 @@ class DaysTogetherCard extends StatelessWidget {
         child: Column(
           children: [
             if (!hasAnniversary)
-              FilledButton(
+              OutlinedButton(
                 onPressed: onOpenSettings,
                 child: const Text('Quando vocês começaram?'),
               )

@@ -68,7 +68,7 @@ void main() {
     expect(find.text('Histórico'), findsOneWidget);
     expect(find.text('Carinhos recebidos'), findsOneWidget);
     expect(find.byType(ElevatedButton), findsNothing);
-    expect(find.byType(FilledButton), findsWidgets);
+    expect(find.byType(FilledButton), findsOneWidget);
     expect(find.byType(OutlinedButton), findsWidgets);
     expect(find.byType(TextButton), findsWidgets);
 

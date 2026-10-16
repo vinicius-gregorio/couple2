@@ -126,37 +126,24 @@ class PairingCodePage extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 24),
-          _EnterPartnerCode(
-            primary: shown.code != null || statusAsync.isLoading,
-          ),
+          const _EnterPartnerCode(),
         ],
       ),
     );
   }
 }
 
-/// One filled action on this screen. "Gerar código" is that action until a
-/// code exists; after that, typing the partner's code is the only primary.
+/// Stays outlined. "Gerar código" is the only filled action, and this control
+/// must not switch to filled once a code appears.
 class _EnterPartnerCode extends StatelessWidget {
-  const _EnterPartnerCode({required this.primary});
-
-  final bool primary;
+  const _EnterPartnerCode();
 
   @override
   Widget build(BuildContext context) {
-    const child = Text('Digitar o código do meu par');
-    void open() => context.push(PairingRoutes.enter);
-    if (primary) {
-      return FilledButton(
-        key: const Key('enter-partner-code'),
-        onPressed: open,
-        child: child,
-      );
-    }
     return OutlinedButton(
       key: const Key('enter-partner-code'),
-      onPressed: open,
-      child: child,
+      onPressed: () => context.push(PairingRoutes.enter),
+      child: const Text('Digitar o código do meu par'),
     );
   }
 }

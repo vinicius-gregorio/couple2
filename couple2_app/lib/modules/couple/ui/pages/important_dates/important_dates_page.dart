@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/couple_date_sheet.dart';
@@ -18,7 +19,6 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     with WidgetsBindingObserver {
   List<CoupleDate> _dates = const [];
   bool _loading = true;
-  bool _saving = false;
   String? _deletingId;
   String? _loadError;
   String? _actionError;
@@ -55,6 +55,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         setState(() {
           _dates = dates;
           _loading = false;
+          _actionError = null;
         });
       }
     } catch (_) {
@@ -68,18 +69,24 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   }
 
   Future<void> _openSheet([CoupleDate? existing]) async {
-    if (_saving || _deletingId != null) return;
-    final draft = await showModalBottomSheet<CoupleDateDraft>(
-      context: context,
+    if (_deletingId != null) return;
+    setState(() => _actionError = null);
+    final host = context;
+    final saved = await showModalBottomSheet<bool>(
+      context: host,
       isScrollControlled: true,
-      builder: (_) => CoupleDateSheet(existing: existing),
+      builder: (_) => CoupleDateSheet(
+        existing: existing,
+        hostContext: host,
+        onSave: (draft) => _saveDraft(existing, draft),
+      ),
     );
-    if (draft == null || !mounted || _saving) return;
-    final previous = _dates;
-    setState(() {
-      _saving = true;
-      _actionError = null;
-    });
+    if (saved != true || !mounted) return;
+    ref.invalidate(coupleProvider);
+    await _load();
+  }
+
+  Future<String?> _saveDraft(CoupleDate? existing, CoupleDateDraft draft) async {
     try {
       final repo = ref.read(coupleRepositoryProvider);
       if (existing == null) {
@@ -96,24 +103,17 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           recurrence: draft.recurrence,
         );
       }
-      ref.invalidate(coupleProvider);
-      if (!mounted) return;
-      setState(() => _saving = false);
-      await _load();
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _dates = previous;
-          _saving = false;
-          _actionError = 'Não foi possível salvar a data.';
-        });
-      }
+      return null;
+    } catch (error) {
+      return userFacingError(
+        error,
+        fallback: 'Não foi possível salvar a data.',
+      );
     }
   }
 
   Future<void> _delete(CoupleDate date) async {
-    if (_saving || _deletingId != null) return;
-    setState(() => _deletingId = date.id);
+    if (_deletingId != null) return;
     final confirmed = await confirmDestructive(
       context,
       title: 'Excluir data?',
@@ -121,10 +121,11 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       confirmLabel: 'Excluir',
       confirmKey: const Key('confirm-delete-date'),
     );
-    if (confirmed != true || !mounted) {
-      if (mounted) setState(() => _deletingId = null);
-      return;
-    }
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _deletingId = date.id;
+      _actionError = null;
+    });
     final previous = _dates;
     try {
       await ref.read(coupleRepositoryProvider).deleteDate(date.id);
@@ -134,12 +135,15 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         _dates = previous.where((item) => item.id != date.id).toList();
         _deletingId = null;
       });
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
           _dates = previous;
           _deletingId = null;
-          _actionError = 'Não foi possível excluir a data.';
+          _actionError = userFacingError(
+            error,
+            fallback: 'Não foi possível excluir a data.',
+          );
         });
       }
     }
@@ -156,29 +160,14 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         leading: AppBackButton(),
         title: AppText('Datas importantes'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _saving || _deletingId != null ? null : () => _openSheet(),
-        child: const Icon(Icons.add),
+      floatingActionButton: AppFab(
+        tooltip: 'Adicionar data',
+        onPressed: _deletingId != null ? null : () => _openSheet(),
+        icon: const Icon(Icons.add),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  SizedBox(
-                    key: LoadingButton.spinnerKey,
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Salvando…'),
-                ],
-              ),
-            ),
           MutationErrorBanner(message: _actionError),
           const AppText(
             'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
@@ -224,50 +213,88 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           else if (_loadError != null && _dates.isEmpty)
             ErrorView(message: _loadError!, compact: true, onRetry: _load)
           else if (_dates.isEmpty)
-            EmptyView(
-              message: 'Nenhuma data ainda. Adicione a primeira.',
+            const EmptyView(
+              message: 'Nenhuma data ainda. Toque em adicionar.',
               compact: true,
-              action: FilledButton(
-                onPressed: _saving || _deletingId != null
-                    ? null
-                    : () => _openSheet(),
-                child: const Text('Adicionar data'),
-              ),
             )
           else ...[
             ..._dates.map(
-              (date) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: IgnorePointer(child: AppText(date.title)),
-                subtitle: IgnorePointer(
-                  child: AppText(
-                    '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
-                  ),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Editar',
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: _saving || _deletingId != null
-                          ? null
-                          : () => _openSheet(date),
-                    ),
-                    LoadingIconButton(
-                      tooltip: 'Excluir',
-                      loading: _deletingId == date.id,
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: _saving || _deletingId != null
-                          ? null
-                          : () => _delete(date),
-                    ),
-                  ],
-                ),
-                onTap: () => _openSheet(date),
+              (date) => _DateRow(
+                date: date,
+                deleting: _deletingId == date.id,
+                locked: _deletingId != null,
+                onOpen: () => _openSheet(date),
+                onDelete: () {
+                  _delete(date);
+                },
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DateRow extends StatelessWidget {
+  const _DateRow({
+    required this.date,
+    required this.deleting,
+    required this.locked,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final CoupleDate date;
+  final bool deleting;
+  final bool locked;
+  final VoidCallback onOpen;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final busy = locked || deleting;
+    final iconColor = busy
+        ? scheme.onSurface.withValues(alpha: 0.38)
+        : scheme.primary;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: busy ? null : onOpen,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(date.title),
+                    AppText(
+                      '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Editar',
+            onPressed: busy ? null : onOpen,
+            icon: Icon(Icons.edit_outlined, color: iconColor),
+          ),
+          LoadingIconButton(
+            tooltip: 'Excluir',
+            loading: deleting,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: busy
+                ? null
+                : () {
+                    onDelete();
+                  },
+          ),
+          const SizedBox(width: 4),
         ],
       ),
     );

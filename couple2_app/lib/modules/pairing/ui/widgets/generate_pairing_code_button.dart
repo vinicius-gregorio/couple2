@@ -50,6 +50,7 @@ class _GeneratePairingCodeButtonState
             _error!,
             key: const Key('generate-pairing-code-error'),
             textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
       ],

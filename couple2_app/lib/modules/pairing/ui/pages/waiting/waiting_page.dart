@@ -169,7 +169,7 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
                 : () {
                     _cancel();
                   },
-            child: Text(_cancelling ? 'Cancelando...' : 'Cancelar pedido'),
+            child: Text(_cancelling ? 'Cancelando…' : 'Cancelar pedido'),
           ),
           const SizedBox(height: 8),
           TextButton(

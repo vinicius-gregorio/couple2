@@ -29,6 +29,45 @@ class Session {
   final String? pairingCode;
   final DateTime? pairingCodeExpiresAt;
 
+  Map<String, Object?> toCacheJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'picture': picture,
+      'coupleId': coupleId,
+      'birthDate': birthDate,
+      'isPaired': isPaired,
+      'partnerId': partnerId,
+      'partnerName': partnerName,
+      'partnerPicture': partnerPicture,
+      'pairingCode': pairingCode,
+      'pairingCodeExpiresAt': pairingCodeExpiresAt?.toIso8601String(),
+    };
+  }
+
+  factory Session.fromCache(Map<String, dynamic> json) {
+    final id = json['id'];
+    final email = json['email'];
+    if (id is! String || email is! String) {
+      throw const FormatException('Sessão em cache inválida');
+    }
+    return Session(
+      id: id,
+      email: email,
+      name: json['name'] as String? ?? '',
+      picture: json['picture'] as String?,
+      coupleId: json['coupleId'] as String?,
+      birthDate: json['birthDate'] as String?,
+      isPaired: json['isPaired'] as bool? ?? false,
+      partnerId: json['partnerId'] as String?,
+      partnerName: json['partnerName'] as String?,
+      partnerPicture: json['partnerPicture'] as String?,
+      pairingCode: json['pairingCode'] as String?,
+      pairingCodeExpiresAt: _date(json['pairingCodeExpiresAt']),
+    );
+  }
+
   factory Session.fromMe(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>;
     final pairing = json['pairing'] as Map<String, dynamic>? ?? const {};

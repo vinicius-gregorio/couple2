@@ -465,7 +465,7 @@ class _AddItemBarState extends State<_AddItemBar> {
                     controller: widget.controller,
                     enabled: !widget.busy,
                     decoration: const InputDecoration(
-                      hintText: 'Adicionar item...',
+                      hintText: 'Adicionar item…',
                       isDense: true,
                     ),
                     onSubmitted: (_) {

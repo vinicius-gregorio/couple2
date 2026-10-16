@@ -10,6 +10,7 @@ Future<void> showMoodPickerSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    enableDrag: false,
     builder: (_) => const MoodPickerSheet(),
   );
 }
@@ -25,6 +26,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   MoodLevel _mood = MoodLevel.good;
   final _note = TextEditingController();
   bool _saving = false;
+  var _pointers = 0;
   String? _error;
   final _pop = PopGuard();
 
@@ -47,6 +49,15 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
       ref.invalidate(currentMoodProvider);
       ref.invalidate(feedPreviewProvider);
       if (!mounted) return;
+      // Stay up through a double tap so the second click does not hit Home.
+      await Future<void>.delayed(const Duration(milliseconds: 320));
+      if (!mounted || _pop.used) return;
+      var spins = 0;
+      while (_pointers > 0 && spins < 40 && mounted) {
+        spins++;
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+      }
+      if (!mounted || _pop.used) return;
       _pop.pop(context);
     } catch (error) {
       if (!mounted) return;
@@ -60,7 +71,11 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
+    return Listener(
+      onPointerDown: (_) => _pointers++,
+      onPointerUp: (_) => _pointers = (_pointers - 1).clamp(0, 99),
+      onPointerCancel: (_) => _pointers = (_pointers - 1).clamp(0, 99),
+      child: Padding(
       padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -91,6 +106,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
           const SizedBox(height: 16),
           TextField(
             controller: _note,
+            enabled: !_saving,
             maxLength: 140,
             minLines: 1,
             maxLines: 3,
@@ -99,7 +115,13 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
               hintText: 'Opcional',
             ),
           ),
-          if (_error != null) ...[const SizedBox(height: 8), AppText(_error!)],
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            AppText(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
           const SizedBox(height: 12),
           LoadingButton(
             variant: LoadingButtonVariant.filled,
@@ -109,6 +131,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }

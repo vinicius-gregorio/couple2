@@ -16,9 +16,18 @@ class CoupleDateDraft {
 }
 
 class CoupleDateSheet extends StatefulWidget {
-  const CoupleDateSheet({super.key, this.existing});
+  const CoupleDateSheet({
+    super.key,
+    this.existing,
+    this.onSave,
+    this.hostContext,
+  });
 
   final CoupleDate? existing;
+  final BuildContext? hostContext;
+
+  /// Saves the draft. Null means success. A message keeps the sheet open.
+  final Future<String?> Function(CoupleDateDraft draft)? onSave;
 
   @override
   State<CoupleDateSheet> createState() => _CoupleDateSheetState();
@@ -28,6 +37,8 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
   late final TextEditingController _title;
   late DateTime? _date;
   late String _recurrence;
+  var _saving = false;
+  String? _error;
   final _pop = PopGuard();
 
   @override
@@ -57,8 +68,14 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final host = widget.hostContext;
+    final navigator = Navigator.of(
+      host != null && host.mounted ? host : context,
+      rootNavigator: true,
+    );
     final picked = await showDatePicker(
-      context: context,
+      context: navigator.context,
+      useRootNavigator: true,
       initialDate: _date ?? now,
       firstDate: DateTime(1900),
       lastDate: DateTime(now.year + 5),
@@ -66,20 +83,40 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final title = _title.text.trim();
     final date = _date;
-    if (title.isEmpty || title.length > 60 || date == null || _pop.used) {
+    if (_saving ||
+        title.isEmpty ||
+        title.length > 60 ||
+        date == null ||
+        _pop.used) {
       return;
     }
-    _pop.pop(
-      context,
-      CoupleDateDraft(
-        title: title,
-        date: formatDateOnly(date),
-        recurrence: _recurrence,
-      ),
+    final draft = CoupleDateDraft(
+      title: title,
+      date: formatDateOnly(date),
+      recurrence: _recurrence,
     );
+    final save = widget.onSave;
+    if (save == null) {
+      _pop.pop(context, true);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final message = await save(draft);
+    if (!mounted || _pop.used) return;
+    if (message != null) {
+      setState(() {
+        _saving = false;
+        _error = message;
+      });
+      return;
+    }
+    _pop.pop(context, true);
   }
 
   @override
@@ -107,13 +144,14 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
           const SizedBox(height: 16),
           TextField(
             controller: _title,
+            enabled: !_saving,
             maxLength: 60,
             decoration: const InputDecoration(labelText: 'Título'),
             autofocus: true,
           ),
           const SizedBox(height: 8),
           OutlinedButton(
-            onPressed: _pickDate,
+            onPressed: _saving ? null : _pickDate,
             child: Text(
               _date == null
                   ? 'Escolher data'
@@ -128,14 +166,20 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
               DropdownMenuItem(value: 'YEARLY', child: Text('Todo ano')),
               DropdownMenuItem(value: 'NONE', child: Text('Uma vez')),
             ],
-            onChanged: (value) {
-              if (value != null) setState(() => _recurrence = value);
-            },
+            onChanged: _saving
+                ? null
+                : (value) {
+                    if (value != null) setState(() => _recurrence = value);
+                  },
           ),
+          MutationErrorBanner(message: _error),
           const SizedBox(height: 16),
           LoadingButton(
-            onPressed: _canSubmit ? _submit : null,
-            child: Text(editing ? 'Salvar' : 'Adicionar'),
+            loading: _saving,
+            onPressed: _canSubmit && !_saving ? _submit : null,
+            child: Text(
+              _saving ? 'Salvando…' : (editing ? 'Salvar' : 'Adicionar'),
+            ),
           ),
         ],
       ),

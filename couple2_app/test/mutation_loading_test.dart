@@ -371,7 +371,10 @@ void main() {
     await tester.pump();
     await _doubleTap(tester, find.text('Salvar'));
     expect(gate.calls, 1);
-    expect(_filled(tester, 'Salvando...').onPressed, isNull);
+    expect(_filled(tester, 'Salvando…').onPressed, isNull);
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.enabled, isFalse);
+    }
     gate.error();
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
@@ -394,7 +397,7 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
-    expect(find.text('Editar date'), findsOneWidget);
+    expect(find.text('Editar o encontro'), findsOneWidget);
     expect(find.text('Jantar cedo'), findsOneWidget);
   });
 
@@ -466,6 +469,18 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Cancelar'));
     await tester.pump();
     expect(gate.calls, 1);
+    expect(
+      tester
+          .widget<LoadingButton>(find.widgetWithText(LoadingButton, 'Cancelar'))
+          .loading,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<LoadingButton>(find.widgetWithText(LoadingButton, 'Editar'))
+          .loading,
+      isFalse,
+    );
     gate.error();
     await _settle(tester);
     expect(find.text('Não consegui salvar agora.'), findsOneWidget);
@@ -511,7 +526,8 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não foi possível salvar a data.'), findsOneWidget);
-    expect(find.text('Lua de mel'), findsNothing);
+    expect(find.text('Lua de mel'), findsOneWidget);
+    expect(find.text('Nova data'), findsOneWidget);
   });
 
   testWidgets('editing an important date restores the previous title', (
@@ -540,8 +556,8 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(find.text('Não foi possível salvar a data.'), findsOneWidget);
-    expect(find.text('Natal'), findsWidgets);
-    expect(find.text('Natal cedo'), findsNothing);
+    expect(find.text('Editar data'), findsOneWidget);
+    expect(find.text('Natal cedo'), findsOneWidget);
   });
 
   testWidgets('deleting an important date restores the row', (tester) async {
@@ -610,7 +626,8 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível salvar. Confira o fuso.'), findsOneWidget);
+    expect(find.text('Não foi possível salvar.'), findsOneWidget);
+    expect(find.textContaining('Confira o fuso'), findsNothing);
     expect(find.text('Nosso começo'), findsOneWidget);
   });
 
@@ -688,7 +705,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('unpair-button')), warnIfMissed: false);
     expect(gate.calls, 1);
-    expect(find.text('Desfazendo...'), findsOneWidget);
+    expect(find.text('Desfazendo…'), findsOneWidget);
     expect(
       tester.widget<LoadingButton>(find.byKey(const Key('unpair-button'))).onPressed,
       isNull,

@@ -73,9 +73,10 @@ class _ListsPageState extends ConsumerState<ListsPage>
 
     return Scaffold(
       appBar: AppBar(leading: AppBackButton(), title: AppText('Nossas listas')),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
+        tooltip: 'Nova lista',
         onPressed: () => _showCreateListSheet(context, ref, partnerName),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
       ),
       body: _buildBody(context, state),
     );
@@ -255,7 +256,9 @@ class _ListCard extends ConsumerWidget {
             icon: const Icon(Icons.delete_outline),
             onPressed: deleting
                 ? null
-                : () => _confirmDeleteList(context, ref, list),
+                : () {
+                    _confirmDeleteList(context, ref, list);
+                  },
           ),
           const SizedBox(width: 4),
         ],

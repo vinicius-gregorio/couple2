@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/feed_providers.dart';
 import '../../domain/domain.dart';
@@ -36,14 +37,18 @@ class FeedPreview extends ConsumerWidget {
               ),
             ),
             if (preview.hasError)
-              ErrorView(
-                message: userFacingError(
-                  preview.error!,
-                  fallback: 'Não foi possível carregar o feed',
-                ),
-                compact: true,
-                onRetry: () => ref.invalidate(feedPreviewProvider),
-              ),
+              collapseThisError(context, preview.error!)
+                  ? QuietRetry(
+                      onRetry: () => ref.invalidate(feedPreviewProvider),
+                    )
+                  : ErrorView(
+                      message: userFacingError(
+                        preview.error!,
+                        fallback: 'Não foi possível carregar o feed',
+                      ),
+                      compact: true,
+                      onRetry: () => ref.invalidate(feedPreviewProvider),
+                    ),
             _FeedLines(
               loading: preview.isLoading && preview.value == null,
               items: preview.value,

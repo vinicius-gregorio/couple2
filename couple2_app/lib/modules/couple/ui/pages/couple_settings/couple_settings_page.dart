@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/routing/pop_or_go.dart';
 import '../../../../../app/routing/routes.dart';
 import '../../../../pairing/ui/widgets/unpair_button.dart';
@@ -60,6 +61,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
   DateTime? _anniversary;
   String _timezone = 'America/Sao_Paulo';
   bool _saving = false;
+  bool _unpairing = false;
   String? _error;
   bool _initialized = false;
   final _pop = PopGuard();
@@ -103,8 +105,10 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     if (picked != null) setState(() => _anniversary = picked);
   }
 
+  bool get _locked => _saving || _unpairing;
+
   Future<void> _save() async {
-    if (_saving || _pop.used) return;
+    if (_locked || _pop.used) return;
     final anniversary = _anniversary;
     if (anniversary == null) {
       setState(() => _error = 'Escolha a data em que vocês começaram');
@@ -122,11 +126,21 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             timezone: _timezone,
           );
       ref.invalidate(coupleProvider);
-      if (!mounted) return;
+      try {
+        await ref.read(coupleProvider.future);
+      } catch (_) {
+        // The save landed. Home refetches if this read failed.
+      }
+      if (!mounted || _pop.used) return;
       popOrGo(context, APPRoutes.home, guard: _pop);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível salvar. Confira o fuso.');
+        setState(() {
+          _error = userFacingError(
+            error,
+            fallback: 'Não foi possível salvar.',
+          );
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -174,7 +188,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           const AppText('Data de início'),
           const SizedBox(height: 8),
           OutlinedButton(
-            onPressed: _saving ? null : _pickDate,
+            onPressed: _locked ? null : _pickDate,
             child: Text(
               _anniversary == null
                   ? 'Escolher data'
@@ -195,7 +209,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
                   ),
                 )
                 .toList(),
-            onChanged: _saving
+            onChanged: _locked
                 ? null
                 : (value) {
                     if (value != null) setState(() => _timezone = value);
@@ -205,8 +219,8 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           const SizedBox(height: 24),
           LoadingButton(
             loading: _saving,
-            onPressed: _saving || _anniversary == null ? null : _save,
-            child: Text(_saving ? 'Salvando...' : 'Salvar'),
+            onPressed: _locked || _anniversary == null ? null : _save,
+            child: Text(_saving ? 'Salvando…' : 'Salvar'),
           ),
           const SizedBox(height: 48),
           const Divider(),
@@ -217,7 +231,12 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             'As listas deste casal ficam inacessíveis para os dois. Não há arquivo.',
           ),
           const SizedBox(height: 12),
-          const UnpairButton(),
+          UnpairButton(
+            enabled: !_saving,
+            onBusyChanged: (busy) {
+              if (mounted) setState(() => _unpairing = busy);
+            },
+          ),
         ],
       ),
     );

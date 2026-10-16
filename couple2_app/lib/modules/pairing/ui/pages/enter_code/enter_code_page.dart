@@ -106,6 +106,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
     if (statusAsync.isLoading && !statusAsync.hasValue) {
       return PairingScaffold(
         step: 2,
+        actionsEnabled: !_submitting,
         onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
         children: const [CardSkeleton(lines: 2)],
       );
@@ -113,6 +114,8 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
 
     return PairingScaffold(
       step: 2,
+      actionsEnabled: !_submitting,
+      onRefresh: () => ref.read(pairingStatusProvider.notifier).reload(),
       children: [
         const AppText(
           'Código do par',
@@ -156,7 +159,7 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
           key: const Key('submit-partner-code'),
           loading: _submitting,
           onPressed: _canSubmit ? _submit : null,
-          child: Text(_submitting ? 'Enviando...' : 'Enviar pedido'),
+          child: Text(_submitting ? 'Enviando…' : 'Enviar pedido'),
         ),
         const SizedBox(height: 8),
         TextButton(

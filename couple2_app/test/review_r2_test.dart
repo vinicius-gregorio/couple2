@@ -352,8 +352,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
-    expect(find.text('Enviando...'), findsOneWidget);
-    expect(_labelColor(tester, 'Enviando...'), _white);
+    expect(find.text('Enviando…'), findsOneWidget);
+    expect(_labelColor(tester, 'Enviando…'), _white);
     expect(_fill(tester, find.byKey(const Key('submit-partner-code'))), _wine);
     expect(
       tester
@@ -391,10 +391,7 @@ void main() {
 
     await pump(const PairingSnapshot(phase: PairingPhase.unpaired), _ana);
     expect(find.text('Gerar código'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Digitar o código do meu par'),
-      findsOneWidget,
-    );
+    expect(_outlinedLabel('Digitar o código do meu par'), findsOneWidget);
     expect(find.byType(FilledButton), findsOneWidget);
 
     await pump(
@@ -411,13 +408,10 @@ void main() {
       ),
     );
     expect(find.text('Gerar código'), findsNothing);
-    expect(
-      find.widgetWithText(FilledButton, 'Digitar o código do meu par'),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(OutlinedButton, 'Copiar'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Compartilhar'), findsOneWidget);
-    expect(find.byType(FilledButton), findsOneWidget);
+    expect(_outlinedLabel('Digitar o código do meu par'), findsOneWidget);
+    expect(_outlinedLabel('Copiar'), findsOneWidget);
+    expect(_outlinedLabel('Compartilhar'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
   });
 
   testWidgets('waiting page does not add a second primary', (tester) async {
@@ -441,12 +435,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(OutlinedButton, 'Copiar'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Compartilhar'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Cancelar pedido'),
-      findsOneWidget,
-    );
+    expect(_outlinedLabel('Copiar'), findsOneWidget);
+    expect(_outlinedLabel('Compartilhar'), findsOneWidget);
+    expect(_outlinedLabel('Cancelar pedido'), findsOneWidget);
     expect(
       find.widgetWithText(TextButton, 'Voltar ao meu código'),
       findsOneWidget,
@@ -585,6 +576,17 @@ Future<void> _push(
       .state<NavigatorState>(find.byType(Navigator))
       .push(MaterialPageRoute<void>(builder: (_) => page));
   await tester.pumpAndSettle();
+}
+
+/// [OutlinedButton.icon] is not runtimeType [OutlinedButton].
+Finder _outlinedLabel(String label) {
+  return find.ancestor(
+    of: find.text(label),
+    matching: find.byWidgetPredicate((widget) {
+      return widget is ButtonStyleButton &&
+          widget.runtimeType.toString().contains('OutlinedButton');
+    }),
+  );
 }
 
 void _pressTwice(WidgetTester tester, Finder finder) {

@@ -74,6 +74,11 @@ String userFacingError(Object error, {String? fallback}) {
   return generic;
 }
 
+/// True when [userFacingError] would tell the person they are offline.
+bool isOfflineFailure(Object error) {
+  return userFacingError(error) == offlineUserMessage;
+}
+
 String _blob(Object error) {
   final parts = <String>[error.runtimeType.toString(), error.toString()];
   if (error is CPLHttpException) {

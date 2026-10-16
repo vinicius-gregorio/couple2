@@ -55,6 +55,7 @@ class ListsState {
 class ListsViewModel extends Notifier<ListsState> {
   final Set<String> _inflight = {};
   var _pendingSeq = 0;
+  var _fetchGen = 0;
 
   @override
   ListsState build() {
@@ -65,19 +66,30 @@ class ListsViewModel extends Notifier<ListsState> {
   IListsRepository get _repo => ref.read(listsRepositoryProvider);
 
   Future<void> _fetchLists() async {
+    final gen = ++_fetchGen;
     try {
       final lists = await _repo.getLists();
-      state = ListsState(isLoading: false, lists: lists);
-    } on CPLHttpForbiddenException {
-      state = const ListsState(isLoading: false, needsPairing: true);
-    } catch (e) {
+      if (gen != _fetchGen) return;
       state = ListsState(
         isLoading: false,
-        errorMessage: userFacingError(
-          e,
-          fallback: 'Não foi possível carregar as listas.',
-        ),
+        lists: _keepPending(lists),
+        addingListIds: state.addingListIds,
+        deletingListIds: state.deletingListIds,
       );
+    } on CPLHttpForbiddenException {
+      if (gen != _fetchGen) return;
+      state = const ListsState(isLoading: false, needsPairing: true);
+    } catch (e) {
+      if (gen != _fetchGen) return;
+      final message = userFacingError(
+        e,
+        fallback: 'Não foi possível carregar as listas.',
+      );
+      if (state.lists.isNotEmpty) {
+        state = state.copyWith(isLoading: false, errorMessage: message);
+        return;
+      }
+      state = ListsState(isLoading: false, errorMessage: message);
     }
   }
 
@@ -98,10 +110,11 @@ class ListsViewModel extends Notifier<ListsState> {
       final list = await _repo.createList(type, name, visibility: visibility);
       state = state.copyWith(lists: [list, ...state.lists]);
       return null;
-    } catch (_) {
-      const message = 'Não foi possível criar a lista.';
-      state = state.copyWith(actionError: message);
-      return message;
+    } catch (error) {
+      return userFacingError(
+        error,
+        fallback: 'Não foi possível criar a lista.',
+      );
     } finally {
       _inflight.remove(key);
     }
@@ -116,6 +129,7 @@ class ListsViewModel extends Notifier<ListsState> {
   ) async {
     final key = 'add:$listId';
     if (!_inflight.add(key)) return false;
+    _fetchGen++;
     final tempId = 'pending-${_pendingSeq++}';
     final temp = ListItem(
       id: tempId,
@@ -134,17 +148,11 @@ class ListsViewModel extends Notifier<ListsState> {
     );
     try {
       final item = await _repo.addItem(listId, content, metadata);
+      _fetchGen++;
       state = state.copyWith(
-        lists: _map(
-          listId,
-          (list) => list.copyWith(
-            items: [
-              for (final current in list.items)
-                if (current.id == tempId) item else current,
-            ],
-          ),
-        ),
+        lists: _map(listId, (list) => _swapPending(list, tempId, item)),
         addingListIds: ({...state.addingListIds}..remove(listId)),
+        clearActionError: true,
       );
       return true;
     } catch (_) {
@@ -254,6 +262,39 @@ class ListsViewModel extends Notifier<ListsState> {
     } finally {
       _inflight.remove(key);
     }
+  }
+
+  List<PartnerList> _keepPending(List<PartnerList> fresh) {
+    final pending = <String, List<ListItem>>{};
+    for (final list in state.lists) {
+      final rows = [
+        for (final item in list.items)
+          if (item.pending && item.id.startsWith('pending-')) item,
+      ];
+      if (rows.isNotEmpty) pending[list.id] = rows;
+    }
+    if (pending.isEmpty) return fresh;
+    return [
+      for (final list in fresh)
+        if (pending[list.id] == null)
+          list
+        else
+          list.copyWith(items: [...list.items, ...pending[list.id]!]),
+    ];
+  }
+
+  PartnerList _swapPending(PartnerList list, String tempId, ListItem item) {
+    final hasTemp = list.items.any((current) => current.id == tempId);
+    if (hasTemp) {
+      return list.copyWith(
+        items: [
+          for (final current in list.items)
+            if (current.id == tempId) item else current,
+        ],
+      );
+    }
+    if (list.items.any((current) => current.id == item.id)) return list;
+    return list.copyWith(items: [...list.items, item]);
   }
 
   ListItem? _find(String listId, String itemId) {

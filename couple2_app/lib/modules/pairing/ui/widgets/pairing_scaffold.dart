@@ -12,12 +12,17 @@ class PairingScaffold extends ConsumerStatefulWidget {
     required this.step,
     required this.children,
     this.onRefresh,
+    this.actionsEnabled = true,
   });
 
   /// 1, 2, or 3.
   final int step;
   final List<Widget> children;
   final Future<void> Function()? onRefresh;
+
+  /// Locks Sair and Atualizar while a submit is in flight. Atualizar stays
+  /// visible whenever [onRefresh] is set.
+  final bool actionsEnabled;
 
   @override
   ConsumerState<PairingScaffold> createState() => _PairingScaffoldState();
@@ -42,6 +47,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
     final step = widget.step;
     final children = widget.children;
     final onRefresh = widget.onRefresh;
+    final actionsEnabled = widget.actionsEnabled;
     final body = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -70,7 +76,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
             IconButton(
               key: const Key('pairing-refresh'),
               tooltip: 'Atualizar',
-              onPressed: _refreshing ? null : _refresh,
+              onPressed: _refreshing || !actionsEnabled ? null : _refresh,
               icon: _refreshing
                   ? const SizedBox(
                       key: Key('pairingRefreshSpinner'),
@@ -82,7 +88,9 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
             ),
           IconButton(
             tooltip: 'Sair',
-            onPressed: () => ref.read(logoutActionProvider)(),
+            onPressed: actionsEnabled
+                ? () => ref.read(logoutActionProvider)()
+                : null,
             icon: const Icon(Icons.logout),
           ),
         ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../data/date_plans_providers.dart';
 import '../../domain/domain.dart';
@@ -18,14 +19,21 @@ class NextDateCard extends ConsumerWidget {
 
     return next.when(
       loading: () => const CardSkeleton(lines: 2),
-      error: (error, _) => ErrorView(
-        message: userFacingError(
-          error,
-          fallback: 'Não consegui carregar os dates.',
-        ),
-        compact: true,
-        onRetry: () => ref.invalidate(nextDateProvider),
-      ),
+      error: (error, _) => collapseThisError(context, error)
+          ? Card(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              child: QuietRetry(
+                onRetry: () => ref.invalidate(nextDateProvider),
+              ),
+            )
+          : ErrorView(
+              message: userFacingError(
+                error,
+                fallback: 'Não consegui carregar os dates.',
+              ),
+              compact: true,
+              onRetry: () => ref.invalidate(nextDateProvider),
+            ),
       data: (plan) {
         if (plan == null) {
           return Card(
@@ -37,7 +45,7 @@ class NextDateCard extends ConsumerWidget {
                 children: [
                   AppText('Próximo date', style: theme.textTheme.labelLarge),
                   const SizedBox(height: 12),
-                  FilledButton.icon(
+                  OutlinedButton.icon(
                     onPressed: () => context.push(DatePlanRoutes.create),
                     icon: const Icon(Icons.event_available_outlined),
                     label: const Text('Planejar um date'),

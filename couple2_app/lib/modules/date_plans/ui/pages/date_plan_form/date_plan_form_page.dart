@@ -100,8 +100,9 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       final repo = ref.read(datePlansRepositoryProvider);
       final location = _location.text.trim();
       final description = _description.text.trim();
+      final DatePlan saved;
       if (_editing) {
-        await repo.update(
+        saved = await repo.update(
           widget.existing!.id,
           title: title,
           scheduledAt: _when,
@@ -111,7 +112,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
           clearDescription: description.isEmpty,
         );
       } else {
-        await repo.create(
+        saved = await repo.create(
           title: title,
           scheduledAt: _when,
           location: location.isEmpty ? null : location,
@@ -124,7 +125,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       if (!mounted || _pop.used) return;
       if (context.canPop()) {
         if (!_pop.claim(context)) return;
-        context.pop(true);
+        context.pop(saved);
       } else if (_pop.claim(context)) {
         context.go(DatePlanRoutes.list);
       }
@@ -151,16 +152,18 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: AppText(_editing ? 'Editar date' : 'Planejar um date'),
+        title: AppText(_editing ? 'Editar o encontro' : 'Planejar um date'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           TextField(
             controller: _title,
+            enabled: !_saving,
             maxLength: 80,
             decoration: const InputDecoration(labelText: 'Título'),
           ),
@@ -169,18 +172,25 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Data e hora'),
             subtitle: Text('${datePlanWhen(_when)} · horário do aparelho'),
-            trailing: const Icon(Icons.schedule),
+            trailing: Icon(
+              Icons.schedule,
+              color: _saving
+                  ? scheme.onSurface.withValues(alpha: 0.38)
+                  : scheme.primary,
+            ),
             onTap: _saving ? null : _pickWhen,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _location,
+            enabled: !_saving,
             maxLength: 120,
             decoration: const InputDecoration(labelText: 'Local (opcional)'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _description,
+            enabled: !_saving,
             maxLength: 500,
             minLines: 3,
             maxLines: 6,
@@ -193,7 +203,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
             variant: LoadingButtonVariant.filled,
             loading: _saving,
             onPressed: _saving || _title.text.trim().isEmpty ? null : _save,
-            child: Text(_saving ? 'Salvando...' : 'Salvar'),
+            child: Text(_saving ? 'Salvando…' : 'Salvar'),
           ),
         ],
       ),

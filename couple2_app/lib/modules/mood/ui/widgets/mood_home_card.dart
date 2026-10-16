@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
 import '../../../../core/core.dart';
 import '../../../feed/data/feed_providers.dart';
 import '../../data/mood_providers.dart';
@@ -31,9 +32,9 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           .send(kind: kind, message: message);
       ref.invalidate(feedPreviewProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Carinho enviado')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Carinho enviado: ${kind.label}')),
+      );
     } on CPLHttpException catch (error) {
       if (!mounted) return;
       final limited = error.response?.statusCode == 429;
@@ -142,20 +143,36 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
       error: (error, _) => Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AppText(
                 'Como vocês estão',
                 style: Theme.of(context).textTheme.labelLarge,
               ),
-              ErrorView(
-                message: userFacingError(
-                  error,
-                  fallback: 'Não foi possível carregar o humor',
+              if (collapseThisError(context, error))
+                QuietRetry(
+                  onRetry: () => ref.invalidate(currentMoodProvider),
+                )
+              else
+                ErrorView(
+                  message: userFacingError(
+                    error,
+                    fallback: 'Não foi possível carregar o humor',
+                  ),
+                  compact: true,
+                  onRetry: () => ref.invalidate(currentMoodProvider),
                 ),
-                compact: true,
-                onRetry: () => ref.invalidate(currentMoodProvider),
+              const SizedBox(height: 8),
+              _CareButton(
+                sending: _sending,
+                onTap: () => _send(NudgeKind.thinkingOfYou),
+                onLongPress: _sending ? null : _compose,
+              ),
+              TextButton(
+                onPressed: _sending ? null : _compose,
+                child: const Text('Escolher um carinho'),
               ),
             ],
           ),

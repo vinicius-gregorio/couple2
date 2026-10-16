@@ -25,7 +25,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   DatePlan? _plan;
   Object? _error;
   bool _loading = true;
-  bool _busy = false;
+  String? _busyAction;
 
   @override
   void initState() {
@@ -54,11 +54,11 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     }
   }
 
-  Future<void> _run(Future<DatePlan> Function() action) async {
-    if (_busy) return;
-    setState(() => _busy = true);
+  Future<void> _run(String action, Future<DatePlan> Function() work) async {
+    if (_busyAction != null) return;
+    setState(() => _busyAction = action);
     try {
-      final plan = await action();
+      final plan = await work();
       ref.invalidate(nextDateProvider);
       ref.invalidate(feedPreviewProvider);
       ref.read(datePlansChangedProvider.notifier).bump();
@@ -70,18 +70,22 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     } catch (_) {
       _toast('Não consegui salvar agora.');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _busyAction = null);
     }
   }
 
   Future<void> _accept() {
-    return _run(() => ref.read(datePlansRepositoryProvider).accept(widget.id));
+    return _run(
+      'accept',
+      () => ref.read(datePlansRepositoryProvider).accept(widget.id),
+    );
   }
 
   Future<void> _decline() async {
     final note = await _askNote(title: 'Recusar date', confirm: 'Recusar');
     if (note == null) return;
     await _run(
+      'decline',
       () =>
           ref.read(datePlansRepositoryProvider).decline(widget.id, note: note),
     );
@@ -91,6 +95,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final note = await _askNote(title: 'Cancelar date', confirm: 'Cancelar');
     if (note == null) return;
     await _run(
+      'cancel',
       () => ref.read(datePlansRepositoryProvider).cancel(widget.id, note: note),
     );
   }
@@ -126,6 +131,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     );
     if (note == null) return;
     await _run(
+      'counter',
       () => ref
           .read(datePlansRepositoryProvider)
           .counter(widget.id, scheduledAt: when, note: note),
@@ -134,7 +140,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
 
   Future<void> _done() async {
     DatePlan? updated;
-    await _run(() async {
+    await _run('done', () async {
       updated = await ref.read(datePlansRepositoryProvider).done(widget.id);
       return updated!;
     });
@@ -178,10 +184,13 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   Future<void> _edit() async {
     final plan = _plan;
     if (plan == null) return;
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => DatePlanFormPage(existing: plan)),
+    final saved = await Navigator.of(context).push<DatePlan>(
+      MaterialPageRoute<DatePlan>(
+        builder: (_) => DatePlanFormPage(existing: plan),
+      ),
     );
-    if (saved == true) await _load();
+    if (saved == null || !mounted) return;
+    setState(() => _plan = saved);
   }
 
   /// Returns the note, or null when the dialog is dismissed.
@@ -297,7 +306,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
             _Actions(
               plan: plan,
               me: me,
-              busy: _busy,
+              busyAction: _busyAction,
               onAccept: _accept,
               onDecline: _decline,
               onCounter: _counter,
@@ -315,7 +324,7 @@ class _Actions extends StatelessWidget {
   const _Actions({
     required this.plan,
     required this.me,
-    required this.busy,
+    required this.busyAction,
     required this.onAccept,
     required this.onDecline,
     required this.onCounter,
@@ -326,7 +335,7 @@ class _Actions extends StatelessWidget {
 
   final DatePlan plan;
   final String me;
-  final bool busy;
+  final String? busyAction;
   final Future<void> Function() onAccept;
   final Future<void> Function() onDecline;
   final Future<void> Function() onCounter;
@@ -336,47 +345,48 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locked = busyAction != null;
     final buttons = <Widget>[
       if (plan.canAccept(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onAccept,
+          loading: busyAction == 'accept',
+          onPressed: locked ? null : onAccept,
           child: const Text('Aceitar'),
         ),
       if (plan.canDecline(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
-          loading: busy,
-          onPressed: busy ? null : onDecline,
+          loading: busyAction == 'decline',
+          onPressed: locked ? null : onDecline,
           child: const Text('Recusar'),
         ),
       if (plan.canCounter(me))
         LoadingButton(
           variant: LoadingButtonVariant.text,
-          loading: busy,
-          onPressed: busy ? null : onCounter,
+          loading: busyAction == 'counter',
+          onPressed: locked ? null : onCounter,
           child: const Text('Sugerir outro horário'),
         ),
       if (plan.canEdit(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onEdit,
+          loading: busyAction == 'edit',
+          onPressed: locked ? null : onEdit,
           child: const Text('Editar'),
         ),
       if (plan.canCancel(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
-          loading: busy,
-          onPressed: busy ? null : onCancel,
+          loading: busyAction == 'cancel',
+          onPressed: locked ? null : onCancel,
           child: const Text('Cancelar'),
         ),
       if (plan.canDone(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onDone,
+          loading: busyAction == 'done',
+          onPressed: locked ? null : onDone,
           child: const Text('Marcar como feito'),
         ),
     ];
