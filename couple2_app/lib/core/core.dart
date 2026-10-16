@@ -1,3 +1,5 @@
+export 'net/connectivity_report.dart';
+export 'net/request_timeout.dart';
 export 'domain/domain.dart';
 export 'errors/user_facing_error.dart';
 export 'domain/entities/entities.dart';

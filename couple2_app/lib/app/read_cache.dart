@@ -111,10 +111,12 @@ Future<T> loadKeepingCache<T>({
     final fresh = await loadOrTimeout(load());
     await ReadCache.write(key, encode(fresh));
     _clearStale(ref, key);
+    reportConnectivity(true);
     return fresh;
   } on CPLHttpForbiddenException {
     rethrow;
   } catch (error) {
+    if (isOfflineFailure(error)) reportConnectivity(false);
     if (hasCache) {
       if (isOfflineFailure(error)) _markStale(ref, key);
       return decode(stored);

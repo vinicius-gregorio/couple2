@@ -28,9 +28,7 @@ final datePlansChangedProvider = NotifierProvider<DatePlansChanged, int>(
 
 /// The next date for the Home card: first upcoming row, or null.
 final nextDateProvider = FutureProvider<DatePlan?>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return null;
   final repo = ref.watch(datePlansRepositoryProvider);
   try {

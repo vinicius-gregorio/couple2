@@ -15,9 +15,7 @@ final dailyQuestionRepositoryProvider = Provider<IDailyQuestionRepository>((
 });
 
 final todayQuestionProvider = FutureProvider<CoupleQuestion?>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return null;
   final repo = ref.watch(dailyQuestionRepositoryProvider);
   try {

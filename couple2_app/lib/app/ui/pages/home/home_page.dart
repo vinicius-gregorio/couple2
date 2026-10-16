@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/core.dart';
-import '../../../read_cache.dart';
+import '../../../connectivity.dart';
 import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
@@ -40,10 +40,10 @@ class HomePage extends ConsumerWidget {
     final sessionFailed = sessionAsync.hasError && session == null;
     final paired = session?.coupleId != null;
     final showCoupleHome = paired || sessionFailed;
-    final showNotice =
-        sessionFailed ||
-        _offlineCount(ref, sessionAsync) >= 1 ||
-        ref.watch(staleReadsProvider).isNotEmpty;
+    final offline =
+        !ref.watch(connectivityProvider) ||
+        _offlineCount(ref, sessionAsync) >= 1;
+    final showNotice = sessionFailed || offline;
     final noticeMessage = sessionFailed
         ? userFacingError(sessionAsync.error!)
         : offlineUserMessage;

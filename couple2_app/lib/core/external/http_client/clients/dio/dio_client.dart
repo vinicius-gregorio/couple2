@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../net/connectivity_report.dart';
+import '../../../../net/request_timeout.dart';
 import '../../http_client.dart';
 
 class DioClient implements ICPLHttpClient {
@@ -24,6 +26,19 @@ class DioClient implements ICPLHttpClient {
 
     dioForCheckConnection = Dio();
     dio.interceptors.addAll({
+      InterceptorsWrapper(
+        onResponse: (response, handler) {
+          reportConnectivity(true);
+          handler.next(response);
+        },
+        onError: (error, handler) {
+          final mapped = error.toCPLHttpException();
+          if (mapped is CPLHttpNoInternetConnectionException) {
+            reportConnectivity(false);
+          }
+          handler.next(error);
+        },
+      ),
       ...interceptors ?? [],
       if (kDebugMode)
         LogInterceptor(
@@ -177,8 +192,8 @@ class DioClient implements ICPLHttpClient {
       final response = await dioForCheckConnection.get<dynamic>(
         'https://www.google.com',
         options: Options(
-          receiveTimeout: const Duration(seconds: 5),
-          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: requestTimeout,
+          sendTimeout: requestTimeout,
         ),
       );
       return response.statusCode == 200;

@@ -245,8 +245,12 @@ void main() {
       );
       expect(box.height, height);
       expect(retry.top - text.bottom, inInclusiveRange(0, 16));
-      final mid = (text.top + button.bottom) / 2;
-      expect((mid - box.center.dy).abs(), lessThanOrEqualTo(8));
+      if (height > 240) {
+        expect(text.top - box.top, inInclusiveRange(0, 24));
+      } else {
+        final mid = (text.top + button.bottom) / 2;
+        expect((mid - box.center.dy).abs(), lessThanOrEqualTo(8));
+      }
       expect((text.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
       expect((retry.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
     }

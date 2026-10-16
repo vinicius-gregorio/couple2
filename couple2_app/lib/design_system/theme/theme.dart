@@ -156,6 +156,25 @@ const ColorScheme darkColorScheme = ColorScheme(
 );
 
 /// Light theme configuration
+/// Lifts a floating SnackBar above the keyboard and a bottom field or button.
+const snackBarFieldClearance = 112.0;
+
+EdgeInsets actionSnackBarMargin(double viewInsetBottom) {
+  return EdgeInsets.fromLTRB(
+    16,
+    0,
+    16,
+    snackBarFieldClearance + viewInsetBottom,
+  );
+}
+
+SnackBarThemeData actionSnackBarTheme(double viewInsetBottom) {
+  return SnackBarThemeData(
+    behavior: SnackBarBehavior.floating,
+    insetPadding: actionSnackBarMargin(viewInsetBottom),
+  );
+}
+
 final ThemeData lightTheme = _theme(lightColorScheme, Brightness.light);
 
 /// Dark theme configuration
@@ -212,9 +231,7 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
       trackOutlineColor: WidgetStatePropertyAll(scheme.primary),
     ),
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
-    snackBarTheme: const SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-    ),
+    snackBarTheme: actionSnackBarTheme(0),
     chipTheme: appChipTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),
     dividerTheme: isLight ? lightDividerTheme() : darkDividerTheme(),

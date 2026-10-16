@@ -24,7 +24,13 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
   bool _sending = false;
   String? _nudgeError;
 
-  Future<void> _send(NudgeKind kind, {String? message}) async {
+  /// [report] is false when the composer sheet shows the one failure bar.
+  /// Reporting here as well painted a second SnackBar behind the scrim.
+  Future<void> _send(
+    NudgeKind kind, {
+    String? message,
+    bool report = true,
+  }) async {
     if (_sending) return;
     setState(() {
       _sending = true;
@@ -41,7 +47,10 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
       ).showSnackBar(SnackBar(content: Text('Carinho enviado: ${kind.label}')));
     } catch (error) {
       if (!mounted) return;
-      setState(() => _nudgeError = userFacingError(error));
+      if (report) {
+        setState(() => _nudgeError = userFacingError(error));
+        return;
+      }
       Error.throwWithStackTrace(error, StackTrace.current);
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -51,7 +60,8 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
   Future<void> _compose() async {
     await showNudgeComposerSheet(
       context,
-      onSend: (draft) => _send(draft.kind, message: draft.message),
+      onSend: (draft) =>
+          _send(draft.kind, message: draft.message, report: false),
     );
   }
 

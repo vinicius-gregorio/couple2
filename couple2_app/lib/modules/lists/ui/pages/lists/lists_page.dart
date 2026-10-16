@@ -109,6 +109,7 @@ class _ListsPageState extends ConsumerState<ListsPage>
             hasData: state.lists.isNotEmpty,
             error: state.errorMessage,
             errorMessage: state.errorMessage ?? fallbackUserMessage,
+            slotHeight: listCardSlotHeight,
             onRetry: _refresh,
             isEmpty: state.lists.isEmpty,
             emptyMessage: 'Nenhuma lista ainda. Crie uma!',
@@ -226,6 +227,7 @@ class _ListCard extends ConsumerWidget {
       child: Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: AppInkWell(
@@ -238,9 +240,12 @@ class _ListCard extends ConsumerWidget {
                 if (!context.mounted) return;
                 await ref.read(listsViewModelProvider.notifier).refresh();
               },
-              child: Padding(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Icon(icon, color: scheme.primary),
                     const SizedBox(width: 16),
@@ -272,6 +277,7 @@ class _ListCard extends ConsumerWidget {
                     Icon(Icons.chevron_right, color: scheme.primary),
                   ],
                 ),
+              ),
               ),
             ),
           ),

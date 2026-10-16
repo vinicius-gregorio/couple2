@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../theme/theme.dart';
 
 /// One in-flight mutation for the screen under this scope.
 ///
@@ -202,6 +203,7 @@ void showActionSnackBar(BuildContext context, String message) {
     ..showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
+        margin: actionSnackBarMargin(MediaQuery.viewInsetsOf(context).bottom),
         content: Text(message),
       ),
     );

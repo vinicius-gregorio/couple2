@@ -77,3 +77,12 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     return session;
   }
 }
+
+/// Waits until the session read finishes.
+///
+/// Watching only `asData` treats "still loading" as "no couple" and a card
+/// then paints an error while the real request is in flight.
+Future<String?> watchCoupleId(Ref ref) async {
+  final session = await ref.watch(sessionProvider.future);
+  return session?.coupleId;
+}

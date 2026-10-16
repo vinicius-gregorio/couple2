@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/errors/user_facing_error.dart';
 
 /// Shared heights for a Home card's skeleton, load-error, and loaded body.
+/// Tall enough for the loaded body. Error copy in a tall slot stays at the
+/// top so a phone fold still shows the message and the retry.
 const homeMoodCardHeight = 520.0;
-const homeDaysCardHeight = 320.0;
+const homeDaysCardHeight = 208.0;
 const homeNextDateCardHeight = 200.0;
 const homeQuestionCardHeight = 160.0;
 const homeFeedCardHeight = 300.0;

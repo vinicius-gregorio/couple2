@@ -1,5 +1,9 @@
+import '../core/net/request_timeout.dart';
+
 /// Home reads should fail into an error state instead of retrying forever.
-const providerTimeout = Duration(seconds: 12);
+///
+/// Same duration as the HTTP client. A slower call is not an error yet.
+const providerTimeout = requestTimeout;
 
 Duration? noProviderRetry(int retryCount, Object error) => null;
 

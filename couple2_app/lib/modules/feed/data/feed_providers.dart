@@ -13,21 +13,24 @@ final feedRepositoryProvider = Provider<IFeedRepository>((ref) {
 });
 
 final unreadCountProvider = FutureProvider<int>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return 0;
+  final repo = ref.watch(feedRepositoryProvider);
   try {
-    return await loadOrTimeout(ref.watch(feedRepositoryProvider).unreadCount());
+    return await loadKeepingCache(
+      ref: ref,
+      key: 'unread:$coupleId',
+      load: () => repo.unreadCount(),
+      encode: (count) => count,
+      decode: (json) => json is int ? json : 0,
+    );
   } on CPLHttpForbiddenException {
     return 0;
   }
 }, retry: noProviderRetry);
 
 final feedPreviewProvider = FutureProvider<List<ActivityEvent>>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return const [];
   final repo = ref.watch(feedRepositoryProvider);
   try {

@@ -120,6 +120,14 @@ class _CoupleAppState extends ConsumerState<CoupleApp>
       themeMode: ThemeMode.light,
       routerConfig: router,
       builder: (context, child) {
+        final themed = Theme(
+          data: Theme.of(context).copyWith(
+            snackBarTheme: actionSnackBarTheme(
+              MediaQuery.viewInsetsOf(context).bottom,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
         return ListenableBuilder(
           listenable: gate,
           builder: (context, _) {
@@ -129,7 +137,7 @@ class _CoupleAppState extends ConsumerState<CoupleApp>
             );
             return Stack(
               children: [
-                if (child != null) child,
+                themed,
                 if (booting) const SessionSplash(),
               ],
             );

@@ -18,9 +18,7 @@ final nudgesRepositoryProvider = Provider<INudgesRepository>((ref) {
 });
 
 final currentMoodProvider = FutureProvider<MoodCurrent?>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return null;
   final repo = ref.watch(moodRepositoryProvider);
   try {

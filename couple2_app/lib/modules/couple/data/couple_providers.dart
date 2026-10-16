@@ -25,11 +25,9 @@ class CoupleDatesNotifier extends AsyncNotifier<List<CoupleDate>> {
   String? reloadError;
 
   @override
-  Future<List<CoupleDate>> build() {
-    final coupleId = ref.watch(
-      sessionProvider.select((async) => async.asData?.value?.coupleId),
-    );
-    if (coupleId == null) return Future.value(const []);
+  Future<List<CoupleDate>> build() async {
+    final coupleId = await watchCoupleId(ref);
+    if (coupleId == null) return const [];
     return loadOrTimeout(ref.watch(coupleRepositoryProvider).getDates());
   }
 
@@ -69,9 +67,7 @@ class CoupleDatesNotifier extends AsyncNotifier<List<CoupleDate>> {
 }
 
 final coupleProvider = FutureProvider<Couple?>((ref) async {
-  final coupleId = ref.watch(
-    sessionProvider.select((async) => async.asData?.value?.coupleId),
-  );
+  final coupleId = await watchCoupleId(ref);
   if (coupleId == null) return null;
   final repo = ref.watch(coupleRepositoryProvider);
   try {

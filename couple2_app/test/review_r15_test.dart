@@ -605,6 +605,20 @@ void main() {
     expect(find.byType(LoadErrorCard), findsNothing);
     expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
     expect(find.text(offlineUserMessage), findsOneWidget);
+
+    repos.offline = false;
+    container
+      ..invalidate(coupleProvider)
+      ..invalidate(currentMoodProvider)
+      ..invalidate(nextDateProvider)
+      ..invalidate(todayQuestionProvider)
+      ..invalidate(feedPreviewProvider)
+      ..invalidate(unreadCountProvider);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1020 dias juntos'), findsOneWidget);
+    expect(find.byType(LoadErrorCard), findsNothing);
+    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
   });
 }
 

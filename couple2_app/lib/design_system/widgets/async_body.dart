@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors/user_facing_error.dart';
 import 'loading_button.dart';
 import 'skeleton.dart';
+import 'stable_slot.dart';
 
 /// Loading skeleton, error with retry, empty, or [child].
 ///
@@ -19,6 +20,7 @@ class AsyncBody extends StatelessWidget {
     this.hasData = false,
     this.onRetry,
     this.skeleton,
+    this.slotHeight,
     this.emptyMessage = 'Nada por aqui ainda.',
     this.errorMessage = fallbackUserMessage,
   });
@@ -29,6 +31,9 @@ class AsyncBody extends StatelessWidget {
   final bool hasData;
   final VoidCallback? onRetry;
   final Widget? skeleton;
+
+  /// Loaded-card height. The skeleton and the error card use this same number.
+  final double? slotHeight;
   final String emptyMessage;
   final String errorMessage;
   final Widget child;
@@ -36,14 +41,25 @@ class AsyncBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && !hasData) {
-      return skeleton ?? const ListSkeleton();
+      final loading = skeleton ??
+          (slotHeight == null
+              ? const ListSkeleton()
+              : CardSkeleton(minHeight: slotHeight));
+      if (slotHeight == null) return loading;
+      return StableSlot(height: slotHeight!, child: loading);
     }
     if (error != null && !hasData) {
       final failure = error;
       final message = failure is String ? failure : userFacingError(failure!);
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [LoadErrorCard(message: message, onRetry: onRetry)],
+        children: [
+          LoadErrorCard(
+            message: message,
+            onRetry: onRetry,
+            minHeight: slotHeight,
+          ),
+        ],
       );
     }
     if (isEmpty) {
@@ -159,12 +175,16 @@ class LoadErrorCard extends StatelessWidget {
         child: fixed
             ? LayoutBuilder(
                 builder: (context, constraints) {
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                      child: group,
-                    ),
+                  // Short rows stay centered. A tall Home card keeps the
+                  // message at the top, otherwise the fold hides it.
+                  final child = ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                    child: group,
                   );
+                  if (minHeight! > 240) {
+                    return Align(alignment: Alignment.topCenter, child: child);
+                  }
+                  return Center(child: child);
                 },
               )
             : group,
