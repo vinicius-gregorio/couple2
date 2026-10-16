@@ -121,6 +121,18 @@ class _FakePairing implements IPairingRepository {
     final gate = ensureGate;
     if (gate != null) await gate.future;
   }
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async => const [];
+
+  @override
+  Future<PairResult> acceptRequest(String id) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> declineRequest(String id) async {}
+
 }
 
 class _CodeSession extends SessionNotifier {

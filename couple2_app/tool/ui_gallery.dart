@@ -41,6 +41,7 @@ void main() {
         sessionProvider.overrideWith(_GallerySession.new),
         pairingStatusProvider.overrideWith(_GalleryPairing.new),
         pairingPollIntervalProvider.overrideWithValue(null),
+        incomingPairingRequestsProvider.overrideWith(_GalleryIncoming.new),
         logoutActionProvider.overrideWithValue(() async {}),
         coupleProvider.overrideWith((ref) async => _couple),
         unreadCountProvider.overrideWith((ref) async => 2),
@@ -106,6 +107,11 @@ class _GallerySession extends SessionNotifier {
     }
     return _session;
   }
+}
+
+class _GalleryIncoming extends IncomingPairingRequestsNotifier {
+  @override
+  Future<List<IncomingPairingRequest>> build() async => const [];
 }
 
 class _GalleryPairing extends PairingStatusNotifier {

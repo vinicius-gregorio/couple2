@@ -1216,6 +1216,16 @@ class _PairingRepo implements IPairingRepository {
 
   @override
   Future<void> unpair() => gate.hang();
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async => const [];
+
+  @override
+  Future<PairResult> acceptRequest(String id) => gate.hang();
+
+  @override
+  Future<void> declineRequest(String id) => gate.hang();
+
 }
 
 class _NotesRepo implements INotificationsRepository {

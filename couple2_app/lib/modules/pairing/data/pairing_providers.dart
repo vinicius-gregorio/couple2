@@ -16,6 +16,60 @@ final pairingPollIntervalProvider = Provider<Duration?>((ref) {
   return const Duration(seconds: 4);
 });
 
+/// Received-request refresh while a pairing screen is visible.
+/// The poller skips it when [pairingPollIntervalProvider] is null.
+final incomingPairingPollIntervalProvider = Provider<Duration>((ref) {
+  return const Duration(seconds: 10);
+});
+
+final incomingPairingRequestsProvider =
+    AsyncNotifierProvider<
+      IncomingPairingRequestsNotifier,
+      List<IncomingPairingRequest>
+    >(IncomingPairingRequestsNotifier.new);
+
+class IncomingPairingRequestsNotifier
+    extends AsyncNotifier<List<IncomingPairingRequest>> {
+  @override
+  Future<List<IncomingPairingRequest>> build() {
+    return ref.read(pairingRepositoryProvider).receivedRequests();
+  }
+
+  Future<void> reload() async {
+    state = await AsyncValue.guard(
+      () => ref.read(pairingRepositoryProvider).receivedRequests(),
+    );
+  }
+
+  /// Accepts one request. A failure leaves the previous list in place.
+  Future<void> accept(String id) async {
+    final result = await ref.read(pairingRepositoryProvider).acceptRequest(id);
+    if (result.phase == PairingPhase.paired) {
+      try {
+        await ref
+            .read(pairingStatusProvider.notifier)
+            .refreshSessionAfterPairing();
+      } catch (_) {
+        // The pair already committed. The next refresh picks up the session.
+      }
+      ref.read(pairingStatusProvider.notifier).state = AsyncData(
+        PairingSnapshot(
+          phase: PairingPhase.paired,
+          message: result.message,
+          partner: result.partner,
+        ),
+      );
+    }
+    await reload();
+  }
+
+  /// Declines one request. A failure leaves the previous list in place.
+  Future<void> decline(String id) async {
+    await ref.read(pairingRepositoryProvider).declineRequest(id);
+    await reload();
+  }
+}
+
 final pairingStatusProvider =
     AsyncNotifierProvider<PairingStatusNotifier, PairingSnapshot>(
       PairingStatusNotifier.new,

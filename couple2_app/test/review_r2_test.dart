@@ -776,6 +776,18 @@ class _Pairing implements IPairingRepository {
 
   @override
   Future<void> ensurePairingCode() async {}
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async => const [];
+
+  @override
+  Future<PairResult> acceptRequest(String id) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> declineRequest(String id) async {}
+
 }
 
 void _pinSurface(WidgetTester tester) {

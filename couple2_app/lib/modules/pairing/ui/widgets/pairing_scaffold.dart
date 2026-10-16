@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../app/routing/app_back_button.dart';
+import '../../data/pairing_providers.dart';
 import '../../routing/routes.dart';
+import 'incoming_pairing_notice.dart';
 
 const _stepLabels = ['Seu código', 'Código do par', 'Confirmação'];
 
@@ -34,13 +36,16 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
   var _refreshing = false;
 
   Future<void> _refresh() async {
-    final action = widget.onRefresh;
-    if (action == null || _refreshing) return;
+    if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await action();
+      final action = widget.onRefresh;
+      if (action != null) await action();
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted) {
+        await ref.read(incomingPairingRequestsProvider.notifier).reload();
+        if (mounted) setState(() => _refreshing = false);
+      }
     }
   }
 
@@ -60,6 +65,7 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const IncomingPairingNotice(),
                 _Steps(current: step),
                 const SizedBox(height: 24),
                 ...children,

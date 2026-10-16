@@ -205,6 +205,93 @@ export class PairingService {
   }
 
   /**
+   * Requests whose target code is the caller's current pairing code.
+   * The payload is id, time, and the requester's id and name. Never a code.
+   */
+  async listReceivedRequests(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.pairingCode) return [];
+
+    const rows = await this.prisma.pairingRequest.findMany({
+      where: { targetCode: user.pairingCode },
+      include: {
+        requester: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      requester: {
+        id: row.requester.id,
+        name: row.requester.name,
+      },
+    }));
+  }
+
+  /**
+   * Accepts one request addressed to the caller and completes the pair.
+   * A request for anyone else is 404, so ids cannot be used to probe.
+   */
+  async acceptReceivedRequest(userId: string, requestId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const request = await this.ownedRequest(user.pairingCode, requestId);
+    if (user.partnerId) {
+      throw new ConflictException('You are already paired with a partner');
+    }
+
+    const requester = await this.prisma.user.findUnique({
+      where: { id: request.requesterId },
+    });
+    if (!requester) {
+      throw new NotFoundException('Pairing request not found');
+    }
+    if (requester.partnerId) {
+      throw new ConflictException(
+        'This user is already paired with someone else',
+      );
+    }
+
+    return this.completePairing(user.id, requester.id);
+  }
+
+  /**
+   * Declines one request addressed to the caller. Other people's requests stay.
+   */
+  async declineReceivedRequest(userId: string, requestId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const request = await this.ownedRequest(user.pairingCode, requestId);
+    if (user.partnerId) {
+      throw new ConflictException('You are already paired with a partner');
+    }
+
+    await this.prisma.pairingRequest.delete({ where: { id: request.id } });
+    return { message: 'Pairing request declined' };
+  }
+
+  private async ownedRequest(pairingCode: string | null, requestId: string) {
+    const request = await this.prisma.pairingRequest.findUnique({
+      where: { id: requestId },
+    });
+    if (!request || !pairingCode || request.targetCode !== pairingCode) {
+      throw new NotFoundException('Pairing request not found');
+    }
+    return request;
+  }
+
+  /**
    * Unpairs two users (dissolves the relationship).
    */
   async unpair(userId: string): Promise<void> {

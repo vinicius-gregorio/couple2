@@ -790,6 +790,18 @@ class _Pairing implements IPairingRepository {
   Future<void> ensurePairingCode() {
     return Future<void>.error(const CPLHttpNoInternetConnectionException());
   }
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async => const [];
+
+  @override
+  Future<PairResult> acceptRequest(String id) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> declineRequest(String id) async {}
+
 }
 
 class _MoodRepo implements IMoodRepository {

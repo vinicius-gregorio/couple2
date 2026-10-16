@@ -1,6 +1,6 @@
 import '../../../core/external/http_client/exceptions/exceptions.dart';
 
-enum PairingAction { pair, cancel, unpair, status, generate }
+enum PairingAction { pair, cancel, unpair, status, generate, accept, decline }
 
 /// Maps Nest pairing errors to PT-BR. The server messages stay in English.
 String pairingErrorMessage(
@@ -50,6 +50,9 @@ String pairingErrorMessage(
       server.contains('requires you to be paired')) {
     return 'Você não está pareado.';
   }
+  if (server.contains('pairing request not found')) {
+    return 'Esse pedido não está mais disponível.';
+  }
   if (server.contains('user not found')) {
     return 'Não encontrei sua conta. Entre de novo.';
   }
@@ -80,6 +83,10 @@ String pairingErrorMessage(
       return 'Não foi possível atualizar o pareamento. Tente de novo.';
     case PairingAction.generate:
       return 'Não foi possível gerar o código. Tente de novo.';
+    case PairingAction.accept:
+      return 'Não foi possível aceitar o pedido. Tente de novo.';
+    case PairingAction.decline:
+      return 'Não foi possível recusar o pedido. Tente de novo.';
     case PairingAction.pair:
       return 'Não foi possível parear agora. Tente de novo.';
   }

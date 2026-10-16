@@ -147,6 +147,41 @@ Gets the current pairing status for the authenticated user.
 }
 ```
 
+### GET /pairing/requests/received
+
+Lists pairing requests **sent to the authenticated user** (another person entered this user's current pairing code). The caller cannot ask for anyone else's list. The response never includes a pairing code, `targetCode`, or the requester's email.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "createdAt": "2024-01-18T12:00:00.000Z",
+    "requester": { "id": "uuid", "name": "Partner Name" }
+  }
+]
+```
+
+An unpaired user with no incoming requests gets `[]`.
+
+### POST /pairing/requests/:id/accept
+
+Completes pairing for a request that targets the caller's current code. Same paired payload as `POST /pairing/pair`.
+
+| Status | Cause |
+|--------|-------|
+| 404 | Missing id, or the request targets someone else's code |
+| 409 | Caller or requester is already paired |
+
+### POST /pairing/requests/:id/decline
+
+Deletes that one request. Requests addressed to other people are left in place.
+
+| Status | Cause |
+|--------|-------|
+| 404 | Missing id, or the request targets someone else's code |
+| 409 | Caller is already paired |
+
 ### DELETE /pairing/request
 
 Cancels any pending pairing request.

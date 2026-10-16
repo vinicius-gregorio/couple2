@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Delete, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { PairingService } from './pairing.service';
 import { PairRequestDto, PairResponseDto } from './dto';
 import { JwtAuthGuard, PairingGuard } from '../auth/guards';
@@ -40,6 +48,39 @@ export class PairingController {
   @Get('status')
   async getStatus(@GetUser() user: UserWithPartner) {
     return this.pairingService.getPairingStatus(user.id);
+  }
+
+  /**
+   * GET /pairing/requests/received
+   * Requests other people sent to the caller. No pairing code is included.
+   */
+  @Get('requests/received')
+  async received(@GetUser() user: UserWithPartner) {
+    return this.pairingService.listReceivedRequests(user.id);
+  }
+
+  /**
+   * POST /pairing/requests/:id/accept
+   * Completes pairing for a request that targets the caller's own code.
+   */
+  @Post('requests/:id/accept')
+  async acceptReceived(
+    @GetUser() user: UserWithPartner,
+    @Param('id') id: string,
+  ) {
+    return this.pairingService.acceptReceivedRequest(user.id, id);
+  }
+
+  /**
+   * POST /pairing/requests/:id/decline
+   * Deletes a request that targets the caller's own code.
+   */
+  @Post('requests/:id/decline')
+  async declineReceived(
+    @GetUser() user: UserWithPartner,
+    @Param('id') id: string,
+  ) {
+    return this.pairingService.declineReceivedRequest(user.id, id);
   }
 
   /**
