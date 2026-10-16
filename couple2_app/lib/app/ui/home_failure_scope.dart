@@ -1,78 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/user_facing_error.dart';
-import '../../design_system/widgets/loading_button.dart';
 
-/// Shared heights for a Home card, its skeleton, and its load-error card.
-const homeMoodCardHeight = 112.0;
-const homeDaysCardHeight = 210.0;
-const homeNextDateCardHeight = 160.0;
-const homeQuestionCardHeight = 112.0;
-const homeFeedCardHeight = 220.0;
+/// Shared heights for a Home card's skeleton, load-error, and loaded body.
+const homeMoodCardHeight = 520.0;
+const homeDaysCardHeight = 320.0;
+const homeNextDateCardHeight = 200.0;
+const homeQuestionCardHeight = 160.0;
+const homeFeedCardHeight = 300.0;
 
-/// True after any Home retry starts, so the offline subtitle does not linger.
-class HomeOfflineNoticeSuppressed extends Notifier<bool> {
-  @override
-  bool build() => false;
+const homeMoodLoadError = 'Não foi possível carregar o humor.';
+const homeDaysLoadError = 'Não foi possível carregar os dias juntos.';
+const homeDatesLoadError = 'Não foi possível carregar os encontros.';
+const homeQuestionLoadError = 'Não foi possível carregar a pergunta.';
+const homeFeedLoadError = 'Não foi possível carregar o que rolou.';
 
-  void suppress() => state = true;
-
-  void reset() => state = false;
+/// Offline failures keep the short card line. The notice owns the long sentence.
+/// Any other failure uses the shared mapping, including a slow connection.
+String homeCardMessage(Object error, String offlineLine) {
+  if (isOfflineFailure(error)) return offlineLine;
+  return userFacingError(error);
 }
 
-final homeOfflineNoticeSuppressedProvider =
-    NotifierProvider<HomeOfflineNoticeSuppressed, bool>(
-      HomeOfflineNoticeSuppressed.new,
-    );
-
-/// Hides the Home offline subtitle for this failure wave.
-void noteHomeRetry(WidgetRef ref) {
-  ref.read(homeOfflineNoticeSuppressedProvider.notifier).suppress();
-}
-
-/// When several Home reads fail offline, the page shows one banner.
+/// Home reads share one retry. The offline sentence lives on the notice.
 class HomeFailureScope extends InheritedWidget {
   const HomeFailureScope({
     super.key,
-    required this.collapseOffline,
+    required this.retryAll,
     required super.child,
   });
 
-  final bool collapseOffline;
+  final VoidCallback retryAll;
 
-  static bool collapse(BuildContext context) {
-    return context
-            .dependOnInheritedWidgetOfExactType<HomeFailureScope>()
-            ?.collapseOffline ??
-        false;
+  /// Reloads every Home read. False when this card is not on Home.
+  static bool retry(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<HomeFailureScope>();
+    if (scope == null) return false;
+    scope.retryAll();
+    return true;
   }
 
   @override
   bool updateShouldNotify(HomeFailureScope oldWidget) {
-    return collapseOffline != oldWidget.collapseOffline;
+    return retryAll != oldWidget.retryAll;
   }
-}
-
-/// One retry, without repeating the offline sentence already shown above.
-class QuietRetry extends StatelessWidget {
-  const QuietRetry({super.key, required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: LoadingButton(
-        variant: LoadingButtonVariant.text,
-        onPressed: onRetry,
-        child: const Text('Tentar de novo'),
-      ),
-    );
-  }
-}
-
-bool collapseThisError(BuildContext context, Object error) {
-  return HomeFailureScope.collapse(context) && isOfflineFailure(error);
 }

@@ -212,6 +212,9 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
       trackOutlineColor: WidgetStatePropertyAll(scheme.primary),
     ),
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
+    snackBarTheme: const SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+    ),
     chipTheme: appChipTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),
     dividerTheme: isLight ? lightDividerTheme() : darkDividerTheme(),

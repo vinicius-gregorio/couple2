@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session_provider.dart';
 import '../../../../app/ui/home_failure_scope.dart';
-import '../../../../core/core.dart';
 import '../../data/feed_providers.dart';
 import '../../domain/domain.dart';
 import 'activity_icon.dart';
@@ -20,18 +19,22 @@ class FeedPreview extends ConsumerWidget {
     final session = ref.watch(sessionProvider).asData?.value;
 
     if (preview.hasError && !preview.hasValue) {
-      return LoadErrorCard(
-        message: userFacingError(preview.error!),
-        onRetry: () {
-          noteHomeRetry(ref);
-          ref.invalidate(feedPreviewProvider);
-        },
-        minHeight: homeFeedCardHeight,
+      return StableSlot(
+        height: homeFeedCardHeight,
+        child: LoadErrorCard(
+          message: homeCardMessage(preview.error!, homeFeedLoadError),
+          onRetry: () {
+            if (!HomeFailureScope.retry(context)) {
+              ref.invalidate(feedPreviewProvider);
+            }
+          },
+          minHeight: homeFeedCardHeight,
+        ),
       );
     }
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: homeFeedCardHeight),
+    return StableSlot(
+      height: homeFeedCardHeight,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         child: Padding(

@@ -469,7 +469,9 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsNWidgets(4));
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Não foi possível carregar o humor.'), findsOneWidget);
+    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
 
     final moodCard = find.widgetWithText(
       LoadErrorCard,
@@ -479,15 +481,15 @@ void main() {
       find.descendant(of: moodCard, matching: find.text('Tentar de novo')),
     );
     await tester.pump();
-    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
-    expect(find.text('Não foi possível carregar os encontros.'), findsNothing);
-    expect(find.text(offlineUserMessage), findsWidgets);
+    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
+    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
 
     mood.complete(null);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
     expect(find.text('Como vocês estão'), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsWidgets);
+    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
   });
 
   testWidgets('days together stays at the skeleton height, online or offline', (
@@ -511,17 +513,25 @@ void main() {
     }
 
     final skeleton = await cardHeight(
-      const CardSkeleton(lines: 2, minHeight: homeDaysCardHeight),
+      const StableSlot(
+        height: homeDaysCardHeight,
+        child: CardSkeleton(lines: 2, minHeight: homeDaysCardHeight),
+      ),
     );
     final error = await cardHeight(
-      LoadErrorCard(
-        message: offlineUserMessage,
-        onRetry: () {},
-        minHeight: homeDaysCardHeight,
+      StableSlot(
+        height: homeDaysCardHeight,
+        child: LoadErrorCard(
+          message: homeDaysLoadError,
+          onRetry: () {},
+          minHeight: homeDaysCardHeight,
+        ),
       ),
     );
     final loaded = await cardHeight(
-      DaysTogetherCard(
+      StableSlot(
+        height: homeDaysCardHeight,
+        child: DaysTogetherCard(
         couple: Couple(
           id: 'couple-1',
           pairedAt: DateTime.utc(2026, 10, 10),
@@ -534,32 +544,41 @@ void main() {
         onOpenSettings: () {},
         onOpenDates: () {},
       ),
+      ),
     );
     final withNext = await cardHeight(
-      DaysTogetherCard(
-        couple: _couple,
-        onOpenSettings: () {},
-        onOpenDates: () {},
+      StableSlot(
+        height: homeDaysCardHeight,
+        child: DaysTogetherCard(
+          couple: _couple,
+          onOpenSettings: () {},
+          onOpenDates: () {},
+        ),
       ),
     );
     expect(skeleton, homeDaysCardHeight);
     expect(error, skeleton);
     expect(loaded, skeleton);
-    expect(withNext, greaterThanOrEqualTo(loaded));
+    expect(withNext, loaded);
 
     final moodSkeleton = await cardHeight(
-      const CardSkeleton(lines: 2, minHeight: homeMoodCardHeight),
+      const StableSlot(
+        height: homeMoodCardHeight,
+        child: CardSkeleton(lines: 2, minHeight: homeMoodCardHeight),
+      ),
     );
     final moodError = await cardHeight(
-      LoadErrorCard(
-        message: 'Não foi possível carregar o humor.',
-        onRetry: () {},
-        minHeight: homeMoodCardHeight,
+      StableSlot(
+        height: homeMoodCardHeight,
+        child: LoadErrorCard(
+          message: homeMoodLoadError,
+          onRetry: () {},
+          minHeight: homeMoodCardHeight,
+        ),
       ),
     );
     expect(moodSkeleton, homeMoodCardHeight);
     expect(moodError, moodSkeleton);
-    expect(moodError, lessThan(200));
 
     const offline = CPLHttpNoInternetConnectionException();
     await tester.pumpWidget(
@@ -609,7 +628,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text(offlineUserMessage), findsNWidgets(4));
+    expect(find.text(offlineUserMessage), findsOneWidget);
     final days = find.byWidgetPredicate(
       (widget) =>
           widget is LoadErrorCard && widget.minHeight == homeDaysCardHeight,

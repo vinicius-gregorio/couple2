@@ -60,8 +60,13 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-
+    await tester.scrollUntilVisible(find.text('Nossas listas'), 400);
     expect(find.text('Nossas listas'), findsOneWidget);
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pump();
     expect(find.text('Our Lists'), findsNothing);
     expect(find.text('Planejar um encontro'), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);

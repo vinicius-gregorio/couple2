@@ -26,11 +26,19 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
   bool _saving = false;
   String? _error;
   final _pop = PopGuard();
+  final _name = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _birthDate = parseDateOnly(widget.session.birthDate);
+    _name.text = widget.session.name;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
   }
 
   Future<void> _pickDate() async {
@@ -96,9 +104,12 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AppText(
-                    session.name,
+                  TextField(
+                    key: const Key('profile-name-field'),
+                    controller: _name,
+                    enabled: !_saving,
                     style: Theme.of(context).textTheme.titleLarge,
+                    decoration: const InputDecoration(labelText: 'Nome'),
                   ),
                   const SizedBox(height: 4),
                   AppText(session.email),

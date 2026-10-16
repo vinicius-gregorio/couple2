@@ -157,7 +157,12 @@ void showActionSnackBar(BuildContext context, String message) {
   if (messenger == null) return;
   messenger
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(message),
+      ),
+    );
 }
 
 /// Watches a failure string and presents it through [MutationScope.reportError].

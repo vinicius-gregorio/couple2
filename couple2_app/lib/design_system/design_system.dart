@@ -19,5 +19,6 @@ export 'widgets/mutation_check.dart';
 export 'widgets/mutation_scope.dart';
 export 'widgets/pop_guard.dart';
 export 'widgets/session_splash.dart';
+export 'widgets/stable_slot.dart';
 export 'widgets/shimmer.dart';
 export 'widgets/skeleton.dart';

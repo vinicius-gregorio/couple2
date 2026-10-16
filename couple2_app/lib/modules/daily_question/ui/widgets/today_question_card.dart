@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
 import '../../../../app/ui/home_failure_scope.dart';
-import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -31,18 +30,22 @@ class TodayQuestionCard extends ConsumerWidget {
           );
 
     if (failedWithoutData) {
-      return LoadErrorCard(
-        message: userFacingError(today.error!),
-        onRetry: () {
-          noteHomeRetry(ref);
-          ref.invalidate(todayQuestionProvider);
-        },
-        minHeight: homeQuestionCardHeight,
+      return StableSlot(
+        height: homeQuestionCardHeight,
+        child: LoadErrorCard(
+          message: homeCardMessage(today.error!, homeQuestionLoadError),
+          onRetry: () {
+            if (!HomeFailureScope.retry(context)) {
+              ref.invalidate(todayQuestionProvider);
+            }
+          },
+          minHeight: homeQuestionCardHeight,
+        ),
       );
     }
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: homeQuestionCardHeight),
+    return StableSlot(
+      height: homeQuestionCardHeight,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         child: AppInkWell(

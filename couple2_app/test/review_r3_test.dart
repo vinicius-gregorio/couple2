@@ -170,7 +170,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsNWidgets(4));
+    expect(find.text(offlineUserMessage), findsOneWidget);
     expect(find.text('Não foi possível carregar o humor.'), findsOneWidget);
     expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
     expect(find.text('Tentar de novo'), findsNWidgets(5));

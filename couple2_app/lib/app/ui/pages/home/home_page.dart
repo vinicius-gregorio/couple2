@@ -35,15 +35,14 @@ class HomePage extends ConsumerWidget {
     final coupleAsync = ref.watch(coupleProvider);
     final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
-    final paired = sessionAsync.asData?.value?.coupleId != null;
-    final offlineCount = _offlineCount(ref, sessionAsync);
-    final noticeSuppressed = ref.watch(homeOfflineNoticeSuppressedProvider);
-    if (offlineCount < 2 && noticeSuppressed) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(homeOfflineNoticeSuppressedProvider.notifier).reset();
-      });
-    }
-    final collapseOffline = offlineCount >= 2 && !noticeSuppressed;
+    final session = sessionAsync.asData?.value;
+    final sessionFailed = sessionAsync.hasError && session == null;
+    final paired = session?.coupleId != null;
+    final showCoupleHome = paired || sessionFailed;
+    final showNotice = sessionFailed || _offlineCount(ref, sessionAsync) >= 1;
+    final noticeMessage = sessionFailed
+        ? userFacingError(sessionAsync.error!)
+        : offlineUserMessage;
 
     return MutationScope(
       child: Scaffold(
@@ -59,11 +58,9 @@ class HomePage extends ConsumerWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(_offlineNoticeSlot),
           child: _OfflineNotice(
-            offline: collapseOffline,
-            onRetry: () {
-              noteHomeRetry(ref);
-              _retryHome(ref);
-            },
+            offline: showNotice,
+            message: noticeMessage,
+            onRetry: () => _retryHome(ref),
           ),
         ),
         leading: sessionAsync.when(
@@ -84,7 +81,7 @@ class HomePage extends ConsumerWidget {
           error: (_, __) => const _AvatarButton(pictureUrl: null),
         ),
         actions: [
-          if (paired)
+          if (showCoupleHome)
             _FeedBell(
               count: unread,
               onPressed: () => context.push(FeedRoutes.feed),
@@ -112,7 +109,67 @@ class HomePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: sessionAsync.when(
+      body: sessionFailed
+          ? HomeFailureScope(
+              retryAll: () => _retryHome(ref),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                children: [
+                  const _HomeAvatar(picture: null),
+                  const SizedBox(height: 16),
+                  const _Welcome('Bem-vindo!'),
+                  const SizedBox(height: 24),
+                  _fixedCard(
+                    homeDaysCardHeight,
+                    LoadErrorCard(
+                      message: homeDaysLoadError,
+                      onRetry: () => _retryHome(ref),
+                      minHeight: homeDaysCardHeight,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _fixedCard(
+                    homeMoodCardHeight,
+                    LoadErrorCard(
+                      message: homeMoodLoadError,
+                      onRetry: () => _retryHome(ref),
+                      minHeight: homeMoodCardHeight,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _fixedCard(
+                    homeNextDateCardHeight,
+                    LoadErrorCard(
+                      message: homeDatesLoadError,
+                      onRetry: () => _retryHome(ref),
+                      minHeight: homeNextDateCardHeight,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _fixedCard(
+                    homeQuestionCardHeight,
+                    LoadErrorCard(
+                      message: homeQuestionLoadError,
+                      onRetry: () => _retryHome(ref),
+                      minHeight: homeQuestionCardHeight,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _fixedCard(
+                    homeFeedCardHeight,
+                    LoadErrorCard(
+                      message: homeFeedLoadError,
+                      onRetry: () => _retryHome(ref),
+                      minHeight: homeFeedCardHeight,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const _ListsButton(),
+                ],
+              ),
+            )
+          : sessionAsync.when(
         data: (session) {
           if (session == null) {
             return const _BootBody();
@@ -123,130 +180,77 @@ class HomePage extends ConsumerWidget {
           }
 
           return HomeFailureScope(
-            collapseOffline: collapseOffline,
+            retryAll: () => _retryHome(ref),
             child: RefreshIndicator(
               onRefresh: () async {
-                noteHomeRetry(ref);
-                await ref.read(sessionProvider.notifier).refresh();
-                ref.invalidate(coupleProvider);
-                ref.invalidate(unreadCountProvider);
-                ref.invalidate(feedPreviewProvider);
-                ref.invalidate(todayQuestionProvider);
-                ref.invalidate(currentMoodProvider);
-                ref.invalidate(nextDateProvider);
+                await _retryHome(ref);
                 await ref.read(coupleProvider.future);
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 children: [
-                  if (session.picture != null)
-                    Center(
-                      child: CircleAvatar(
-                        key: homeHeaderAvatarKey,
-                        radius: 50,
-                        backgroundImage: NetworkImage(session.picture!),
-                        onBackgroundImageError: (_, __) {},
-                      ),
-                    )
-                  else
-                    Center(
-                      child: CircleAvatar(
-                        key: homeHeaderAvatarKey,
-                        radius: 50,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.primary,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimary,
-                        child: Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Theme.of(context).colorScheme.onPrimary,
+                  _HomeAvatar(picture: session.picture),
+                  const SizedBox(height: 16),
+                  _Welcome('Bem-vindo, ${session.name}!'),
+                  const SizedBox(height: 24),
+                  if (session.coupleId != null)
+                    _fixedCard(
+                      homeDaysCardHeight,
+                      coupleAsync.when(
+                        skipError: true,
+                        data: (couple) {
+                          if (couple == null) {
+                            return LoadErrorCard(
+                              message: homeDaysLoadError,
+                              onRetry: () => _retryHome(ref),
+                              minHeight: homeDaysCardHeight,
+                            );
+                          }
+                          return DaysTogetherCard(
+                            couple: couple,
+                            onOpenSettings: () {
+                              context.push(CoupleRoutes.settings);
+                            },
+                            onOpenDates: () {
+                              context.push(CoupleRoutes.dates);
+                            },
+                          );
+                        },
+                        loading: () => const CardSkeleton(
+                          lines: 2,
+                          minHeight: homeDaysCardHeight,
+                        ),
+                        error: (error, _) => LoadErrorCard(
+                          message: homeCardMessage(error, homeDaysLoadError),
+                          onRetry: () => _retryHome(ref),
+                          minHeight: homeDaysCardHeight,
                         ),
                       ),
                     ),
-                      const SizedBox(height: 16),
-                      AppText(
-                        'Bem-vindo, ${session.name}!',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      if (session.coupleId != null)
-                        coupleAsync.when(
-                          skipError: true,
-                          data: (couple) {
-                            if (couple == null) {
-                              return LoadErrorCard(
-                                message:
-                                    'Não foi possível carregar os dias juntos.',
-                                onRetry: () {
-                                  noteHomeRetry(ref);
-                                  ref.invalidate(coupleProvider);
-                                },
-                                minHeight: homeDaysCardHeight,
-                              );
-                            }
-                            return DaysTogetherCard(
-                              couple: couple,
-                              onOpenSettings: () {
-                                context.push(CoupleRoutes.settings);
-                              },
-                              onOpenDates: () {
-                                context.push(CoupleRoutes.dates);
-                              },
-                            );
-                          },
-                          loading: () => const CardSkeleton(
-                            lines: 2,
-                            minHeight: homeDaysCardHeight,
-                          ),
-                          error: (error, _) => LoadErrorCard(
-                            message: userFacingError(error),
-                            onRetry: () {
-                              noteHomeRetry(ref);
-                              ref.invalidate(coupleProvider);
-                            },
-                            minHeight: homeDaysCardHeight,
-                          ),
-                        ),
-                      if (session.coupleId != null) ...[
-                        const SizedBox(height: 16),
-                        const MoodHomeCard(),
-                        const SizedBox(height: 16),
-                        const NextDateCard(),
-                        const SizedBox(height: 16),
-                        const TodayQuestionCard(),
-                        const SizedBox(height: 16),
-                        FeedPreview(
-                          onOpen: () {
-                            context.push(FeedRoutes.feed);
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      Center(
-                        child: LoadingButton(
-                          variant: LoadingButtonVariant.outlined,
-                          icon: const Icon(Icons.list),
-                          onPressed: () {
-                            context.push(ListsRoutes.lists);
-                          },
-                          child: const Text('Nossas listas'),
-                        ),
-                      ),
+                  if (session.coupleId != null) ...[
+                    const SizedBox(height: 16),
+                    const MoodHomeCard(),
+                    const SizedBox(height: 16),
+                    const NextDateCard(),
+                    const SizedBox(height: 16),
+                    const TodayQuestionCard(),
+                    const SizedBox(height: 16),
+                    FeedPreview(
+                      onOpen: () {
+                        context.push(FeedRoutes.feed);
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  const _ListsButton(),
                 ],
               ),
             ),
           );
         },
         loading: () => const _BootBody(),
-        error: (error, _) => ErrorView(
-          message: userFacingError(error),
-          onRetry: () => ref.read(sessionProvider.notifier).refresh(),
-        ),
+        error: (_, __) => const _BootBody(),
       ),
       ),
     );
@@ -268,21 +272,32 @@ int _offlineCount(WidgetRef ref, AsyncValue<Session?> session) {
   return count;
 }
 
-void _retryHome(WidgetRef ref) {
+Future<void> _retryHome(WidgetRef ref) async {
+  await ref.read(sessionProvider.notifier).refresh();
   ref.invalidate(coupleProvider);
   ref.invalidate(currentMoodProvider);
   ref.invalidate(nextDateProvider);
   ref.invalidate(todayQuestionProvider);
   ref.invalidate(feedPreviewProvider);
+  ref.invalidate(unreadCountProvider);
+}
+
+Widget _fixedCard(double height, Widget child) {
+  return StableSlot(height: height, child: child);
 }
 
 /// Two wrapped lines of the offline sentence, plus a little padding.
 const _offlineNoticeSlot = 48.0;
 
 class _OfflineNotice extends StatelessWidget {
-  const _OfflineNotice({required this.offline, required this.onRetry});
+  const _OfflineNotice({
+    required this.offline,
+    required this.message,
+    required this.onRetry,
+  });
 
   final bool offline;
+  final String message;
   final VoidCallback onRetry;
 
   @override
@@ -299,7 +314,7 @@ class _OfflineNotice extends StatelessWidget {
                 child: AppInkWell(
                   onTap: onRetry,
                   child: Text(
-                    offlineUserMessage,
+                    message,
                     key: offlineHomeNoticeKey,
                     softWrap: true,
                     overflow: TextOverflow.visible,
@@ -313,6 +328,69 @@ class _OfflineNotice extends StatelessWidget {
               ),
             )
           : const SizedBox.shrink(),
+    );
+  }
+}
+
+class _HomeAvatar extends StatelessWidget {
+  const _HomeAvatar({required this.picture});
+
+  final String? picture;
+
+  @override
+  Widget build(BuildContext context) {
+    if (picture != null) {
+      return Center(
+        child: CircleAvatar(
+          key: homeHeaderAvatarKey,
+          radius: 50,
+          backgroundImage: NetworkImage(picture!),
+          onBackgroundImageError: (_, __) {},
+        ),
+      );
+    }
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: CircleAvatar(
+        key: homeHeaderAvatarKey,
+        radius: 50,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        child: Icon(Icons.person, size: 50, color: scheme.onPrimary),
+      ),
+    );
+  }
+}
+
+class _Welcome extends StatelessWidget {
+  const _Welcome(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppText(
+      text,
+      style: Theme.of(context).textTheme.headlineSmall,
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+class _ListsButton extends StatelessWidget {
+  const _ListsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: LoadingButton(
+        variant: LoadingButtonVariant.outlined,
+        icon: const Icon(Icons.list),
+        onPressed: () {
+          context.push(ListsRoutes.lists);
+        },
+        child: const Text('Nossas listas'),
+      ),
     );
   }
 }

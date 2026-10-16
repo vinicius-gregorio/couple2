@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/ui/home_failure_scope.dart';
-import '../../../../core/core.dart';
 import '../../data/date_plans_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -17,22 +16,20 @@ class NextDateCard extends ConsumerWidget {
     final next = ref.watch(nextDateProvider);
     final theme = Theme.of(context);
 
-    return next.when(
+    return StableSlot(
+      height: homeNextDateCardHeight,
+      child: next.when(
         skipError: true,
         loading: () => const CardSkeleton(
           lines: 2,
           minHeight: homeNextDateCardHeight,
         ),
         error: (error, _) => LoadErrorCard(
-          message: collapseThisError(context, error)
-              ? 'Não foi possível carregar os encontros.'
-              : userFacingError(
-                  error,
-                  fallback: 'Não consegui carregar os encontros.',
-                ),
+          message: homeCardMessage(error, homeDatesLoadError),
           onRetry: () {
-            noteHomeRetry(ref);
-            ref.invalidate(nextDateProvider);
+            if (!HomeFailureScope.retry(context)) {
+              ref.invalidate(nextDateProvider);
+            }
           },
           minHeight: homeNextDateCardHeight,
         ),
@@ -73,6 +70,7 @@ class NextDateCard extends ConsumerWidget {
             ),
           );
         },
+    ),
     );
   }
 }

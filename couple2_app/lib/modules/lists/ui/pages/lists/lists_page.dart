@@ -220,7 +220,9 @@ class _ListCard extends ConsumerWidget {
         .deletingListIds
         .contains(list.id);
     final busy = deleting || MutationScope.busyOf(context);
-    return Card(
+    return StableSlot(
+      height: listCardSlotHeight,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
@@ -286,6 +288,7 @@ class _ListCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

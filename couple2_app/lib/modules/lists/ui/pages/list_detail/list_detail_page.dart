@@ -204,7 +204,9 @@ class _ItemTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.read(listsViewModelProvider.notifier);
 
-    return ListTile(
+    return StableSlot(
+      height: listItemSlotHeight,
+      child: ListTile(
       key: Key('list-item-${item.id}'),
       leading: MutationCheckbox(
         value: item.isCompleted,
@@ -260,6 +262,7 @@ class _ItemTile extends ConsumerWidget {
             icon: const Icon(Icons.delete_outline),
           ),
         ],
+      ),
       ),
     );
   }

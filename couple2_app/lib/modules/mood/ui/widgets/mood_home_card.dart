@@ -61,7 +61,9 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = _name(session?.partnerName);
 
-    return mood.when(
+    return StableSlot(
+      height: homeMoodCardHeight,
+      child: mood.when(
         skipError: true,
         data: (current) {
           if (current == null) {
@@ -178,16 +180,16 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           minHeight: homeMoodCardHeight,
         ),
         error: (error, _) => LoadErrorCard(
-          message: collapseThisError(context, error)
-              ? 'Não foi possível carregar o humor.'
-              : userFacingError(error),
+          message: homeCardMessage(error, homeMoodLoadError),
           onRetry: () {
-            noteHomeRetry(ref);
-            ref.invalidate(currentMoodProvider);
+            if (!HomeFailureScope.retry(context)) {
+              ref.invalidate(currentMoodProvider);
+            }
           },
           minHeight: homeMoodCardHeight,
         ),
-      );
+      ),
+    );
   }
 
   String _name(String? raw) {
@@ -250,7 +252,9 @@ class _CareButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LoadingButton(
+    return StableSlot(
+      height: careButtonSlotHeight,
+      child: LoadingButton(
       key: const Key('thinking-of-you'),
       loading: sending,
       onPressed: sending
@@ -262,6 +266,7 @@ class _CareButton extends StatelessWidget {
             },
       onLongPress: sending ? null : onLongPress,
       child: const Text('💗 Pensando em você'),
+      ),
     );
   }
 }

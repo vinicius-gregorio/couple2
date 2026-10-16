@@ -2,7 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import 'app_ink_well.dart';
 import 'mutation_scope.dart';
 
 /// Modal sheet with its own scaffold, so a mutation SnackBar is visible
@@ -184,15 +183,26 @@ class _SheetScrim extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final busy = MutationScope.busyOf(context);
-    if (!dismissible || busy) {
-      return const AbsorbPointer(child: SizedBox.expand());
-    }
-    return Material(
-      color: Colors.transparent,
-      child: AppInkWell(
-        onTap: () => Navigator.of(context).maybePop(),
-        child: const SizedBox.expand(),
-      ),
+    final open = dismissible && !busy;
+    // The scrim fills the route, behind the sheet. A button node here wins
+    // the semantics hit test on the web and the text field never focuses.
+    return ExcludeSemantics(
+      child: open
+          ? RawGestureDetector(
+              excludeFromSemantics: true,
+              behavior: HitTestBehavior.opaque,
+              gestures: <Type, GestureRecognizerFactory>{
+                TapGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                      () => TapGestureRecognizer(debugOwner: this),
+                      (TapGestureRecognizer instance) {
+                        instance.onTap = () => Navigator.of(context).maybePop();
+                      },
+                    ),
+              },
+              child: const SizedBox.expand(),
+            )
+          : const AbsorbPointer(child: SizedBox.expand()),
     );
   }
 }
@@ -200,6 +210,10 @@ class _SheetScrim extends StatelessWidget {
 /// Downward drag dismisses the sheet only while the scope is idle.
 ///
 /// A translucent recognizer so taps still reach the sheet controls.
+///
+/// It stays out of the semantics tree. A full-screen gesture node painted
+/// over the form takes the web click, and the text field never becomes an
+/// input.
 class _IdleDragDismiss extends StatelessWidget {
   const _IdleDragDismiss();
 
@@ -227,6 +241,7 @@ class _DragToDismissState extends State<_DragToDismiss> {
   @override
   Widget build(BuildContext context) {
     return RawGestureDetector(
+      excludeFromSemantics: true,
       behavior: HitTestBehavior.translucent,
       gestures: <Type, GestureRecognizerFactory>{
         VerticalDragGestureRecognizer:
