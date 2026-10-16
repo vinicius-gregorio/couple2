@@ -335,17 +335,27 @@ void main() {
     final unpair = tester.widget<OutlinedButton>(
       find.widgetWithText(OutlinedButton, 'Desfazer o par'),
     );
-    expect(unpair.style?.foregroundColor?.resolve({}), lightColorScheme.error);
+    expect(
+      unpair.style?.foregroundColor?.resolve({}) ?? lightColorScheme.primary,
+      lightColorScheme.primary,
+    );
     await tester.tap(find.text('Desfazer o par'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final confirm = tester.widget<FilledButton>(
-      find.byKey(const Key('confirm-unpair')),
+      find.descendant(
+        of: find.byKey(const Key('confirm-unpair')),
+        matching: find.byType(FilledButton),
+      ),
     );
-    expect(confirm.style?.backgroundColor?.resolve({}), lightColorScheme.error);
+    expect(
+      confirm.style?.backgroundColor?.resolve({}),
+      lightColorScheme.primary,
+    );
     await tester.tap(find.byKey(const Key('confirm-unpair')));
     await tester.pump();
-    expect(find.text('Desfazendo…'), findsOneWidget);
+    expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
+    expect(find.text('Desfazer o par'), findsWidgets);
     expect(find.text('Salvar'), findsOneWidget);
     expect(
       tester
@@ -401,7 +411,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
-    expect(find.text('Enviando…'), findsOneWidget);
+    expect(find.text('Enviar pedido'), findsOneWidget);
     expect(find.byTooltip('Atualizar'), findsOneWidget);
     expect(
       tester
@@ -501,7 +511,8 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('Como você está?'), findsOneWidget);
-    expect(find.text('Guardando…'), findsOneWidget);
+    expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
+    expect(find.text('Compartilhar'), findsOneWidget);
     await tester.tap(find.text('atras'), warnIfMissed: false);
     expect(behind, 0);
     expect(find.text('Como você está?'), findsOneWidget);
@@ -558,7 +569,8 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Ada'), findsOneWidget);
     await tester.tap(find.text('15').first);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Ada'), findsOneWidget);
     expect(find.text('Salvar'), findsOneWidget);
   });

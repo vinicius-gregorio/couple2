@@ -85,26 +85,20 @@ class PairingCodeCard extends StatelessWidget {
               ],
               if (value != null) ...[
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('copy-pairing-code'),
-                        onPressed: actionsEnabled ? onCopy : null,
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Copiar'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('share-pairing-code'),
-                        onPressed: actionsEnabled ? onShare : null,
-                        icon: const Icon(Icons.share),
-                        label: const Text('Compartilhar'),
-                      ),
-                    ),
-                  ],
+                LoadingButton(
+                  key: const Key('copy-pairing-code'),
+                  variant: LoadingButtonVariant.outlined,
+                  icon: const Icon(Icons.copy),
+                  onPressed: actionsEnabled ? onCopy : null,
+                  child: const Text('Copiar'),
+                ),
+                const SizedBox(height: 12),
+                LoadingButton(
+                  key: const Key('share-pairing-code'),
+                  variant: LoadingButtonVariant.outlined,
+                  icon: const Icon(Icons.share),
+                  onPressed: actionsEnabled ? onShare : null,
+                  child: const Text('Compartilhar'),
                 ),
               ],
             ],

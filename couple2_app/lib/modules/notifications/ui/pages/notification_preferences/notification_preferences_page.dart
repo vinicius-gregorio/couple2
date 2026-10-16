@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/notifications_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -20,6 +21,7 @@ class _NotificationPreferencesPageState
   String? _error;
   bool _loading = true;
   bool _saving = false;
+  var _switchEpoch = 0;
 
   @override
   void initState() {
@@ -44,16 +46,21 @@ class _NotificationPreferencesPageState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = 'Não foi possível carregar as notificações.';
+        _error = userFacingError(error);
         _loading = false;
       });
     }
   }
 
   Future<void> _patch(Map<String, dynamic> patch) async {
-    if (_saving) return;
+    if (_saving || MutationScope.busyOf(context)) return;
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && !scope.claim(this)) return;
     final previous = _prefs;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final next = await ref
           .read(notificationsRepositoryProvider)
@@ -64,9 +71,11 @@ class _NotificationPreferencesPageState
       if (!mounted) return;
       setState(() {
         _prefs = previous;
-        _error = 'Não foi possível salvar as notificações.';
+        _switchEpoch++;
+        _error = userFacingError(error);
       });
     } finally {
+      scope?.release(this);
       if (mounted) setState(() => _saving = false);
     }
   }
@@ -89,8 +98,12 @@ class _NotificationPreferencesPageState
   @override
   Widget build(BuildContext context) {
     final prefs = _prefs;
-    return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Notificações')),
+    return MutationScope(
+      child: Scaffold(
+      appBar: AppBar(
+        leading: AppBackButton(enabled: !_saving),
+        title: AppText('Notificações'),
+      ),
       body: _loading && prefs == null
           ? const FormSkeleton()
           : prefs == null
@@ -101,9 +114,13 @@ class _NotificationPreferencesPageState
           : ListView(
               children: [
                 if (_saving)
-                  const LinearProgressIndicator(key: LoadingButton.spinnerKey),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(child: AppSpinner(size: 22)),
+                  ),
                 MutationErrorBanner(message: _error),
                 SwitchListTile(
+                  key: ValueKey('push-${prefs.pushEnabled}-$_switchEpoch'),
                   title: const Text('Alertas'),
                   value: prefs.pushEnabled,
                   onChanged: _saving
@@ -111,6 +128,7 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'pushEnabled': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey('lists-${prefs.lists}-$_switchEpoch'),
                   title: const Text('Listas'),
                   value: prefs.lists,
                   onChanged: _saving
@@ -118,6 +136,9 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'lists': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey(
+                    'important-dates-${prefs.importantDates}-$_switchEpoch',
+                  ),
                   title: const Text('Datas importantes'),
                   value: prefs.importantDates,
                   onChanged: _saving
@@ -125,6 +146,9 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'importantDates': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey(
+                    'daily-question-${prefs.dailyQuestion}-$_switchEpoch',
+                  ),
                   title: const Text('Pergunta do dia'),
                   value: prefs.dailyQuestion,
                   onChanged: _saving
@@ -132,6 +156,7 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'dailyQuestion': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey('mood-${prefs.mood}-$_switchEpoch'),
                   title: const Text('Humor'),
                   value: prefs.mood,
                   onChanged: _saving
@@ -139,6 +164,7 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'mood': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey('nudges-${prefs.nudges}-$_switchEpoch'),
                   title: const Text('Carinhos'),
                   value: prefs.nudges,
                   onChanged: _saving
@@ -146,6 +172,7 @@ class _NotificationPreferencesPageState
                       : (value) => _patch({'nudges': value}),
                 ),
                 SwitchListTile(
+                  key: ValueKey('date-plans-${prefs.datePlans}-$_switchEpoch'),
                   title: const Text('Planos de encontro'),
                   value: prefs.datePlans,
                   onChanged: _saving
@@ -185,6 +212,7 @@ class _NotificationPreferencesPageState
                   ),
               ],
             ),
+      ),
     );
   }
 }

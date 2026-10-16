@@ -109,7 +109,17 @@ class _PairingScaffoldState extends ConsumerState<PairingScaffold> {
           IconButton(
             tooltip: 'Sair',
             onPressed: actionsEnabled
-                ? () => ref.read(logoutActionProvider)()
+                ? () async {
+                    final accepted = await confirmDestructive(
+                      context,
+                      title: 'Sair da conta?',
+                      message:
+                          'Você volta para a tela de entrada. Sem internet, a saída também acontece neste aparelho.',
+                      confirmLabel: 'Sair',
+                    );
+                    if (!accepted) return;
+                    await ref.read(logoutActionProvider)();
+                  }
                 : null,
             icon: const Icon(Icons.logout),
           ),

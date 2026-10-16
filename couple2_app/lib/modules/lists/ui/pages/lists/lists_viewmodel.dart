@@ -72,7 +72,7 @@ class ListsViewModel extends Notifier<ListsState> {
       if (gen != _fetchGen) return;
       state = ListsState(
         isLoading: false,
-        lists: _keepPending(lists),
+        lists: _keepPending(_preserveLocalItems(lists)),
         addingListIds: state.addingListIds,
         deletingListIds: state.deletingListIds,
       );
@@ -111,10 +111,7 @@ class ListsViewModel extends Notifier<ListsState> {
       state = state.copyWith(lists: [list, ...state.lists]);
       return null;
     } catch (error) {
-      return userFacingError(
-        error,
-        fallback: 'Não foi possível criar a lista.',
-      );
+      return userFacingError(error);
     } finally {
       _inflight.remove(key);
     }
@@ -155,7 +152,7 @@ class ListsViewModel extends Notifier<ListsState> {
         clearActionError: true,
       );
       return true;
-    } catch (_) {
+    } catch (error) {
       state = state.copyWith(
         lists: _map(
           listId,
@@ -167,7 +164,7 @@ class ListsViewModel extends Notifier<ListsState> {
           ),
         ),
         addingListIds: ({...state.addingListIds}..remove(listId)),
-        actionError: 'Não foi possível adicionar o item.',
+        actionError: userFacingError(error),
       );
       return false;
     } finally {
@@ -201,10 +198,7 @@ class ListsViewModel extends Notifier<ListsState> {
           itemId,
           current.copyWith(isCompleted: !current.isCompleted),
         ),
-        actionError: userFacingError(
-          error,
-          fallback: 'Não foi possível atualizar o item.',
-        ),
+        actionError: userFacingError(error),
       );
     } finally {
       _inflight.remove(key);
@@ -236,10 +230,10 @@ class ListsViewModel extends Notifier<ListsState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (error) {
       state = state.copyWith(
         lists: _replace(listId, itemId, current),
-        actionError: 'Não foi possível excluir o item.',
+        actionError: userFacingError(error),
       );
     } finally {
       _inflight.remove(key);
@@ -260,15 +254,32 @@ class ListsViewModel extends Notifier<ListsState> {
         lists: state.lists.where((list) => list.id != listId).toList(),
         deletingListIds: deleting,
       );
-    } catch (_) {
+    } catch (error) {
       final deleting = ({...state.deletingListIds}..remove(listId));
       state = state.copyWith(
         deletingListIds: deleting,
-        actionError: 'Não foi possível excluir a lista.',
+        actionError: userFacingError(error),
       );
     } finally {
       _inflight.remove(key);
     }
+  }
+
+  void clearActionError() {
+    if (state.actionError == null) return;
+    state = state.copyWith(clearActionError: true);
+  }
+
+  /// A list payload that omits items must not wipe rows we already showed.
+  List<PartnerList> _preserveLocalItems(List<PartnerList> fresh) {
+    final local = {for (final list in state.lists) list.id: list};
+    return [
+      for (final next in fresh)
+        if (next.items.isEmpty && (local[next.id]?.items.isNotEmpty ?? false))
+          next.copyWith(items: local[next.id]!.items)
+        else
+          next,
+    ];
   }
 
   List<PartnerList> _keepPending(List<PartnerList> fresh) {

@@ -55,8 +55,11 @@ class NextDateCard extends ConsumerWidget {
                     ),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => context.push(DatePlanRoutes.list),
+                      child: LoadingButton(
+                        variant: LoadingButtonVariant.text,
+                        onPressed: () {
+                          context.push(DatePlanRoutes.list);
+                        },
                         child: const Text('Ver encontros'),
                       ),
                     ),
@@ -81,10 +84,13 @@ Widget _emptyCard(BuildContext context, ThemeData theme) {
         children: [
           AppText('Próximo encontro', style: theme.textTheme.labelLarge),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => context.push(DatePlanRoutes.create),
+          LoadingButton(
+            variant: LoadingButtonVariant.outlined,
             icon: const Icon(Icons.event_available_outlined),
-            label: const Text('Planejar um encontro'),
+            onPressed: () {
+              context.push(DatePlanRoutes.create);
+            },
+            child: const Text('Planejar um encontro'),
           ),
         ],
       ),

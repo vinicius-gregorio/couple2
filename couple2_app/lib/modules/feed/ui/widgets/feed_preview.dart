@@ -28,7 +28,8 @@ class FeedPreview extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: onOpen,
                 child: const Row(
                   children: [

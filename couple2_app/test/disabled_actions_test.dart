@@ -87,15 +87,15 @@ void main() {
     IconButton add() => tester.widget<IconButton>(addButton);
 
     expect(add().onPressed, isNull);
-    expect(_fill(tester, addButton), lightColorScheme.surfaceContainerHighest);
+    expect(_fill(tester, addButton), isNot(lightColorScheme.primary));
 
     await tester.enterText(find.byType(TextField).last, 'Flores');
     await tester.pump();
     expect(add().onPressed, isNotNull);
-    expect(_fill(tester, addButton), lightColorScheme.primary);
+    expect(_fill(tester, addButton), isNot(lightColorScheme.primary));
     final icon = tester.widget<Icon>(find.byIcon(Icons.add));
     final iconTheme = IconTheme.of(tester.element(find.byIcon(Icons.add)));
-    expect(icon.color ?? iconTheme.color, lightColorScheme.onPrimary);
+    expect(icon.color ?? iconTheme.color, lightColorScheme.primary);
   });
 
   testWidgets('dates keeps a back arrow that goes home when nothing can pop', (

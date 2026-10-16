@@ -59,11 +59,11 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
           _actionError = null;
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
           _loading = false;
-          _loadError = 'Não foi possível carregar as datas';
+          _loadError = userFacingError(error);
         });
       }
     }
@@ -106,10 +106,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       }
       return null;
     } catch (error) {
-      return userFacingError(
-        error,
-        fallback: 'Não foi possível salvar a data.',
-      );
+      return userFacingError(error);
     }
   }
 
@@ -151,10 +148,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
         setState(() {
           _dates = previous;
           _deletingId = null;
-          _actionError = userFacingError(
-            error,
-            fallback: 'Não foi possível excluir a data.',
-          );
+          _actionError = userFacingError(error);
         });
       }
     }

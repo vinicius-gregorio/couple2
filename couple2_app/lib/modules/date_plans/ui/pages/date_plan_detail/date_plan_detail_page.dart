@@ -123,7 +123,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
 
   Future<void> _counter() async {
     final current = _plan?.scheduledAt.toLocal() ?? DateTime.now();
-    final date = await showDatePicker(
+    final date = await showAppDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime.now(),
@@ -143,7 +143,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       time.minute,
     );
     if (!when.isAfter(DateTime.now())) {
-      _toast('Escolha um horário no futuro.');
+      setState(() => _actionError = 'Escolha um horário no futuro.');
       return;
     }
     final note = await _askNote(
@@ -181,11 +181,13 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
         builder: (context, pop) => AlertDialog(
           content: Text("Marcar '${item.content}' como assistido?"),
           actions: [
-            TextButton(
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
               onPressed: () => pop.pop(context, false),
               child: const Text('Agora não'),
             ),
-            TextButton(
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
               onPressed: () => pop.pop(context, true),
               child: const Text('Marcar'),
             ),
@@ -198,7 +200,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       await ref.read(listsRepositoryProvider).toggleItem(item.id);
       ref.invalidate(listsViewModelProvider);
     } catch (_) {
-      _toast('O encontro foi marcado, mas o item da lista não.');
+      setState(() => _actionError = 'O encontro foi marcado, mas o item da lista não.');
     }
   }
 
@@ -229,11 +231,12 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
             decoration: const InputDecoration(labelText: 'Nota (opcional)'),
           ),
           actions: [
-            TextButton(
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
               onPressed: () => pop.pop(context),
               child: const Text('Voltar'),
             ),
-            FilledButton(
+            LoadingButton(
               onPressed: () => pop.pop(context, controller.text),
               child: Text(confirm),
             ),
@@ -241,13 +244,6 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
         ),
       ),
     );
-  }
-
-  void _toast(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

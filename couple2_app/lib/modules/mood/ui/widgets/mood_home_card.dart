@@ -22,10 +22,14 @@ class MoodHomeCard extends ConsumerStatefulWidget {
 
 class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
   bool _sending = false;
+  String? _nudgeError;
 
   Future<void> _send(NudgeKind kind, {String? message}) async {
     if (_sending) return;
-    setState(() => _sending = true);
+    setState(() {
+      _sending = true;
+      _nudgeError = null;
+    });
     try {
       await ref
           .read(nudgesRepositoryProvider)
@@ -35,34 +39,20 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Carinho enviado: ${kind.label}')));
-    } on CPLHttpException catch (error) {
-      if (!mounted) return;
-      final limited = error.response?.statusCode == 429;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            limited ? nudgeRateLimitMessage() : 'Não consegui enviar agora.',
-          ),
-        ),
-      );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            userFacingError(error, fallback: 'Não consegui enviar agora.'),
-          ),
-        ),
-      );
+      setState(() => _nudgeError = userFacingError(error));
+      Error.throwWithStackTrace(error, StackTrace.current);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
 
   Future<void> _compose() async {
-    final draft = await showNudgeComposerSheet(context);
-    if (draft == null) return;
-    await _send(draft.kind, message: draft.message);
+    await showNudgeComposerSheet(
+      context,
+      onSend: (draft) => _send(draft.kind, message: draft.message),
+    );
   }
 
   @override
@@ -89,12 +79,14 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 12),
+                    MutationErrorBanner(message: _nudgeError),
                     _CareButton(
                       sending: _sending,
                       onTap: () => _send(NudgeKind.thinkingOfYou),
                       onLongPress: _sending ? null : _compose,
                     ),
-                    TextButton(
+                    LoadingButton(
+                      variant: LoadingButtonVariant.text,
                       onPressed: _sending ? null : _compose,
                       child: const Text('Escolher um carinho'),
                     ),
@@ -146,6 +138,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  MutationErrorBanner(message: _nudgeError),
                   _CareButton(
                     sending: _sending,
                     onTap: () => _send(NudgeKind.thinkingOfYou),
@@ -156,18 +149,25 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                     'Toque para enviar. Segure para escolher.',
                     textAlign: TextAlign.center,
                   ),
-                  TextButton(
+                  LoadingButton(
+                    variant: LoadingButtonVariant.text,
                     onPressed: _sending ? null : _compose,
                     child: const Text('Escolher um carinho'),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => context.push(MoodRoutes.history),
+                  LoadingButton(
+                    variant: LoadingButtonVariant.outlined,
+                    onPressed: () {
+                      context.push(MoodRoutes.history);
+                    },
                     child: const Text('Histórico'),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => context.push(MoodRoutes.nudges),
+                  LoadingButton(
+                    variant: LoadingButtonVariant.outlined,
+                    onPressed: () {
+                      context.push(MoodRoutes.nudges);
+                    },
                     child: const Text('Carinhos recebidos'),
                   ),
                 ],
@@ -218,23 +218,31 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                MutationErrorBanner(message: _nudgeError),
                 _CareButton(
                   sending: _sending,
                   onTap: () => _send(NudgeKind.thinkingOfYou),
                   onLongPress: _sending ? null : _compose,
                 ),
-                TextButton(
+                LoadingButton(
+                  variant: LoadingButtonVariant.text,
                   onPressed: _sending ? null : _compose,
                   child: const Text('Escolher um carinho'),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => context.push(MoodRoutes.history),
+                LoadingButton(
+                  variant: LoadingButtonVariant.outlined,
+                  onPressed: () {
+                    context.push(MoodRoutes.history);
+                  },
                   child: const Text('Histórico'),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => context.push(MoodRoutes.nudges),
+                LoadingButton(
+                  variant: LoadingButtonVariant.outlined,
+                  onPressed: () {
+                    context.push(MoodRoutes.nudges);
+                  },
                   child: const Text('Carinhos recebidos'),
                 ),
               ],
@@ -300,7 +308,7 @@ class _CareButton extends StatelessWidget {
   });
 
   final bool sending;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap;
   final VoidCallback? onLongPress;
 
   @override
@@ -308,9 +316,15 @@ class _CareButton extends StatelessWidget {
     return LoadingButton(
       key: const Key('thinking-of-you'),
       loading: sending,
-      onPressed: sending ? null : onTap,
+      onPressed: sending
+          ? null
+          : () async {
+              try {
+                await onTap();
+              } catch (_) {}
+            },
       onLongPress: sending ? null : onLongPress,
-      child: Text(sending ? 'Enviando…' : '💗 Pensando em você'),
+      child: const Text('💗 Pensando em você'),
     );
   }
 }

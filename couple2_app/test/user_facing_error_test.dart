@@ -108,13 +108,18 @@ void main() {
     );
     expect(
       userFacingError(
+        const CPLHttpBadRequestException(message: 'title must be shorter'),
+      ),
+      'Não deu para salvar. Confira os dados.',
+    );
+    expect(
+      userFacingError(
         const CPLHttpInternalServerErrorException(
           message: 'Internal Server Error',
         ),
       ),
       'O servidor não respondeu. Tente de novo.',
     );
-
     final route = userFacingError(
       GoException('no routes for location: /missing'),
     );

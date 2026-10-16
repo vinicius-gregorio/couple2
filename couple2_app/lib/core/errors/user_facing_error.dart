@@ -65,6 +65,9 @@ String userFacingError(Object error, {String? fallback}) {
   }
   if (error is CPLHttpException) {
     final status = error.response?.statusCode;
+    if (status == 429) {
+      return 'Vamos com calma. Você pode mandar outro carinho daqui a pouco.';
+    }
     if (status != null && status >= 500) {
       return 'O servidor não respondeu. Tente de novo.';
     }

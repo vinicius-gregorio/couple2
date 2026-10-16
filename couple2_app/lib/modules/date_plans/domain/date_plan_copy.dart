@@ -44,7 +44,7 @@ String datePlanErrorMessage(int? statusCode, {bool linkingItem = false}) {
           ? 'Esse item não pode virar um encontro.'
           : 'Ainda não dá para marcar como feito.';
     default:
-      return 'Não consegui salvar agora.';
+      return fallbackUserMessage;
   }
 }
 
@@ -57,5 +57,5 @@ String datePlanFailureMessage(Object error, {bool linkingItem = false}) {
       linkingItem: linkingItem,
     );
   }
-  return userFacingError(error, fallback: 'Não consegui salvar agora.');
+  return userFacingError(error);
 }

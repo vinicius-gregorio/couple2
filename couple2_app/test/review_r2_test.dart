@@ -87,7 +87,10 @@ void main() {
             children: [
               const Text('composer-page'),
               FilledButton(
-                onPressed: () => showNudgeComposerSheet(context),
+                onPressed: () => showNudgeComposerSheet(
+                  context,
+                  onSend: (_) async {},
+                ),
                 child: const Text('abrir'),
               ),
             ],
@@ -364,8 +367,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
-    expect(find.text('Enviando…'), findsOneWidget);
-    expect(_labelColor(tester, 'Enviando…'), _white);
+    expect(find.text('Enviar pedido'), findsOneWidget);
+    expect(_labelColor(tester, 'Enviar pedido'), _white);
     expect(_fill(tester, find.byKey(const Key('submit-partner-code'))), _wine);
     expect(
       tester

@@ -30,6 +30,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   late final TextEditingController _description;
   late DateTime _when;
   bool _saving = false;
+  String? _error;
   final _pop = PopGuard();
 
   bool get _editing => widget.existing != null;
@@ -66,7 +67,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
   }
 
   Future<void> _pickWhen() async {
-    final date = await showDatePicker(
+    final date = await showAppDatePicker(
       context: context,
       initialDate: _when,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
@@ -87,14 +88,17 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
     if (_saving || _pop.used) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
-      _toast('Dê um título ao encontro.');
+      setState(() => _error = 'Dê um título ao encontro.');
       return;
     }
     if (!_when.isAfter(DateTime.now())) {
-      _toast('Escolha um horário no futuro.');
+      setState(() => _error = 'Escolha um horário no futuro.');
       return;
     }
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final repo = ref.read(datePlansRepositoryProvider);
       final location = _location.text.trim();
@@ -129,22 +133,15 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
         context.go(DatePlanRoutes.list);
       }
     } catch (error) {
-      _toast(
-        datePlanFailureMessage(
+      setState(() {
+        _error = datePlanFailureMessage(
           error,
           linkingItem: widget.sourceListItemId != null,
-        ),
-      );
+        );
+      });
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  void _toast(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -158,6 +155,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          MutationErrorBanner(message: _error),
           TextField(
             controller: _title,
             enabled: !_saving,
@@ -200,7 +198,7 @@ class _DatePlanFormPageState extends ConsumerState<DatePlanFormPage> {
             variant: LoadingButtonVariant.filled,
             loading: _saving,
             onPressed: _saving || _title.text.trim().isEmpty ? null : _save,
-            child: Text(_saving ? 'Salvando…' : 'Salvar'),
+            child: const Text('Salvar'),
           ),
         ],
       ),

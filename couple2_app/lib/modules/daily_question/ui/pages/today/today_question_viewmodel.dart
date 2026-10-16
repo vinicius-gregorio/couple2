@@ -80,7 +80,7 @@ class TodayQuestionViewModel extends Notifier<TodayQuestionState> {
     } catch (error) {
       state = state.copyWith(
         isSaving: false,
-        errorMessage: 'Não foi possível enviar a resposta.',
+        errorMessage: userFacingError(error),
       );
       return false;
     }

@@ -81,30 +81,37 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final list = _getList(state);
 
     if (list == null && state.isLoading) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton(), title: AppText('Lista')),
-        body: const ListSkeleton(),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton(), title: AppText('Lista')),
+          body: const ListSkeleton(),
+        ),
       );
     }
 
     if (list == null && state.errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton()),
-        body: ErrorView(
-          message: 'Não foi possível carregar a lista.',
-          onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton()),
+          body: ErrorView(
+            message: state.errorMessage!,
+            onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+          ),
         ),
       );
     }
 
     if (list == null) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton()),
-        body: const EmptyView(message: 'Lista não encontrada'),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton()),
+          body: const EmptyView(message: 'Lista não encontrada'),
+        ),
       );
     }
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: AppText(list.name)),
       body: Column(
         children: [
@@ -148,6 +155,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -159,6 +167,7 @@ Future<void> _confirmDeleteItem(
   ListItem item, {
   required bool privateList,
 }) async {
+  ref.read(listsViewModelProvider.notifier).clearActionError();
   final accepted = await confirmDestructive(
     context,
     title: 'Excluir item?',
@@ -192,15 +201,12 @@ class _ItemTile extends ConsumerWidget {
     return ListTile(
       key: Key('list-item-${item.id}'),
       leading: item.pending
-          ? const SizedBox(
-              key: Key('item-pending'),
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const AppSpinner(key: Key('item-pending'), size: 24)
           : Checkbox(
               value: item.isCompleted,
-              onChanged: (_) => vm.toggleItem(listId, item.id),
+              onChanged: item.pending || MutationScope.busyOf(context)
+                  ? null
+                  : (_) => vm.toggleItem(listId, item.id),
             ),
       title: Text(
         item.content,
@@ -215,7 +221,8 @@ class _ItemTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (listTypeSupportsDatePlan(listType) && !item.pending)
-            TextButton(
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
               onPressed: () {
                 final query = Uri(
                   path: DatePlanRoutes.create,
@@ -471,7 +478,7 @@ class _AddItemBarState extends State<_AddItemBar> {
                 Expanded(
                   child: TextField(
                     controller: widget.controller,
-                    enabled: !widget.busy,
+                    enabled: !widget.busy && !MutationScope.busyOf(context),
                     decoration: const InputDecoration(
                       hintText: 'Adicionar item…',
                       isDense: true,

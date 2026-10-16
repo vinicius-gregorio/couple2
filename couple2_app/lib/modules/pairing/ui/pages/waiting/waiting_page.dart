@@ -239,10 +239,11 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
                 : () {
                     _cancel();
                   },
-            child: Text(_cancelling ? 'Cancelando…' : 'Cancelar pedido'),
+            child: const Text('Cancelar pedido'),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          LoadingButton(
+            variant: LoadingButtonVariant.text,
             onPressed: busy
                 ? null
                 : () => popOrGo(context, PairingRoutes.hub, guard: _pop),

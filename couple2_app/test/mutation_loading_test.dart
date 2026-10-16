@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:couple2_app/core/errors/user_facing_error.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/design_system/design_system.dart';
@@ -75,6 +76,52 @@ void main() {
     expect(source.contains('deleteItem'), isTrue);
   });
 
+  testWidgets('slow add locks every control on the list and sends once', (
+    tester,
+  ) async {
+    final gate = Gate();
+    await _pump(
+      tester,
+      _listsScope(
+        _ListsRepo(
+          gate,
+          op: 'add',
+          lists: [
+            _list(items: [_item('a', 'Pão'), _item('b', 'Leite')]),
+          ],
+        ),
+        const ListDetailPage(listId: 'list-1'),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Café');
+    await tester.pump();
+    await _doubleTap(tester, find.byTooltip('Adicionar'));
+    expect(gate.calls, 1);
+    IconButton icon(String tooltip) {
+      return tester.widget<IconButton>(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == tooltip,
+        ),
+      );
+    }
+
+    expect(icon('Voltar').onPressed, isNull);
+    expect(icon('Adicionar').onPressed, isNull);
+    for (final button in tester.widgetList<IconButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Excluir item',
+      ),
+    )) {
+      expect(button.onPressed, isNull);
+    }
+    expect(find.byTooltip('Excluir item'), findsNWidgets(3));
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.enabled, isFalse);
+    }
+    gate.error();
+    await _settle(tester);
+  });
+
   testWidgets('add list item shows a pending row, locks, and rolls back', (
     tester,
   ) async {
@@ -96,7 +143,7 @@ void main() {
     expect(_icon(tester, 'Adicionar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível adicionar o item.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Salvando…'), findsNothing);
     expect(find.text('Leite'), findsOneWidget);
     expect(find.text('Nenhum item ainda.'), findsOneWidget);
@@ -125,7 +172,7 @@ void main() {
     expect(find.byType(Checkbox), findsNothing);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível atualizar o item.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
     expect(find.text('Pão'), findsOneWidget);
   });
@@ -171,7 +218,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível excluir o item.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Pão'), findsOneWidget);
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
   });
@@ -195,7 +242,7 @@ void main() {
     expect(_filled(tester, 'Criar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível criar a lista.'), findsWidgets);
+    expect(find.text(fallbackUserMessage), findsWidgets);
     expect(find.text('Nova lista'), findsOneWidget);
   });
 
@@ -227,7 +274,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível excluir a lista.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Mercado'), findsOneWidget);
   });
 
@@ -251,7 +298,7 @@ void main() {
     expect(find.text('Salvando…'), findsOneWidget);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível adicionar o item.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Flores'), findsOneWidget);
     expect(find.text('Salvando…'), findsNothing);
   });
@@ -275,10 +322,10 @@ void main() {
     await _doubleTap(tester, find.text('💗 Pensando em você'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
-    expect(_filled(tester, 'Enviando…').onPressed, isNull);
+    expect(_filled(tester, '💗 Pensando em você').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui enviar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('💗 Pensando em você'), findsOneWidget);
   });
 
@@ -296,11 +343,11 @@ void main() {
     await _doubleTap(tester, find.text('Compartilhar'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
-    expect(_filled(tester, 'Guardando…').onPressed, isNull);
+    expect(_filled(tester, 'Compartilhar').onPressed, isNull);
     gate.error();
     await _settle(tester);
     expect(
-      find.text('Não consegui guardar agora. Tenta de novo?'),
+      find.text(fallbackUserMessage),
       findsOneWidget,
     );
     expect(find.text('Como você está?'), findsOneWidget);
@@ -330,10 +377,10 @@ void main() {
     await _doubleTap(tester, find.text('Enviar'));
     expect(gate.calls, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
-    expect(_filled(tester, 'Salvando…').onPressed, isNull);
+    expect(_filled(tester, 'Enviar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível enviar a resposta.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('O café'), findsOneWidget);
     expect(find.text('Enviar'), findsOneWidget);
   });
@@ -364,7 +411,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível enviar a resposta.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Texto novo'), findsOneWidget);
   });
 
@@ -377,7 +424,7 @@ void main() {
     await tester.pump();
     await _doubleTap(tester, find.text('Salvar'));
     expect(gate.calls, 1);
-    expect(_filled(tester, 'Salvando…').onPressed, isNull);
+    expect(_filled(tester, 'Salvar').onPressed, isNull);
     expect(
       tester
           .widget<IconButton>(
@@ -394,7 +441,7 @@ void main() {
     }
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Jantar'), findsOneWidget);
     expect(find.text('Planejar um encontro'), findsOneWidget);
   });
@@ -413,7 +460,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Editar o encontro'), findsOneWidget);
     expect(find.text('Jantar cedo'), findsOneWidget);
   });
@@ -427,7 +474,7 @@ void main() {
     expect(_outlined(tester, 'Recusar').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -450,7 +497,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -460,7 +507,8 @@ void main() {
     await tester.tap(find.text('Sugerir outro horário'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('OK'));
+    final day = DateTime.now().add(const Duration(days: 10)).day.toString();
+    await tester.tap(find.text(day).last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('OK'));
@@ -471,7 +519,7 @@ void main() {
     expect(gate.calls, 1);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Proposto'), findsOneWidget);
   });
 
@@ -490,9 +538,11 @@ void main() {
     expect(gate.calls, 1);
     expect(
       tester
-          .widget<LoadingButton>(find.widgetWithText(LoadingButton, 'Cancelar'))
-          .loading,
-      isTrue,
+          .widgetList<LoadingButton>(
+            find.widgetWithText(LoadingButton, 'Cancelar'),
+          )
+          .where((button) => button.loading),
+      hasLength(1),
     );
     expect(
       tester
@@ -502,7 +552,7 @@ void main() {
     );
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Jantar'), findsOneWidget);
     expect(find.text('Proposto'), findsOneWidget);
   });
@@ -521,7 +571,7 @@ void main() {
     expect(_filled(tester, 'Marcar como feito').onPressed, isNull);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não consegui salvar agora.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Confirmado'), findsOneWidget);
   });
 
@@ -541,10 +591,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byType(FloatingActionButton), warnIfMissed: false);
     expect(gate.calls, 1);
-    expect(find.text('Salvando…'), findsOneWidget);
+    expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
+    expect(find.text('Adicionar'), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível salvar a data.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Lua de mel'), findsOneWidget);
     expect(find.text('Nova data'), findsOneWidget);
   });
@@ -571,10 +622,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(gate.calls, 1);
-    expect(find.text('Salvando…'), findsOneWidget);
+    expect(find.byKey(LoadingButton.spinnerKey), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível salvar a data.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Editar data'), findsOneWidget);
     expect(find.text('Natal cedo'), findsOneWidget);
   });
@@ -599,7 +650,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível excluir a data.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Natal'), findsWidgets);
   });
 
@@ -630,7 +681,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível salvar o aniversário'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.text('Ada'), findsOneWidget);
   });
 
@@ -645,7 +696,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
     gate.error();
     await _settle(tester);
-    expect(find.text('Não foi possível salvar.'), findsOneWidget);
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(find.textContaining('Confira o fuso'), findsNothing);
     expect(find.text('Nosso começo'), findsOneWidget);
   });
@@ -730,7 +781,8 @@ void main() {
       warnIfMissed: false,
     );
     expect(gate.calls, 1);
-    expect(find.text('Desfazendo…'), findsOneWidget);
+    expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
+    expect(find.text('Desfazer o par'), findsWidgets);
     expect(
       tester
           .widget<LoadingButton>(find.byKey(const Key('unpair-button')))
@@ -780,7 +832,7 @@ void main() {
     gate.error();
     await _settle(tester);
     expect(
-      find.text('Não foi possível salvar as notificações.'),
+      find.text(fallbackUserMessage),
       findsOneWidget,
     );
     expect(

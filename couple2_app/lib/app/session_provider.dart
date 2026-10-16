@@ -14,9 +14,12 @@ import 'session_cache.dart';
 /// which kept a stale `partnerId`.
 final sessionProvider = AsyncNotifierProvider<SessionNotifier, Session?>(
   SessionNotifier.new,
+  retry: noProviderRetry,
 );
 
 class SessionNotifier extends AsyncNotifier<Session?> {
+  Future<Session?>? _loadFlight;
+
   @override
   Future<Session?> build() async {
     final auth = ref.read(authRepositoryProvider);
@@ -35,22 +38,28 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     return _load();
   }
 
-  Future<void> _refreshFromNetwork() async {
+  Future<void> _refreshFromNetwork() => refresh();
+
+  /// Call after pairing (P0) and on app resume so Home picks up the couple
+  /// without a logout. Overlapping callers share one `/auth/me`.
+  Future<void> refresh() async {
     final next = await AsyncValue.guard(_load);
     if (!ref.mounted) return;
     if (next.hasError && state.hasValue) return;
     state = next;
   }
 
-  /// Call after pairing (P0) and on app resume so Home picks up the couple
-  /// without a logout.
-  Future<void> refresh() async {
-    final next = await AsyncValue.guard(_load);
-    if (next.hasError && state.hasValue) return;
-    state = next;
+  Future<Session?> _load() {
+    final existing = _loadFlight;
+    if (existing != null) return existing;
+    final flight = _loadOnce();
+    _loadFlight = flight;
+    return flight.whenComplete(() {
+      if (identical(_loadFlight, flight)) _loadFlight = null;
+    });
   }
 
-  Future<Session?> _load() async {
+  Future<Session?> _loadOnce() async {
     final auth = ref.read(authRepositoryProvider);
     if (!await auth.isLoggedIn()) {
       await SessionCache.write(null);

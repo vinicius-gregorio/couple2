@@ -73,7 +73,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
       host != null && host.mounted ? host : context,
       rootNavigator: true,
     );
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: navigator.context,
       useRootNavigator: true,
       initialDate: _date ?? now,
@@ -150,8 +150,13 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
             autofocus: true,
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: _saving ? null : _pickDate,
+          LoadingButton(
+            variant: LoadingButtonVariant.outlined,
+            onPressed: _saving
+                ? null
+                : () {
+                    _pickDate();
+                  },
             child: Text(
               _date == null
                   ? 'Escolher data'
@@ -178,7 +183,7 @@ class _CoupleDateSheetState extends State<CoupleDateSheet> {
             loading: _saving,
             onPressed: _canSubmit && !_saving ? _submit : null,
             child: Text(
-              _saving ? 'Salvando…' : (editing ? 'Salvar' : 'Adicionar'),
+              editing ? 'Salvar' : 'Adicionar',
             ),
           ),
         ],

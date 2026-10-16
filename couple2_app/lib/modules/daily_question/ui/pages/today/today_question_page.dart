@@ -55,14 +55,17 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
       });
     }
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
         title: const AppText('Pergunta do dia'),
         actions: [
           IconButton(
             tooltip: 'Histórico',
-            onPressed: () => context.push(DailyQuestionRoutes.history),
+            onPressed: state.isSaving
+                ? null
+                : () => context.push(DailyQuestionRoutes.history),
             icon: const Icon(Icons.history),
           ),
         ],
@@ -78,18 +81,17 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
             else ...[
               if (state.errorMessage != null && question == null)
                 ErrorView(
-                  message: 'Não foi possível carregar a pergunta.',
+                  message: state.errorMessage!,
                   compact: true,
                   onRetry: viewModel.load,
                 )
-              else if (state.errorMessage != null)
-                MutationErrorBanner(message: state.errorMessage),
-              if (question == null && state.errorMessage == null)
+              else if (question == null && state.errorMessage == null)
                 const EmptyView(
                   message: 'Não foi possível carregar a pergunta.',
                   compact: true,
                 )
               else if (question != null) ...[
+                MutationErrorBanner(message: state.errorMessage),
                 AppText(
                   questionCategoryLabel(question.question.category),
                   style: Theme.of(context).textTheme.labelLarge,
@@ -122,8 +124,11 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                       alignment: Alignment.centerRight,
                       child: SizedBox(
                         width: 160,
-                        child: OutlinedButton(
-                          onPressed: () => setState(() => _editing = true),
+                        child: LoadingButton(
+                          variant: LoadingButtonVariant.outlined,
+                          onPressed: state.isSaving
+                              ? null
+                              : () => setState(() => _editing = true),
                           child: const Text('Editar'),
                         ),
                       ),
@@ -153,9 +158,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                               ? null
                               : () => viewModel.submit(_controller.text),
                           child: Text(
-                            state.isSaving
-                                ? 'Salvando…'
-                                : (question.answeredByMe ? 'Salvar' : 'Enviar'),
+                            question.answeredByMe ? 'Salvar' : 'Enviar',
                           ),
                         ),
                       ),
@@ -173,6 +176,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

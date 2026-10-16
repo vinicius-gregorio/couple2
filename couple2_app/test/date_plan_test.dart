@@ -102,7 +102,7 @@ void main() {
     );
     expect(
       datePlanFailureMessage(Exception('fail')),
-      'Não consegui salvar agora.',
+      fallbackUserMessage,
     );
   });
 

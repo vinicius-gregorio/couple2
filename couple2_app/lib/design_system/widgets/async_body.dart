@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'loading_button.dart';
 import 'skeleton.dart';
 
 /// Loading skeleton, error with retry, empty, or [child].
@@ -86,8 +87,9 @@ class AsyncValueView<T> extends StatelessWidget {
 
 /// Inline PT-BR failure for a mutation that should stay on screen.
 ///
-/// An empty message takes no space. A new message grows in place.
-/// [MutationBannerTone.info] is for a notice, such as a declined request.
+/// The slot is always the same height, so showing or clearing the message
+/// does not push the form. [MutationBannerTone.info] is a notice, such as a
+/// declined request.
 enum MutationBannerTone { error, info }
 
 class MutationErrorBanner extends StatelessWidget {
@@ -111,20 +113,24 @@ class MutationErrorBanner extends StatelessWidget {
     final color = tone == MutationBannerTone.info
         ? scheme.onSurface
         : scheme.error;
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      alignment: Alignment.topCenter,
+    return SizedBox(
+      height: 40,
+      width: double.infinity,
       child: visible
           ? Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                text,
-                key: bannerKey,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: color),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                child: Text(
+                  text,
+                  key: bannerKey,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: color, height: 1.2),
+                ),
               ),
             )
-          : const SizedBox(width: double.infinity, height: 0),
+          : const SizedBox.shrink(),
     );
   }
 }
@@ -168,8 +174,9 @@ class ErrorView extends StatelessWidget {
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
-            TextButton(
+            LoadingButton(
               key: retryKey,
+              variant: LoadingButtonVariant.text,
               onPressed: onRetry,
               child: Text(retryLabel),
             ),

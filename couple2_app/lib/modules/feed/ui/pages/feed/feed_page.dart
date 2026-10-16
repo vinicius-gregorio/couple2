@@ -141,14 +141,24 @@ class _ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = feedActionText(event.type, event.payload);
-    return ListTile(
-      leading: Icon(activityIcon(event.type)),
-      title: AppText('$actor $text'),
-      subtitle: AppText(
-        _shortTime(event.createdAt.toLocal()),
-        style: Theme.of(context).textTheme.bodySmall,
+    final label = '$actor $text';
+    return Semantics(
+      button: true,
+      label: label,
+      child: ListTile(
+        leading: Icon(
+          activityIcon(event.type),
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: IgnorePointer(child: AppText(label)),
+        subtitle: IgnorePointer(
+          child: AppText(
+            _shortTime(event.createdAt.toLocal()),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        onTap: onTap,
       ),
-      onTap: onTap,
     );
   }
 }

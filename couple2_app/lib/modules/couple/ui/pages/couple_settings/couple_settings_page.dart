@@ -96,7 +96,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: _anniversary ?? now,
       firstDate: DateTime(1900),
@@ -136,10 +136,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = userFacingError(
-            error,
-            fallback: 'Não foi possível salvar.',
-          );
+          _error = userFacingError(error);
         });
       }
     } finally {
@@ -190,8 +187,13 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
         children: [
           const AppText('Data de início'),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: _locked ? null : _pickDate,
+          LoadingButton(
+            variant: LoadingButtonVariant.outlined,
+            onPressed: _locked
+                ? null
+                : () {
+                    _pickDate();
+                  },
             child: Text(
               _anniversary == null
                   ? 'Escolher data'
@@ -223,7 +225,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           LoadingButton(
             loading: _saving,
             onPressed: _locked || _anniversary == null ? null : _save,
-            child: Text(_saving ? 'Salvando…' : 'Salvar'),
+            child: const Text('Salvar'),
           ),
           const SizedBox(height: 48),
           const Divider(),

@@ -186,10 +186,11 @@ class _EnterCodePageState extends ConsumerState<EnterCodePage> {
                 : LoadingButtonVariant.filled,
             loading: _submitting,
             onPressed: _canSubmit ? _submit : null,
-            child: Text(_submitting ? 'Enviando…' : 'Enviar pedido'),
+            child: const Text('Enviar pedido'),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          LoadingButton(
+            variant: LoadingButtonVariant.text,
             onPressed: _submitting || controlsLocked
                 ? null
                 : () => popOrGo(context, PairingRoutes.hub, guard: _pop),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/button_themes.dart';
+import 'mutation_scope.dart';
 
 /// Primary FAB that turns grey when [onPressed] is null.
 ///
@@ -22,7 +23,7 @@ class AppFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final enabled = onPressed != null;
+    final enabled = onPressed != null && !MutationScope.busyOf(context);
     final background = enabled ? scheme.primary : disabledFill;
     final foreground = enabled
         ? scheme.onPrimary
@@ -30,7 +31,7 @@ class AppFab extends StatelessWidget {
     if (label != null) {
       return FloatingActionButton.extended(
         tooltip: tooltip ?? label,
-        onPressed: onPressed,
+        onPressed: enabled ? onPressed : null,
         backgroundColor: background,
         foregroundColor: foreground,
         icon: icon,
@@ -39,7 +40,7 @@ class AppFab extends StatelessWidget {
     }
     return FloatingActionButton(
       tooltip: tooltip,
-      onPressed: onPressed,
+      onPressed: enabled ? onPressed : null,
       backgroundColor: background,
       foregroundColor: foreground,
       child: icon,

@@ -38,7 +38,8 @@ class HomePage extends ConsumerWidget {
     final paired = sessionAsync.asData?.value?.coupleId != null;
     final collapseOffline = _offlineCount(ref, sessionAsync) >= 2;
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(
         // Left of the actions so the notice stays in the free slot and
         // cannot paint over the leading avatar or the body.
@@ -71,18 +72,25 @@ class HomePage extends ConsumerWidget {
               count: unread,
               onPressed: () => context.push(FeedRoutes.feed),
             ),
-          IconButton(
-            tooltip: 'Sair',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final accepted = await confirmDestructive(
-                context,
-                title: 'Sair da conta?',
-                message: 'Você volta para a tela de entrada.',
-                confirmLabel: 'Sair',
+          Builder(
+            builder: (context) {
+              return IconButton(
+                tooltip: 'Sair',
+                icon: const Icon(Icons.logout),
+                onPressed: MutationScope.busyOf(context)
+                    ? null
+                    : () async {
+                        final accepted = await confirmDestructive(
+                          context,
+                          title: 'Sair da conta?',
+                          message:
+                              'Você volta para a tela de entrada. Sem internet, a saída também acontece neste aparelho.',
+                          confirmLabel: 'Sair',
+                        );
+                        if (!accepted) return;
+                        await logout();
+                      },
               );
-              if (!accepted) return;
-              await logout();
             },
           ),
         ],
@@ -153,18 +161,17 @@ class HomePage extends ConsumerWidget {
                           skipError: true,
                           data: (couple) {
                             if (couple == null) return const SizedBox.shrink();
-                            return ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 200),
-                              child: DaysTogetherCard(
-                                couple: couple,
-                                onOpenSettings: () =>
-                                    context.push(CoupleRoutes.settings),
-                                onOpenDates: () =>
-                                    context.push(CoupleRoutes.dates),
-                              ),
+                            return DaysTogetherCard(
+                              couple: couple,
+                                onOpenSettings: () {
+                                  context.push(CoupleRoutes.settings);
+                                },
+                                onOpenDates: () {
+                                  context.push(CoupleRoutes.dates);
+                                },
                             );
                           },
-                          loading: () => const CardSkeleton(minHeight: 200),
+                          loading: () => const CardSkeleton(lines: 2),
                           error: (error, _) =>
                               collapseOffline && isOfflineFailure(error)
                               ? const SizedBox.shrink()
@@ -187,15 +194,20 @@ class HomePage extends ConsumerWidget {
                         const TodayQuestionCard(),
                         const SizedBox(height: 16),
                         FeedPreview(
-                          onOpen: () => context.push(FeedRoutes.feed),
+                          onOpen: () {
+                            context.push(FeedRoutes.feed);
+                          },
                         ),
                       ],
                       const SizedBox(height: 24),
                       Center(
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.push(ListsRoutes.lists),
+                        child: LoadingButton(
+                          variant: LoadingButtonVariant.outlined,
                           icon: const Icon(Icons.list),
-                          label: const Text('Nossas listas'),
+                          onPressed: () {
+                            context.push(ListsRoutes.lists);
+                          },
+                          child: const Text('Nossas listas'),
                         ),
                       ),
                 ],
@@ -211,6 +223,7 @@ class HomePage extends ConsumerWidget {
           ),
           onRetry: () => ref.read(sessionProvider.notifier).refresh(),
         ),
+      ),
       ),
     );
   }
@@ -325,8 +338,10 @@ class _NeedsPairingBody extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => context.go(PairingRoutes.hub),
+              LoadingButton(
+                onPressed: () {
+                  context.go(PairingRoutes.hub);
+                },
                 child: const Text('Ir para o pareamento'),
               ),
             ],
@@ -345,9 +360,10 @@ class _FeedBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locked = MutationScope.busyOf(context);
     return IconButton(
       tooltip: 'Notificações',
-      onPressed: onPressed,
+      onPressed: locked ? null : onPressed,
       icon: Badge(
         isLabelVisible: count > 0,
         label: Text(count > 99 ? '99+' : '$count'),
@@ -377,9 +393,18 @@ class _AvatarButton extends StatelessWidget {
             onBackgroundImageError: (_, __) {},
           );
 
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: InkWell(onTap: onPressed, child: avatar),
+    final locked = MutationScope.busyOf(context);
+    return Semantics(
+      button: true,
+      enabled: onPressed != null && !locked,
+      label: 'Perfil',
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: InkWell(
+          onTap: onPressed == null || locked ? null : onPressed,
+          child: Tooltip(message: 'Perfil', child: avatar),
+        ),
+      ),
     );
   }
 }

@@ -28,7 +28,8 @@ class DaysTogetherCard extends StatelessWidget {
         child: Column(
           children: [
             if (!hasAnniversary)
-              OutlinedButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.outlined,
                 onPressed: onOpenSettings,
                 child: const Text('Quando vocês começaram?'),
               )
@@ -39,7 +40,8 @@ class DaysTogetherCard extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: onOpenSettings,
                 child: const Text('Editar data de início'),
               ),
@@ -52,7 +54,8 @@ class DaysTogetherCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 4),
-            TextButton(
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
               onPressed: onOpenDates,
               child: const Text('Datas importantes'),
             ),

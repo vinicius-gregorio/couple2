@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'loading_button.dart';
 import 'pop_guard.dart';
 
-/// Asks before a destructive action. The confirm control is a filled button
-/// in the theme's primary style. Dismissing the dialog does not confirm.
+/// Asks before a destructive action. Confirm is the primary filled button.
+/// Dismissing the dialog does not confirm.
 ///
 /// Confirm and cancel share one [PopGuard], so a double tap closes the dialog
 /// once and leaves the page underneath in place.
@@ -13,7 +14,6 @@ Future<bool> confirmDestructive(
   required String message,
   required String confirmLabel,
   Key? confirmKey,
-  bool danger = false,
 }) async {
   final accepted = await showDialog<bool>(
     context: context,
@@ -24,18 +24,13 @@ Future<bool> confirmDestructive(
             title: Text(title),
             content: Text(message),
             actions: [
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: () => pop.pop(context, false),
                 child: const Text('Cancelar'),
               ),
-              FilledButton(
+              LoadingButton(
                 key: confirmKey,
-                style: danger
-                    ? FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                        foregroundColor: Theme.of(context).colorScheme.onError,
-                      )
-                    : null,
                 onPressed: () => pop.pop(context, true),
                 child: Text(confirmLabel),
               ),

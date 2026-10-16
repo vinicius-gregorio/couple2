@@ -182,7 +182,8 @@ class _HistoryTile extends StatelessWidget {
           if (showAnswer || showEdit) ...[
             const SizedBox(height: 8),
             if (!editing)
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: onAnswer,
                 child: Text(showAnswer ? 'Responder' : 'Editar'),
               )
@@ -203,11 +204,7 @@ class _HistoryTile extends StatelessWidget {
                   onPressed: saving || draft.text.trim().isEmpty
                       ? null
                       : onSubmit,
-                  child: Text(
-                    saving
-                        ? 'Salvando…'
-                        : (showAnswer ? 'Enviar' : 'Salvar'),
-                  ),
+                  child: Text(showAnswer ? 'Enviar' : 'Salvar'),
                 ),
               ),
             ],

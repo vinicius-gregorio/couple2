@@ -44,7 +44,6 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
           'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
       confirmLabel: 'Desfazer',
       confirmKey: const Key('confirm-unpair'),
-      danger: true,
     );
     if (!mounted) return;
     if (accepted != true) {
@@ -79,21 +78,19 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LoadingButton(
           key: const Key('unpair-button'),
           variant: LoadingButtonVariant.outlined,
-          foregroundColor: theme.colorScheme.error,
           loading: _busy,
           onPressed: _busy || _confirming || !widget.enabled
               ? null
               : () {
                   _confirm();
                 },
-          child: Text(_busy ? 'Desfazendo…' : 'Desfazer o par'),
+          child: const Text('Desfazer o par'),
         ),
         MutationErrorBanner(message: _error),
       ],

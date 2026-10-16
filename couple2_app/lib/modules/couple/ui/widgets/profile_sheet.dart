@@ -2,6 +2,7 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/core.dart';
 import '../../../../app/session.dart';
 import '../../../../app/session_provider.dart';
 import '../../data/couple_providers.dart';
@@ -39,7 +40,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
       host != null && host.mounted ? host : context,
       rootNavigator: true,
     );
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: navigator.context,
       useRootNavigator: true,
       initialDate: _birthDate ?? DateTime(now.year - 25, now.month, now.day),
@@ -65,11 +66,11 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
       await ref.read(sessionProvider.notifier).refresh();
       ref.invalidate(coupleProvider);
       if (mounted) _pop.pop(context);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
           _birthDate = previous;
-          _error = 'Não foi possível salvar o aniversário';
+          _error = userFacingError(error);
         });
       }
     } finally {
@@ -104,23 +105,25 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
                   const SizedBox(height: 16),
                   const AppText('Meu aniversário'),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: _saving ? null : _pickDate,
+                  LoadingButton(
+                    variant: LoadingButtonVariant.outlined,
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            _pickDate();
+                          },
                     child: Text(
                       _birthDate == null
                           ? 'Escolher data'
                           : formatDisplayDate(formatDateOnly(_birthDate!)),
                     ),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    MutationErrorBanner(message: _error),
-                  ],
+                  MutationErrorBanner(message: _error),
                   const SizedBox(height: 16),
                   LoadingButton(
                     loading: _saving,
                     onPressed: _saving || _pop.used ? null : _save,
-                    child: Text(_saving ? 'Salvando…' : 'Salvar'),
+                    child: const Text('Salvar'),
                   ),
                 ],
               ),

@@ -1,6 +1,30 @@
 import 'package:flutter/material.dart';
 
+import 'mutation_scope.dart';
+
 enum LoadingButtonVariant { filled, outlined, text }
+
+/// Fixed-size spinner. A bare indicator collapses to a hairline on web.
+class AppSpinner extends StatelessWidget {
+  const AppSpinner({super.key, this.size = 22, this.color});
+
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      key: LoadingButton.spinnerKey,
+      width: size,
+      height: size,
+      child: CircularProgressIndicator(
+        strokeWidth: 2.5,
+        color: color ?? scheme.primary,
+      ),
+    );
+  }
+}
 
 /// Button that shows a spinner and ignores taps while a request is in flight.
 ///
@@ -40,13 +64,28 @@ class _LoadingButtonState extends State<LoadingButton> {
 
   void _press() {
     if (_busy || widget.loading || widget.onPressed == null) return;
-    final result = widget.onPressed!();
-    if (result is Future) {
-      _busy = true;
-      setState(() {});
-      result.whenComplete(() {
-        if (mounted) setState(() => _busy = false);
-      });
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && scope.busy) return;
+    final action = widget.onPressed;
+    if (action == null) return;
+    if (scope != null && !scope.claim(this)) return;
+    _busy = true;
+    try {
+      final result = action();
+      if (result is Future) {
+        setState(() {});
+        result.whenComplete(() {
+          scope?.release(this);
+          if (mounted) setState(() => _busy = false);
+        });
+      } else {
+        _busy = false;
+        scope?.release(this);
+      }
+    } catch (_) {
+      _busy = false;
+      scope?.release(this);
+      rethrow;
     }
   }
 
@@ -54,7 +93,10 @@ class _LoadingButtonState extends State<LoadingButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final enabled = widget.onPressed != null && !_showSpinner;
+    final scopeBusy =
+        MutationScope.busyOf(context) &&
+        !(MutationScope.maybeOf(context)?.owns(this) ?? false);
+    final enabled = widget.onPressed != null && !_showSpinner && !scopeBusy;
     final callback = enabled ? _press : null;
     final accent = widget.foregroundColor;
     final spinnerColor = _spinnerColor(scheme, accent);
@@ -68,15 +110,7 @@ class _LoadingButtonState extends State<LoadingButton> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (_showSpinner) ...[
-              SizedBox(
-                key: LoadingButton.spinnerKey,
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: spinnerColor,
-                ),
-              ),
+              AppSpinner(size: 22, color: spinnerColor),
               const SizedBox(width: 12),
             ] else if (widget.icon != null) ...[
               IconTheme.merge(
@@ -85,7 +119,14 @@ class _LoadingButtonState extends State<LoadingButton> {
               ),
               const SizedBox(width: 8),
             ],
-            Flexible(child: widget.child),
+            Flexible(
+              child: DefaultTextStyle.merge(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                child: widget.child,
+              ),
+            ),
           ],
         ),
       ),
@@ -247,45 +288,46 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
 
   void _press() {
     if (_busy || widget.loading || widget.onPressed == null) return;
-    final result = widget.onPressed!();
-    if (result is Future) {
-      _busy = true;
-      setState(() {});
-      result.whenComplete(() {
-        if (mounted) setState(() => _busy = false);
-      });
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && scope.busy) return;
+    final action = widget.onPressed;
+    if (action == null) return;
+    if (scope != null && !scope.claim(this)) return;
+    _busy = true;
+    try {
+      final result = action();
+      if (result is Future) {
+        setState(() {});
+        result.whenComplete(() {
+          scope?.release(this);
+          if (mounted) setState(() => _busy = false);
+        });
+      } else {
+        _busy = false;
+        scope?.release(this);
+      }
+    } catch (_) {
+      _busy = false;
+      scope?.release(this);
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final enabled = widget.onPressed != null && !_showSpinner;
-    final background = enabled || _showSpinner
-        ? scheme.primary
-        : scheme.surfaceContainerHighest;
+    final scopeBusy =
+        MutationScope.busyOf(context) &&
+        !(MutationScope.maybeOf(context)?.owns(this) ?? false);
+    final enabled = widget.onPressed != null && !_showSpinner && !scopeBusy;
     final foreground = enabled || _showSpinner
-        ? scheme.onPrimary
+        ? scheme.primary
         : scheme.onSurface.withValues(alpha: 0.38);
-    return IconButton.filled(
+    return IconButton(
       tooltip: widget.tooltip,
       onPressed: enabled ? _press : null,
-      style: IconButton.styleFrom(
-        backgroundColor: background,
-        foregroundColor: foreground,
-        disabledBackgroundColor: background,
-        disabledForegroundColor: foreground,
-      ),
       icon: _showSpinner
-          ? SizedBox(
-              key: LoadingButton.spinnerKey,
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: scheme.onPrimary,
-              ),
-            )
+          ? AppSpinner(size: 22, color: scheme.primary)
           : _tinted(widget.icon, foreground),
     );
   }

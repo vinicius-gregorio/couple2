@@ -130,8 +130,11 @@ class PairingCodePage extends ConsumerWidget {
                     AppText(pairingRequestNotice(status!)),
                     if ((status.pendingCode ?? '').isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: () => context.push(PairingRoutes.waiting),
+                      LoadingButton(
+                        variant: LoadingButtonVariant.outlined,
+                        onPressed: () {
+                          context.push(PairingRoutes.waiting);
+                        },
                         child: const Text('Acompanhar pedido'),
                       ),
                     ],
@@ -157,9 +160,14 @@ class _EnterPartnerCode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
+    return LoadingButton(
       key: const Key('enter-partner-code'),
-      onPressed: enabled ? () => context.push(PairingRoutes.enter) : null,
+      variant: LoadingButtonVariant.outlined,
+      onPressed: enabled
+          ? () {
+              context.push(PairingRoutes.enter);
+            }
+          : null,
       child: const Text('Digitar o código do meu par'),
     );
   }

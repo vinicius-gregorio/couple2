@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../../design_system/widgets/loading_button.dart';
 
 /// When several Home reads fail offline, the page shows one banner.
 class HomeFailureScope extends InheritedWidget {
@@ -35,7 +36,11 @@ class QuietRetry extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: TextButton(onPressed: onRetry, child: const Text('Tentar de novo')),
+      child: LoadingButton(
+        variant: LoadingButtonVariant.text,
+        onPressed: onRetry,
+        child: const Text('Tentar de novo'),
+      ),
     );
   }
 }

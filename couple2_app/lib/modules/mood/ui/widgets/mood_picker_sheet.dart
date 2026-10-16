@@ -65,10 +65,7 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = userFacingError(
-          error,
-          fallback: 'Não consegui guardar agora. Tenta de novo?',
-        );
+        _error = userFacingError(error);
       });
     }
   }
@@ -140,9 +137,10 @@ class _MoodPickerSheetState extends ConsumerState<MoodPickerSheet> {
                 variant: LoadingButtonVariant.filled,
                 loading: _saving,
                 onPressed: _saving || _pop.used ? null : _save,
-                child: Text(_saving ? 'Guardando…' : 'Compartilhar'),
+                child: const Text('Compartilhar'),
               ),
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: _saving || _pop.used
                     ? null
                     : () => Navigator.of(context).pop(),

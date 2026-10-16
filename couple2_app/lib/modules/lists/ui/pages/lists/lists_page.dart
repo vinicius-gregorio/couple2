@@ -71,14 +71,16 @@ class _ListsPageState extends ConsumerState<ListsPage>
     final state = ref.watch(listsViewModelProvider);
     final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
-    return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Nossas listas')),
-      floatingActionButton: AppFab(
-        tooltip: 'Nova lista',
-        onPressed: () => _showCreateListSheet(context, ref, partnerName),
-        icon: const Icon(Icons.add),
+    return MutationScope(
+      child: Scaffold(
+        appBar: AppBar(leading: AppBackButton(), title: AppText('Nossas listas')),
+        floatingActionButton: AppFab(
+          tooltip: 'Nova lista',
+          onPressed: () => _showCreateListSheet(context, ref, partnerName),
+          icon: const Icon(Icons.add),
+        ),
+        body: _buildBody(context, state),
       ),
-      body: _buildBody(context, state),
     );
   }
 
@@ -182,6 +184,7 @@ Future<void> _confirmDeleteList(
   WidgetRef ref,
   PartnerList list,
 ) async {
+  ref.read(listsViewModelProvider.notifier).clearActionError();
   final accepted = await confirmDestructive(
     context,
     title: 'Excluir lista?',
