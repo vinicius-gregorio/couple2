@@ -224,7 +224,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    await tester.tap(find.byTooltip('O que rolou'));
+    await tester.tap(find.byTooltip('Notificações'));
     await tester.pumpAndSettle();
     expect(find.text('Feed aberto'), findsOneWidget);
   });
