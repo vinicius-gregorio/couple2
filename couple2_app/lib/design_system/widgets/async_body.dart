@@ -122,39 +122,52 @@ class LoadErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fixed = minHeight != null;
+    final tight = fixed && minHeight! <= 120;
     final text = Text(
       message,
       textAlign: TextAlign.center,
-      maxLines: fixed ? 4 : null,
-      overflow: fixed ? TextOverflow.ellipsis : TextOverflow.visible,
+      maxLines: tight ? 2 : null,
+      overflow: tight ? TextOverflow.ellipsis : TextOverflow.visible,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: theme.colorScheme.error,
       ),
+    );
+    final retry = onRetry == null
+        ? null
+        : LoadingButton(
+            key: retryKey,
+            variant: LoadingButtonVariant.text,
+            compact: true,
+            onPressed: onRetry,
+            child: const Text(retryLabel),
+          );
+    final group = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        text,
+        if (retry != null) retry,
+      ],
     );
     final card = Card(
       margin: margin,
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: 20,
-          vertical: fixed ? 12 : 20,
+          vertical: tight ? 0 : (fixed ? 8 : 20),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: fixed ? MainAxisSize.max : MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (fixed) Flexible(child: Center(child: text)) else text,
-            if (onRetry != null) ...[
-              const SizedBox(height: 8),
-              LoadingButton(
-                key: retryKey,
-                variant: LoadingButtonVariant.text,
-                onPressed: onRetry,
-                child: const Text(retryLabel),
-              ),
-            ],
-          ],
-        ),
+        child: fixed
+            ? LayoutBuilder(
+                builder: (context, constraints) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                      child: group,
+                    ),
+                  );
+                },
+              )
+            : group,
       ),
     );
     if (!fixed) return card;

@@ -44,6 +44,7 @@ class LoadingButton extends StatefulWidget {
     this.icon,
     this.foregroundColor,
     this.onLongPress,
+    this.compact = false,
   });
 
   /// Sync or async. A returned [Future] keeps the control busy until it ends.
@@ -54,6 +55,10 @@ class LoadingButton extends StatefulWidget {
   final Widget? icon;
   final Color? foregroundColor;
   final VoidCallback? onLongPress;
+
+  /// Text variant only. Drops the theme's vertical padding so a retry can sit
+  /// against its message inside a short card.
+  final bool compact;
 
   static const spinnerKey = Key('loadingButtonSpinner');
 
@@ -151,7 +156,9 @@ class _LoadingButtonState extends State<LoadingButton> {
         ),
       ),
     );
-    final style = _style(theme, scheme, accent);
+    final style = _compact(
+      _style(theme, scheme, accent),
+    );
 
     final longPress = enabled ? widget.onLongPress : null;
     return switch (widget.variant) {
@@ -202,6 +209,18 @@ class _LoadingButtonState extends State<LoadingButton> {
     }
     if (!_showSpinner && widget.onPressed == null) return disabled;
     return accent ?? scheme.primary;
+  }
+
+  ButtonStyle? _compact(ButtonStyle? style) {
+    if (!widget.compact || widget.variant != LoadingButtonVariant.text) {
+      return style;
+    }
+    const tight = ButtonStyle(
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+      minimumSize: WidgetStatePropertyAll(Size(0, 24)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    return style == null ? tight : style.merge(tight);
   }
 
   ButtonStyle? _style(ThemeData theme, ColorScheme scheme, Color? accent) {

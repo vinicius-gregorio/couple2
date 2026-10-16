@@ -205,17 +205,20 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One button node. Focus follows enabled so the web semantics tree
+    // exposes a tab stop only while the arrow can move.
     return Semantics(
+      container: true,
       button: true,
       enabled: enabled,
+      focusable: enabled,
       label: label,
       onTap: enabled ? onPressed : null,
-      child: ExcludeSemantics(
-        child: AppIconButton(
-          tooltip: label,
-          onPressed: enabled ? onPressed : null,
-          icon: Icon(icon),
-        ),
+      excludeSemantics: true,
+      child: AppIconButton(
+        tooltip: label,
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon),
       ),
     );
   }

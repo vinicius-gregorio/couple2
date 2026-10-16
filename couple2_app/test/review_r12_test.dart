@@ -1,5 +1,6 @@
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -65,19 +66,23 @@ void main() {
     await tester.tap(find.text('Abrir'));
     await tester.pumpAndSettle();
     for (final label in ['Mês anterior', 'Próximo mês', 'Ano anterior']) {
-      final node = tester.getSemantics(find.bySemanticsLabel(label));
-      expect(node.label, label);
-      expect(node.flagsCollection.isButton, isTrue, reason: label);
-      expect(node.flagsCollection.isEnabled, isTrue, reason: label);
+      _expectArrow(tester, label, navigable: true);
     }
-    final nextYear = tester.getSemantics(find.bySemanticsLabel('Próximo ano'));
-    expect(nextYear.label, 'Próximo ano');
-    expect(nextYear.flagsCollection.isButton, isTrue);
-    expect(nextYear.flagsCollection.isEnabled, isFalse);
+    _expectArrow(tester, 'Próximo ano', navigable: false);
     } finally {
       handle.dispose();
     }
   });
+}
+
+void _expectArrow(WidgetTester tester, String label, {required bool navigable}) {
+  final data = tester.getSemantics(find.bySemanticsLabel(label)).getSemanticsData();
+  expect(data.label, label);
+  expect(data.flagsCollection.isButton, isTrue, reason: label);
+  expect(data.flagsCollection.hasEnabledState, isTrue, reason: label);
+  expect(data.flagsCollection.isEnabled, navigable, reason: label);
+  expect(data.flagsCollection.isFocusable, navigable, reason: label);
+  expect(data.hasAction(SemanticsAction.tap), navigable, reason: label);
 }
 
 Future<double> _height(WidgetTester tester, Widget child) async {

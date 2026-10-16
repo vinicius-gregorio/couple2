@@ -41,12 +41,20 @@ class HomePage extends ConsumerWidget {
     return MutationScope(
       child: Scaffold(
       appBar: AppBar(
-        // Left of the actions so the notice stays in the free slot and
-        // cannot paint over the leading avatar or the body.
         centerTitle: false,
-        title: _HomeTitle(
-          offline: collapseOffline,
-          onRetry: () => _retryHome(ref),
+        title: const Text(
+          'Início',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        // Full-width slot under the toolbar so the sentence can wrap.
+        // The slot stays when the notice is hidden, so the body does not jump.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(_offlineNoticeSlot),
+          child: _OfflineNotice(
+            offline: collapseOffline,
+            onRetry: () => _retryHome(ref),
+          ),
         ),
         leading: sessionAsync.when(
           data: (session) => _AvatarButton(
@@ -241,8 +249,11 @@ void _retryHome(WidgetRef ref) {
   ref.invalidate(feedPreviewProvider);
 }
 
-class _HomeTitle extends StatelessWidget {
-  const _HomeTitle({required this.offline, required this.onRetry});
+/// Two wrapped lines of the offline sentence, plus a little padding.
+const _offlineNoticeSlot = 48.0;
+
+class _OfflineNotice extends StatelessWidget {
+  const _OfflineNotice({required this.offline, required this.onRetry});
 
   final bool offline;
   final VoidCallback onRetry;
@@ -250,32 +261,31 @@ class _HomeTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Início', maxLines: 1, overflow: TextOverflow.ellipsis),
-        SizedBox(
-          height: 14,
-          width: double.infinity,
-          child: offline
-              ? AppInkWell(
+    return SizedBox(
+      height: _offlineNoticeSlot,
+      width: double.infinity,
+      child: offline
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: AppInkWell(
                   onTap: onRetry,
                   child: Text(
                     offlineUserMessage,
                     key: offlineHomeNoticeKey,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
                     style: TextStyle(
                       fontSize: 11,
-                      height: 1.1,
+                      height: 1.25,
                       color: scheme.onSurface,
                     ),
                   ),
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }
