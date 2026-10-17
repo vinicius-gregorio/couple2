@@ -1,3 +1,5 @@
+import 'package:couple2_app/core/errors/user_facing_error.dart';
+import 'package:couple2_app/core/external/http_client/exceptions/cpl_http_no_internet_connection_exception.dart';
 import 'package:couple2_app/modules/date_plans/domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -80,7 +82,7 @@ void main() {
       proposerId: 'user-a',
       scheduledAt: DateTime(2026, 10, 9, 20),
     );
-    expect(nextDateHeadline(plan), 'Próximo date: Sexta 20:00 — Japonês');
+    expect(nextDateHeadline(plan), 'Próximo encontro: Sexta 20:00 — Japonês');
   });
 
   test('isoWithOffset keeps the same instant and includes an offset', () {
@@ -91,6 +93,17 @@ void main() {
       matches(RegExp(r'^\d{4}-\d{2}-\d{2}T20:00:00(Z|[+-]\d{2}:\d{2})$')),
     );
     expect(DateTime.parse(iso).toUtc(), local.toUtc());
+  });
+
+  test('an offline date save names the network', () {
+    expect(
+      datePlanFailureMessage(const CPLHttpNoInternetConnectionException()),
+      offlineUserMessage,
+    );
+    expect(
+      datePlanFailureMessage(Exception('fail')),
+      fallbackUserMessage,
+    );
   });
 
   test('only movies and travel can plan a date from a list item', () {

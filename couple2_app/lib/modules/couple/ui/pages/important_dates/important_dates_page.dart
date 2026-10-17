@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/couple_providers.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/couple_date_sheet.dart';
@@ -16,15 +17,14 @@ class ImportantDatesPage extends ConsumerStatefulWidget {
 
 class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     with WidgetsBindingObserver {
-  List<CoupleDate> _dates = const [];
-  bool _loading = true;
-  String? _error;
+  String? _deletingId;
+  String? _confirmingId;
+  String? _actionError;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _load();
   }
 
   @override
@@ -37,91 +37,98 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.invalidate(coupleProvider);
-      _load();
+      ref.read(coupleDatesProvider.notifier).reload();
     }
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final dates = await ref.read(coupleRepositoryProvider).getDates();
-      if (mounted) {
-        setState(() {
-          _dates = dates;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = 'Não foi possível carregar as datas';
-        });
-      }
-    }
+  /// Publishes the saved row, then re-reads the list. The sheet awaits this
+  /// before it pops, so the new title is already on the page.
+  Future<void> _reloadDates() async {
+    ref.invalidate(coupleProvider);
+    await ref.read(coupleDatesProvider.notifier).reload();
   }
 
   Future<void> _openSheet([CoupleDate? existing]) async {
-    final draft = await showModalBottomSheet<CoupleDateDraft>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => CoupleDateSheet(existing: existing),
+    if (_rowLocked) return;
+    setState(() => _actionError = null);
+    final host = context;
+    final saved = await showAppSheet<bool>(
+      context: host,
+      onSuccess: _reloadDates,
+      builder: (_) => CoupleDateSheet(
+        existing: existing,
+        hostContext: host,
+        onSave: (draft) => _saveDraft(existing, draft),
+      ),
     );
-    if (draft == null) return;
+    if (saved == true && mounted) {
+      _actionError = null;
+    }
+  }
+
+  Future<String?> _saveDraft(
+    CoupleDate? existing,
+    CoupleDateDraft draft,
+  ) async {
     try {
       final repo = ref.read(coupleRepositoryProvider);
+      final CoupleDate saved;
       if (existing == null) {
-        await repo.createDate(
+        saved = await repo.createDate(
           title: draft.title,
           date: draft.date,
           recurrence: draft.recurrence,
         );
       } else {
-        await repo.updateDate(
+        saved = await repo.updateDate(
           existing.id,
           title: draft.title,
           date: draft.date,
           recurrence: draft.recurrence,
         );
       }
-      ref.invalidate(coupleProvider);
-      await _load();
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = 'Não foi possível salvar a data');
-      }
+      ref.read(coupleDatesProvider.notifier).remember(saved);
+      return null;
+    } catch (error) {
+      return userFacingError(error);
     }
   }
 
+  bool get _rowLocked => _deletingId != null || _confirmingId != null;
+
   Future<void> _delete(CoupleDate date) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir data?'),
-        content: Text('“${date.title}” será apagada para os dois.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+    if (_rowLocked) return;
+    setState(() {
+      _confirmingId = date.id;
+      _actionError = null;
+    });
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'Excluir data?',
+      message: '“${date.title}” será apagada para os dois.',
+      confirmLabel: 'Excluir',
+      confirmKey: const Key('confirm-delete-date'),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      if (mounted) setState(() => _confirmingId = null);
+      return;
+    }
+    setState(() {
+      _confirmingId = null;
+      _deletingId = date.id;
+      _actionError = null;
+    });
     try {
       await ref.read(coupleRepositoryProvider).deleteDate(date.id);
-      ref.invalidate(coupleProvider);
-      await _load();
-    } catch (_) {
+      if (!mounted) return;
+      await MutationScope.refreshOf(context);
+      if (mounted) setState(() => _deletingId = null);
+    } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível excluir a data');
+        setState(() {
+          _deletingId = null;
+          _actionError = userFacingError(error);
+        });
       }
     }
   }
@@ -129,106 +136,182 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   @override
   Widget build(BuildContext context) {
     final coupleAsync = ref.watch(coupleProvider);
-    final upcoming =
-        coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
+    final datesAsync = ref.watch(coupleDatesProvider);
+    final dates = datesAsync.asData?.value ?? const <CoupleDate>[];
+    final loadError = datesAsync.hasError && dates.isEmpty
+        ? userFacingError(datesAsync.error!)
+        : null;
+    final failedEmpty = loadError != null;
+    final upcoming = failedEmpty
+        ? const <UpcomingDate>[]
+        : coupleAsync.asData?.value?.upcoming ?? const <UpcomingDate>[];
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: AppBackButton(),
-        title: AppText('Datas importantes'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openSheet(),
-        child: const Icon(Icons.add),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const AppText(
-            'Datas recorrentes do casal. Conquistas continuam na lista Milestones.',
-          ),
-          const SizedBox(height: 16),
-          AppText(
-            'Próximas datas',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          if (upcoming.isEmpty)
-            const AppText('Nada nos próximos 60 dias.')
-          else
-            ...upcoming.map(
-              (entry) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: IgnorePointer(
-                  child: AppText(
-                    nextDateLine(entry).replaceFirst('Próxima data: ', ''),
-                  ),
-                ),
-                subtitle: IgnorePointer(
-                  child: AppText(formatDisplayDate(entry.date)),
-                ),
-                onTap: entry.coupleDateId == null
-                    ? null
-                    : () {
-                        final match = _dates.where(
-                          (date) => date.id == entry.coupleDateId,
-                        );
-                        if (match.isNotEmpty) _openSheet(match.first);
-                      },
-              ),
+    return MutationScope(
+      onSuccess: _reloadDates,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: AppBackButton(enabled: !_rowLocked),
+          title: AppText('Datas importantes'),
+        ),
+        floatingActionButton: AppFab(
+          tooltip: 'Adicionar data',
+          onPressed: _rowLocked ? null : () => _openSheet(),
+          icon: const Icon(Icons.add),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
+          children: [
+            ActionErrorReporter(message: _actionError),
+            const AppText(
+              'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
             ),
-          const SizedBox(height: 16),
-          AppText(
-            'Datas do casal',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          if (_loading && _dates.isEmpty && _error == null)
-            const SizedBox(height: 240, child: ListSkeleton(rows: 3))
-          else if (_error != null && _dates.isEmpty)
-            ErrorView(message: _error!, compact: true, onRetry: _load)
-          else if (_dates.isEmpty)
-            const EmptyView(
-              message: 'Nenhuma data ainda. Adicione a primeira.',
-              compact: true,
-            )
-          else ...[
-            if (_error != null) ...[
+            const SizedBox(height: 16),
+            if (!failedEmpty) ...[
               AppText(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                'Próximas datas',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
+              if (upcoming.isEmpty)
+                const AppText('Nada nos próximos 60 dias.')
+              else
+                ...upcoming.map((entry) {
+                  final title = nextDateLine(
+                    entry,
+                  ).replaceFirst('Próxima data: ', '');
+                  final when = formatDisplayDate(entry.date);
+                  final open = _rowLocked || entry.coupleDateId == null
+                      ? null
+                      : () {
+                          final match = dates.where(
+                            (date) => date.id == entry.coupleDateId,
+                          );
+                          if (match.isNotEmpty) _openSheet(match.first);
+                        };
+                  return MutationLock(
+                    locked: _rowLocked,
+                    child: Semantics(
+                      button: open != null,
+                      enabled: open != null,
+                      label: '$title, $when',
+                      onTap: open,
+                      child: ExcludeSemantics(
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: IgnorePointer(child: AppText(title)),
+                          subtitle: IgnorePointer(child: AppText(when)),
+                          onTap: open,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
             ],
-            ..._dates.map(
-              (date) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: IgnorePointer(child: AppText(date.title)),
-                subtitle: IgnorePointer(
-                  child: AppText(
-                    '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+            const SizedBox(height: 16),
+            AppText(
+              'Datas do casal',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (datesAsync.isLoading && dates.isEmpty && loadError == null)
+              const SizedBox(height: 240, child: ListSkeleton(rows: 3))
+            else if (loadError != null)
+              ErrorView(
+                message: loadError,
+                compact: true,
+                onRetry: () => ref.read(coupleDatesProvider.notifier).reload(),
+              )
+            else if (dates.isEmpty)
+              const EmptyView(
+                message: 'Nenhuma data ainda. Toque em adicionar.',
+                compact: true,
+              )
+            else ...[
+              ...dates.map(
+                (date) => _DateRow(
+                  key: Key('date-row-${date.id}'),
+                  date: date,
+                  deleting: _deletingId == date.id,
+                  locked: _rowLocked,
+                  onOpen: () => _openSheet(date),
+                  onDelete: () => _delete(date),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DateRow extends StatelessWidget {
+  const _DateRow({
+    super.key,
+    required this.date,
+    required this.deleting,
+    required this.locked,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final CoupleDate date;
+  final bool deleting;
+  final bool locked;
+  final VoidCallback onOpen;
+  final Future<void> Function() onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final busy = locked || deleting;
+    final iconColor = busy
+        ? scheme.onSurface.withValues(alpha: 0.38)
+        : scheme.primary;
+    return MutationLock(
+      locked: busy,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: AppInkWell(
+                semanticLabel:
+                    '${date.title}, ${formatDisplayDate(date.date)}, ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                onTap: busy ? null : onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(date.title),
+                      AppText(
+                        '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                      ),
+                    ],
                   ),
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Editar',
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => _openSheet(date),
-                    ),
-                    IconButton(
-                      tooltip: 'Excluir',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _delete(date),
-                    ),
-                  ],
-                ),
-                onTap: () => _openSheet(date),
               ),
             ),
+            AppIconButton(
+              tooltip: 'Editar',
+              onPressed: busy ? null : onOpen,
+              icon: Icon(Icons.edit_outlined, color: iconColor),
+            ),
+            const SizedBox(width: 8),
+            LoadingIconButton(
+              tooltip: 'Excluir',
+              loading: deleting,
+              icon: const Icon(Icons.delete_outline),
+              onPressed: busy
+                  ? null
+                  : () {
+                      onDelete();
+                    },
+            ),
+            const SizedBox(width: 4),
           ],
-        ],
+        ),
       ),
     );
   }

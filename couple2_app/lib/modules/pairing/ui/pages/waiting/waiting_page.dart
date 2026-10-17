@@ -25,7 +25,46 @@ class WaitingPage extends ConsumerStatefulWidget {
 
 class _WaitingPageState extends ConsumerState<WaitingPage> {
   var _cancelling = false;
+  var _confirming = false;
+  var _loadingCode = true;
   String? _error;
+  String? _codeError;
+  final _pop = PopGuard();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureCode());
+  }
+
+  Future<void> _ensureCode() async {
+    if (!mounted) return;
+    final status = ref.read(pairingStatusProvider).asData?.value;
+    final session = ref.read(sessionProvider).asData?.value;
+    final shown = shownPairingCode(
+      status: status,
+      sessionCode: session?.pairingCode,
+      sessionExpiresAt: session?.pairingCodeExpiresAt,
+    );
+    if (shown.code != null) {
+      if (mounted) setState(() => _loadingCode = false);
+      return;
+    }
+    setState(() {
+      _loadingCode = true;
+      _codeError = null;
+    });
+    try {
+      await ref.read(pairingStatusProvider.notifier).ensureShownCode();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _codeError = pairingErrorMessage(error, action: PairingAction.generate);
+      });
+    } finally {
+      if (mounted) setState(() => _loadingCode = false);
+    }
+  }
 
   Future<void> _refresh() async {
     final phase = await ref.read(pairingStatusProvider.notifier).poll();
@@ -42,7 +81,26 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
   }
 
   Future<void> _cancel() async {
+    if (_cancelling || _confirming) return;
     setState(() {
+      _confirming = true;
+      _error = null;
+    });
+    final accepted = await confirmDestructive(
+      context,
+      title: 'Cancelar pedido?',
+      message:
+          'O pedido some para a outra pessoa. Vocês podem enviar outro depois.',
+      confirmLabel: 'Cancelar pedido',
+      confirmKey: const Key('confirm-cancel-pairing'),
+    );
+    if (!mounted) return;
+    if (!accepted) {
+      setState(() => _confirming = false);
+      return;
+    }
+    setState(() {
+      _confirming = false;
       _cancelling = true;
       _error = null;
     });
@@ -62,21 +120,39 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(pairingStatusProvider, (previous, next) {
+      final was = previous?.asData?.value.phase;
+      final now = next.asData?.value.phase;
+      if (next is AsyncData<PairingSnapshot> &&
+          _error != null &&
+          !_cancelling &&
+          !_confirming &&
+          !(was == PairingPhase.pending && now == PairingPhase.unpaired)) {
+        setState(() => _error = null);
+      }
+      if (was != PairingPhase.pending || now != PairingPhase.unpaired) return;
+      if (_cancelling || _confirming) return;
+      ref
+          .read(pairingDeclineMessageProvider.notifier)
+          .show(declinedPairingMessage);
+      context.go(PairingRoutes.hub);
+    });
     final status = ref.watch(pairingStatusProvider).asData?.value;
     final session = ref.watch(sessionProvider).asData?.value;
+    final controlsLocked = ref.watch(pairingControlsLockedProvider) > 0;
     final shown = shownPairingCode(
       status: status,
       sessionCode: session?.pairingCode,
       sessionExpiresAt: session?.pairingCodeExpiresAt,
     );
-    final theme = Theme.of(context);
     final partnerName = status?.partner?.name;
 
+    final busy = _cancelling || _confirming || controlsLocked;
     return PairingPoller(
       enabled: status?.phase != PairingPhase.paired,
-      returnToHubWhenUnpaired: true,
       child: PairingScaffold(
         step: 3,
+        actionsEnabled: !busy,
         onRefresh: _refresh,
         children: [
           const AppText(
@@ -85,10 +161,9 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           ),
           const SizedBox(height: 8),
           const AppText(
-            'Peça para a outra pessoa abrir o app e digitar o seu código. Quando isso acontecer, o casal fica ativo e a Home abre.',
+            'A outra pessoa vê o pedido na tela de pareamento e pode Aceitar ou Recusar. Ela também pode digitar o seu código.',
           ),
           const SizedBox(height: 8),
-          const AppText('Atualizando automaticamente…'),
           if (status?.pendingCode != null) ...[
             const SizedBox(height: 16),
             AppText('Código que você enviou: ${status!.pendingCode}'),
@@ -98,6 +173,10 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
           const SizedBox(height: 8),
           PairingCodeCard(
             code: shown.code,
+            allowGenerate: false,
+            loading: shown.code == null && _loadingCode,
+            missingMessage: _codeError,
+            actionsEnabled: !busy,
             expiryLabel: pairingExpiryLabel(shown.expiresAt),
             onCopy: shown.code == null
                 ? null
@@ -134,23 +213,30 @@ class _WaitingPageState extends ConsumerState<WaitingPage> {
               child: const Text('Ir para a Home'),
             ),
           ],
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AppText(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          const SizedBox(
+            height: 48,
+            child: Center(child: AppText('Atualizando automaticamente…')),
+          ),
+          ActionErrorReporter(message: _error),
+          const SizedBox(height: 8),
           LoadingButton(
             key: const Key('cancel-pairing-request'),
             variant: LoadingButtonVariant.outlined,
             loading: _cancelling,
-            onPressed: _cancelling ? null : _cancel,
-            child: Text(_cancelling ? 'Cancelando...' : 'Cancelar pedido'),
+            onPressed: busy
+                ? null
+                : () {
+                    _cancel();
+                  },
+            child: const Text('Cancelar pedido'),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: _cancelling
+          LoadingButton(
+            variant: LoadingButtonVariant.text,
+            onPressed: busy
                 ? null
-                : () => popOrGo(context, PairingRoutes.hub),
+                : () => popOrGo(context, PairingRoutes.hub, guard: _pop),
             child: const Text('Voltar ao meu código'),
           ),
         ],

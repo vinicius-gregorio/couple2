@@ -2,8 +2,10 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/provider_load.dart';
 import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
+import '../../../../../core/core.dart';
 import '../../../data/mood_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -16,7 +18,7 @@ class MoodHistoryPage extends ConsumerStatefulWidget {
 
 class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
   MoodHistory? _history;
-  Object? _error;
+  String? _error;
   bool _loading = true;
 
   @override
@@ -31,7 +33,9 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
       _error = null;
     });
     try {
-      final history = await ref.read(moodRepositoryProvider).history();
+      final history = await loadOrTimeout(
+        ref.read(moodRepositoryProvider).history(),
+      );
       if (!mounted) return;
       setState(() {
         _history = history;
@@ -40,7 +44,9 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error;
+        _error = userFacingError(
+          error,
+        );
         _loading = false;
       });
     }
@@ -58,7 +64,7 @@ class _MoodHistoryPageState extends ConsumerState<MoodHistoryPage> {
           isLoading: _loading,
           hasData: history != null && history.items.isNotEmpty,
           error: _error,
-          errorMessage: 'Não foi possível carregar o histórico.',
+          errorMessage: _error ?? fallbackUserMessage,
           onRetry: _load,
           isEmpty: history == null || history.items.isEmpty,
           emptyMessage: 'Quando vocês quiserem, os check-ins aparecem aqui.',

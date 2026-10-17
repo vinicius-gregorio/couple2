@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -19,6 +20,7 @@ class TodayQuestionPage extends ConsumerStatefulWidget {
 class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
   final _controller = TextEditingController();
   String? _filledFor;
+  bool _editing = false;
 
   @override
   void initState() {
@@ -54,14 +56,17 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
       });
     }
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
         title: const AppText('Pergunta do dia'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: 'Histórico',
-            onPressed: () => context.push(DailyQuestionRoutes.history),
+            onPressed: state.isSaving
+                ? null
+                : () => context.push(DailyQuestionRoutes.history),
             icon: const Icon(Icons.history),
           ),
         ],
@@ -77,21 +82,17 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
             else ...[
               if (state.errorMessage != null && question == null)
                 ErrorView(
-                  message: 'Não foi possível carregar a pergunta.',
+                  message: state.errorMessage!,
                   compact: true,
                   onRetry: viewModel.load,
                 )
-              else if (state.errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: AppText(state.errorMessage!),
-                ),
-              if (question == null && state.errorMessage == null)
+              else if (question == null && state.errorMessage == null)
                 const EmptyView(
-                  message: 'Não foi possível carregar a pergunta.',
+                  message: fallbackUserMessage,
                   compact: true,
                 )
               else if (question != null) ...[
+                ActionErrorReporter(message: state.errorMessage),
                 AppText(
                   questionCategoryLabel(question.question.category),
                   style: Theme.of(context).textTheme.labelLarge,
@@ -115,30 +116,55 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
                     AppText(partnerAlreadyAnsweredLine(partnerName)),
                     const SizedBox(height: 16),
                   ],
-                  TextField(
-                    controller: _controller,
-                    maxLength: 1000,
-                    minLines: 4,
-                    maxLines: 8,
-                    enabled: !state.isSaving,
-                    decoration: const InputDecoration(
-                      hintText: 'Sua resposta',
-                      alignLabelWithHint: true,
+                  if (question.answeredByMe && !_editing) ...[
+                    AppText(_controller.text.isEmpty
+                        ? 'Resposta enviada.'
+                        : _controller.text),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 160,
+                        child: LoadingButton(
+                          variant: LoadingButtonVariant.outlined,
+                          onPressed: state.isSaving
+                              ? null
+                              : () => setState(() => _editing = true),
+                          child: const Text('Editar'),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: LoadingButton(
-                      variant: LoadingButtonVariant.filled,
-                      loading: state.isSaving,
-                      onPressed:
-                          state.isSaving || _controller.text.trim().isEmpty
-                          ? null
-                          : () => viewModel.submit(_controller.text),
-                      child: Text(question.answeredByMe ? 'Editar' : 'Enviar'),
+                  ] else ...[
+                    TextField(
+                      controller: _controller,
+                      maxLength: 1000,
+                      minLines: 4,
+                      maxLines: 8,
+                      enabled: !state.isSaving,
+                      decoration: const InputDecoration(
+                        hintText: 'Sua resposta',
+                        alignLabelWithHint: true,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 160,
+                        child: LoadingButton(
+                          variant: LoadingButtonVariant.filled,
+                          loading: state.isSaving,
+                          onPressed:
+                              state.isSaving || _controller.text.trim().isEmpty
+                              ? null
+                              : () => viewModel.submit(_controller.text),
+                          child: Text(
+                            question.answeredByMe ? 'Salvar' : 'Enviar',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (question.answeredByMe && !question.partnerAnswered)
                     const Padding(
                       padding: EdgeInsets.only(top: 16),
@@ -151,6 +177,7 @@ class _TodayQuestionPageState extends ConsumerState<TodayQuestionPage> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

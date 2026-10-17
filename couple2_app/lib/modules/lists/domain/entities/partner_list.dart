@@ -9,6 +9,10 @@ class PartnerList {
   final List<ListItem> items;
   final DateTime createdAt;
 
+  /// False when the payload left `items` out. An empty list with this true
+  /// means the server says the list has no rows.
+  final bool itemsIncluded;
+
   const PartnerList({
     required this.id,
     required this.type,
@@ -17,19 +21,25 @@ class PartnerList {
     this.visibility = 'SHARED',
     required this.items,
     required this.createdAt,
+    this.itemsIncluded = true,
   });
 
   factory PartnerList.fromJson(Map<String, dynamic> json) {
+    final raw = json['items'];
+    final included = raw is List;
     return PartnerList(
       id: json['id'] as String,
       type: json['type'] as String,
       name: json['name'] as String,
       ownerId: json['ownerId'] as String,
       visibility: json['visibility'] as String? ?? 'SHARED',
-      items: (json['items'] as List<dynamic>)
-          .map((e) => ListItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      items: included
+          ? raw
+                .map((e) => ListItem.fromJson(e as Map<String, dynamic>))
+                .toList()
+          : const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
+      itemsIncluded: included,
     );
   }
 
@@ -53,6 +63,7 @@ class PartnerList {
     String? visibility,
     List<ListItem>? items,
     DateTime? createdAt,
+    bool? itemsIncluded,
   }) {
     return PartnerList(
       id: id ?? this.id,
@@ -62,6 +73,22 @@ class PartnerList {
       visibility: visibility ?? this.visibility,
       items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
+      itemsIncluded: itemsIncluded ?? this.itemsIncluded,
     );
   }
+}
+
+/// Keeps local rows only when [fresh] did not include an items array.
+List<PartnerList> preserveLocalItems(
+  List<PartnerList> local,
+  List<PartnerList> fresh,
+) {
+  final byId = {for (final list in local) list.id: list};
+  return [
+    for (final next in fresh)
+      if (!next.itemsIncluded && (byId[next.id]?.items.isNotEmpty ?? false))
+        next.copyWith(items: byId[next.id]!.items, itemsIncluded: true)
+      else
+        next,
+  ];
 }

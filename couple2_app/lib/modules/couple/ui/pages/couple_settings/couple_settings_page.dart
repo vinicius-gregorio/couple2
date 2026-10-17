@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
+import '../../../../../app/session_provider.dart';
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/routing/pop_or_go.dart';
 import '../../../../../app/routing/routes.dart';
 import '../../../../pairing/ui/widgets/unpair_button.dart';
@@ -27,6 +29,28 @@ const _commonTimezones = [
   'UTC',
 ];
 
+const _timezoneLabels = {
+  'America/Sao_Paulo': 'Brasília (São Paulo)',
+  'America/Manaus': 'Manaus',
+  'America/Belem': 'Belém',
+  'America/Fortaleza': 'Fortaleza',
+  'America/Recife': 'Recife',
+  'America/Noronha': 'Fernando de Noronha',
+  'America/Rio_Branco': 'Rio Branco',
+  'America/New_York': 'Nova York',
+  'America/Chicago': 'Chicago',
+  'America/Denver': 'Denver',
+  'America/Los_Angeles': 'Los Angeles',
+  'Europe/Lisbon': 'Lisboa',
+  'Europe/London': 'Londres',
+  'UTC': 'UTC',
+};
+
+String timezoneLabel(String zone) {
+  return _timezoneLabels[zone] ??
+      zone.replaceAll('_', ' ').replaceAll('/', ' · ');
+}
+
 class CoupleSettingsPage extends ConsumerStatefulWidget {
   const CoupleSettingsPage({super.key});
 
@@ -38,8 +62,10 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
   DateTime? _anniversary;
   String _timezone = 'America/Sao_Paulo';
   bool _saving = false;
+  bool _unpairing = false;
   String? _error;
   bool _initialized = false;
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -69,9 +95,19 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     }
   }
 
+  /// Cold open can fail on `GET /auth/me` before `/couple` runs. Retry both.
+  Future<void> _retryLoad() async {
+    final session = ref.read(sessionProvider);
+    final coupleId = session.asData?.value?.coupleId;
+    if (session.hasError || coupleId == null) {
+      await ref.read(sessionProvider.notifier).refresh();
+    }
+    ref.invalidate(coupleProvider);
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: _anniversary ?? now,
       firstDate: DateTime(1900),
@@ -80,7 +116,10 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     if (picked != null) setState(() => _anniversary = picked);
   }
 
+  bool get _locked => _saving || _unpairing;
+
   Future<void> _save() async {
+    if (_locked || _pop.used) return;
     final anniversary = _anniversary;
     if (anniversary == null) {
       setState(() => _error = 'Escolha a data em que vocês começaram');
@@ -98,11 +137,18 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             timezone: _timezone,
           );
       ref.invalidate(coupleProvider);
-      if (!mounted) return;
-      popOrGo(context, APPRoutes.home);
-    } catch (_) {
+      try {
+        await ref.read(coupleProvider.future);
+      } catch (_) {
+        // The save landed. Home refetches if this read failed.
+      }
+      if (!mounted || _pop.used) return;
+      popOrGo(context, APPRoutes.home, guard: _pop);
+    } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível salvar. Confira o fuso.');
+        setState(() {
+          _error = userFacingError(error);
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -136,21 +182,29 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
           title: AppText('Nosso começo'),
         ),
         body: ErrorView(
-          message: 'Não foi possível carregar o casal.',
-          onRetry: () => ref.invalidate(coupleProvider),
+          message: userFacingError(coupleAsync.error!),
+          onRetry: _retryLoad,
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Nosso começo')),
+      appBar: AppBar(
+        leading: AppBackButton(enabled: !_locked),
+        title: AppText('Nosso começo'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const AppText('Data de início'),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: _saving ? null : _pickDate,
+          LoadingButton(
+            variant: LoadingButtonVariant.outlined,
+            onPressed: _locked
+                ? null
+                : () {
+                    _pickDate();
+                  },
             child: Text(
               _anniversary == null
                   ? 'Escolher data'
@@ -164,26 +218,25 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             key: ValueKey(_timezone),
             initialValue: zones.contains(_timezone) ? _timezone : zones.first,
             items: zones
-                .map((zone) => DropdownMenuItem(value: zone, child: Text(zone)))
+                .map(
+                  (zone) => DropdownMenuItem(
+                    value: zone,
+                    child: Text(timezoneLabel(zone)),
+                  ),
+                )
                 .toList(),
-            onChanged: _saving
+            onChanged: _locked
                 ? null
                 : (value) {
                     if (value != null) setState(() => _timezone = value);
                   },
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AppText(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
+          ActionErrorReporter(message: _error),
           const SizedBox(height: 24),
           LoadingButton(
             loading: _saving,
-            onPressed: _saving || _anniversary == null ? null : _save,
-            child: Text(_saving ? 'Salvando...' : 'Salvar'),
+            onPressed: _locked || _anniversary == null ? null : _save,
+            child: const Text('Salvar'),
           ),
           const SizedBox(height: 48),
           const Divider(),
@@ -194,7 +247,12 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
             'As listas deste casal ficam inacessíveis para os dois. Não há arquivo.',
           ),
           const SizedBox(height: 12),
-          const UnpairButton(),
+          UnpairButton(
+            enabled: !_saving,
+            onBusyChanged: (busy) {
+              if (mounted) setState(() => _unpairing = busy);
+            },
+          ),
         ],
       ),
     );

@@ -1,13 +1,20 @@
+import 'package:couple2_app/core/core.dart';
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/domain.dart';
 
-Future<NudgeDraft?> showNudgeComposerSheet(BuildContext context) {
-  return showModalBottomSheet<NudgeDraft>(
+/// The sheet stays open until [onSend] succeeds, so a failure keeps the
+/// phrase and the selected chip.
+Future<void> showNudgeComposerSheet(
+  BuildContext context, {
+  required Future<void> Function(NudgeDraft draft) onSend,
+}) {
+  return showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
-    builder: (_) => const NudgeComposerSheet(),
+    isDismissible: false,
+    enableDrag: false,
+    builder: (_) => NudgeComposerSheet(onSend: onSend),
   );
 }
 
@@ -19,7 +26,9 @@ class NudgeDraft {
 }
 
 class NudgeComposerSheet extends StatefulWidget {
-  const NudgeComposerSheet({super.key});
+  const NudgeComposerSheet({super.key, required this.onSend});
+
+  final Future<void> Function(NudgeDraft draft) onSend;
 
   @override
   State<NudgeComposerSheet> createState() => _NudgeComposerSheetState();
@@ -28,6 +37,7 @@ class NudgeComposerSheet extends StatefulWidget {
 class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
   NudgeKind _kind = NudgeKind.thinkingOfYou;
   final _message = TextEditingController();
+  String? _error;
 
   @override
   void dispose() {
@@ -38,50 +48,73 @@ class _NudgeComposerSheetState extends State<NudgeComposerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppText(
-            'Um carinho',
-            style: Theme.of(context).textTheme.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              for (final kind in NudgeKind.values)
-                ChoiceChip(
-                  label: Text('${kind.emoji} ${kind.label}'),
-                  selected: kind == _kind,
-                  onSelected: (_) => setState(() => _kind = kind),
+    return MutationScope(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottom),
+        child: Builder(
+          builder: (context) {
+            final locked = MutationScope.busyOf(context);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppText(
+                  'Um carinho',
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _message,
-            maxLength: 80,
-            decoration: const InputDecoration(
-              labelText: 'Uma frase, se quiser',
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: () {
-              final text = _message.text.trim();
-              Navigator.of(context).pop(
-                NudgeDraft(kind: _kind, message: text.isEmpty ? null : text),
-              );
-            },
-            child: const Text('Enviar'),
-          ),
-        ],
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final kind in NudgeKind.values)
+                      ChoiceChip(
+                        label: Text('${kind.emoji} ${kind.label}'),
+                        selected: kind == _kind,
+                        onSelected: locked
+                            ? null
+                            : (_) => setState(() => _kind = kind),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _message,
+                  enabled: !locked,
+                  maxLength: 80,
+                  decoration: const InputDecoration(
+                    labelText: 'Uma frase, se quiser',
+                  ),
+                ),
+                ActionErrorReporter(message: _error),
+                const SizedBox(height: 8),
+                LoadingButton(
+                  onPressed: () async {
+                    final text = _message.text.trim();
+                    try {
+                      await widget.onSend(
+                        NudgeDraft(
+                          kind: _kind,
+                          message: text.isEmpty ? null : text,
+                        ),
+                      );
+                      if (context.mounted) {
+                        await MutationScope.refreshOf(context);
+                      }
+                      if (context.mounted) Navigator.of(context).pop();
+                    } catch (error) {
+                      if (!mounted) return;
+                      setState(() => _error = userFacingError(error));
+                    }
+                  },
+                  child: const Text('Enviar'),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

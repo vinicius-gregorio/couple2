@@ -156,6 +156,25 @@ const ColorScheme darkColorScheme = ColorScheme(
 );
 
 /// Light theme configuration
+/// Lifts a floating SnackBar above the keyboard and a bottom field or button.
+const snackBarFieldClearance = 112.0;
+
+EdgeInsets actionSnackBarMargin(double viewInsetBottom) {
+  return EdgeInsets.fromLTRB(
+    16,
+    0,
+    16,
+    snackBarFieldClearance + viewInsetBottom,
+  );
+}
+
+SnackBarThemeData actionSnackBarTheme(double viewInsetBottom) {
+  return SnackBarThemeData(
+    behavior: SnackBarBehavior.floating,
+    insetPadding: actionSnackBarMargin(viewInsetBottom),
+  );
+}
+
 final ThemeData lightTheme = _theme(lightColorScheme, Brightness.light);
 
 /// Dark theme configuration
@@ -178,12 +197,42 @@ ThemeData _theme(ColorScheme scheme, Brightness brightness) {
     splashFactory: InkRipple.splashFactory,
     appBarTheme: isLight ? lightAppBarTheme() : darkAppBarTheme(),
     cardTheme: isLight ? lightCardTheme() : darkCardTheme(),
-    elevatedButtonTheme: elevatedButtonTheme(scheme),
     filledButtonTheme: filledButtonTheme(scheme),
     outlinedButtonTheme: outlinedButtonTheme(scheme),
     textButtonTheme: textButtonTheme(scheme),
-    iconButtonTheme: iconButtonTheme(),
+    iconButtonTheme: iconButtonTheme(scheme),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        final disabled = states.contains(WidgetState.disabled);
+        if (states.contains(WidgetState.selected)) {
+          return disabled
+              ? scheme.onSurface.withValues(alpha: 0.38)
+              : scheme.primary;
+        }
+        return Colors.transparent;
+      }),
+      checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+      side: WidgetStateBorderSide.resolveWith((states) {
+        final color = states.contains(WidgetState.disabled)
+            ? scheme.onSurface.withValues(alpha: 0.38)
+            : scheme.primary;
+        return BorderSide(color: color, width: 2);
+      }),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return scheme.onPrimary;
+        return scheme.primary;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return scheme.primary;
+        return Colors.transparent;
+      }),
+      trackOutlineColor: WidgetStatePropertyAll(scheme.primary),
+    ),
     floatingActionButtonTheme: floatingActionButtonTheme(scheme),
+    snackBarTheme: actionSnackBarTheme(0),
+    chipTheme: appChipTheme(scheme),
     inputDecorationTheme: inputDecorationTheme(scheme),
     dividerTheme: isLight ? lightDividerTheme() : darkDividerTheme(),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),

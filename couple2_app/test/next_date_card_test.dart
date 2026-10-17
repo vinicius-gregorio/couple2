@@ -33,14 +33,17 @@ Future<void> _pump(WidgetTester tester, DatePlan? plan) async {
 void main() {
   testWidgets('shows the next date in device time', (tester) async {
     await _pump(tester, _plan());
-    expect(find.text('Próximo date: Sexta 20:00 — Japonês'), findsOneWidget);
+    expect(
+      find.text('Próximo encontro: Sexta 20:00 — Japonês'),
+      findsOneWidget,
+    );
     expect(find.text('Horário do aparelho'), findsOneWidget);
-    expect(find.text('Planejar um date'), findsNothing);
+    expect(find.text('Planejar um encontro'), findsNothing);
   });
 
   testWidgets('offers to plan a date when nothing is upcoming', (tester) async {
     await _pump(tester, null);
-    expect(find.text('Planejar um date'), findsOneWidget);
-    expect(find.textContaining('Próximo date:'), findsNothing);
+    expect(find.text('Planejar um encontro'), findsOneWidget);
+    expect(find.textContaining('Próximo encontro:'), findsNothing);
   });
 }

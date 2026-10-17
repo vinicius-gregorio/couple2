@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../app/provider_load.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -16,11 +17,12 @@ final nudgesRepositoryProvider = Provider<INudgesRepository>((ref) {
 });
 
 final currentMoodProvider = FutureProvider<MoodCurrent?>((ref) async {
-  final session = await ref.watch(sessionProvider.future);
-  if (session == null || session.coupleId == null) return null;
+  final coupleId = await watchCoupleId(ref);
+  if (coupleId == null) return null;
+  final repo = ref.watch(moodRepositoryProvider);
   try {
-    return await ref.watch(moodRepositoryProvider).current();
+    return await loadOrTimeout(repo.current());
   } on CPLHttpForbiddenException {
     return null;
   }
-});
+}, retry: noProviderRetry);

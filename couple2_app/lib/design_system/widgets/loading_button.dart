@@ -1,6 +1,34 @@
 import 'package:flutter/material.dart';
 
-enum LoadingButtonVariant { elevated, filled, outlined, text }
+import 'mutation_scope.dart';
+
+enum LoadingButtonVariant { filled, outlined, text }
+
+/// Fixed-size spinner. A bare indicator collapses to a hairline on web.
+class AppSpinner extends StatelessWidget {
+  const AppSpinner({super.key, this.size = 22, this.color});
+
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final paint = color ?? scheme.primary;
+    // Explicit box plus a full track. A bare indicator is clamped to the
+    // label line and paints as a dot.
+    return SizedBox(
+      key: LoadingButton.spinnerKey,
+      width: size,
+      height: size,
+      child: CircularProgressIndicator(
+        strokeWidth: 3,
+        backgroundColor: paint.withValues(alpha: 0.24),
+        color: paint,
+      ),
+    );
+  }
+}
 
 /// Button that shows a spinner and ignores taps while a request is in flight.
 ///
@@ -12,9 +40,11 @@ class LoadingButton extends StatefulWidget {
     required this.onPressed,
     required this.child,
     this.loading = false,
-    this.variant = LoadingButtonVariant.elevated,
+    this.variant = LoadingButtonVariant.filled,
     this.icon,
     this.foregroundColor,
+    this.onLongPress,
+    this.compact = false,
   });
 
   /// Sync or async. A returned [Future] keeps the control busy until it ends.
@@ -24,6 +54,11 @@ class LoadingButton extends StatefulWidget {
   final Widget child;
   final Widget? icon;
   final Color? foregroundColor;
+  final VoidCallback? onLongPress;
+
+  /// Text variant only. Drops the theme's vertical padding so a retry can sit
+  /// against its message inside a short card.
+  final bool compact;
 
   static const spinnerKey = Key('loadingButtonSpinner');
 
@@ -38,65 +73,113 @@ class _LoadingButtonState extends State<LoadingButton> {
 
   void _press() {
     if (_busy || widget.loading || widget.onPressed == null) return;
-    final result = widget.onPressed!();
-    if (result is Future) {
-      _busy = true;
-      setState(() {});
-      result.whenComplete(() {
-        if (mounted) setState(() => _busy = false);
-      });
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && scope.busy) return;
+    final action = widget.onPressed;
+    if (action == null) return;
+    if (scope != null && !scope.claim(this)) return;
+    _busy = true;
+    try {
+      final result = action();
+      if (result is Future) {
+        setState(() {});
+        result.then<void>((_) async {
+          await scope?.refresh();
+        }, onError: (Object _) {}).whenComplete(() {
+          scope?.release(this);
+          if (mounted) setState(() => _busy = false);
+        });
+      } else {
+        _busy = false;
+        scope?.refresh();
+        scope?.release(this);
+      }
+    } catch (_) {
+      _busy = false;
+      scope?.release(this);
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final enabled = widget.onPressed != null && !_showSpinner;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final scopeBusy =
+        MutationScope.busyOf(context) &&
+        !(MutationScope.maybeOf(context)?.owns(this) ?? false);
+    final enabled = widget.onPressed != null && !_showSpinner && !scopeBusy;
     final callback = enabled ? _press : null;
     final accent = widget.foregroundColor;
     final spinnerColor = _spinnerColor(scheme, accent);
-    final label = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (_showSpinner) ...[
-          SizedBox(
-            key: LoadingButton.spinnerKey,
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: spinnerColor,
-            ),
+    final labelColor = _labelColor(theme, scheme, accent);
+    final label = IconTheme.merge(
+      data: IconThemeData(color: labelColor),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: labelColor),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 24),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: _showSpinner ? 0 : 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.icon != null) ...[
+                      IconTheme.merge(
+                        data: IconThemeData(color: labelColor),
+                        child: widget.icon!,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: DefaultTextStyle.merge(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        child: widget.child,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_showSpinner)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AppSpinner(size: 24, color: spinnerColor),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 12),
-        ] else if (widget.icon != null) ...[
-          widget.icon!,
-          const SizedBox(width: 8),
-        ],
-        Flexible(child: widget.child),
-      ],
-    );
-    final style = _style(scheme, accent);
-
-    return switch (widget.variant) {
-      LoadingButtonVariant.elevated => ElevatedButton(
-        onPressed: callback,
-        style: style,
-        child: label,
+        ),
       ),
+    );
+    final style = _compact(
+      _style(theme, scheme, accent),
+    );
+
+    final longPress = enabled ? widget.onLongPress : null;
+    return switch (widget.variant) {
       LoadingButtonVariant.filled => FilledButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
       LoadingButtonVariant.outlined => OutlinedButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
       LoadingButtonVariant.text => TextButton(
         onPressed: callback,
+        onLongPress: longPress,
         style: style,
         child: label,
       ),
@@ -111,11 +194,67 @@ class _LoadingButtonState extends State<LoadingButton> {
     return scheme.onPrimary;
   }
 
-  ButtonStyle? _style(ColorScheme scheme, Color? accent) {
+  Color _disabledForeground(ThemeData theme, ColorScheme scheme) {
+    return theme.filledButtonTheme.style?.foregroundColor?.resolve({
+          WidgetState.disabled,
+        }) ??
+        scheme.onSurface.withValues(alpha: 0.38);
+  }
+
+  /// Filled labels stay white on [ColorScheme.primary], including while the
+  /// control is locked. A disabled style would paint a dark label on the wine
+  /// fill and hide the spinner.
+  Color _labelColor(ThemeData theme, ColorScheme scheme, Color? accent) {
+    final disabled = _disabledForeground(theme, scheme);
+    if (widget.variant == LoadingButtonVariant.filled) {
+      if (_showSpinner || widget.onPressed != null) return scheme.onPrimary;
+      return disabled;
+    }
+    if (!_showSpinner && widget.onPressed == null) return disabled;
+    return accent ?? scheme.primary;
+  }
+
+  ButtonStyle? _compact(ButtonStyle? style) {
+    if (!widget.compact || widget.variant != LoadingButtonVariant.text) {
+      return style;
+    }
+    const tight = ButtonStyle(
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+      minimumSize: WidgetStatePropertyAll(Size(0, 24)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    return style == null ? tight : style.merge(tight);
+  }
+
+  ButtonStyle? _style(ThemeData theme, ColorScheme scheme, Color? accent) {
+    if (widget.variant == LoadingButtonVariant.filled && accent == null) {
+      final disabledBg =
+          theme.filledButtonTheme.style?.backgroundColor?.resolve({
+            WidgetState.disabled,
+          }) ??
+          scheme.surfaceContainerHighest;
+      final disabledFg = _disabledForeground(theme, scheme);
+      final spinning = _showSpinner;
+      return ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.primary;
+          if (states.contains(WidgetState.disabled)) return disabledBg;
+          return scheme.primary;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.onPrimary;
+          if (states.contains(WidgetState.disabled)) return disabledFg;
+          return scheme.onPrimary;
+        }),
+        iconColor: WidgetStateProperty.resolveWith((states) {
+          if (spinning) return scheme.onPrimary;
+          if (states.contains(WidgetState.disabled)) return disabledFg;
+          return scheme.onPrimary;
+        }),
+      );
+    }
     if (_showSpinner) {
-      final filled =
-          widget.variant == LoadingButtonVariant.elevated ||
-          widget.variant == LoadingButtonVariant.filled;
+      final filled = widget.variant == LoadingButtonVariant.filled;
       final foreground = filled ? scheme.onPrimary : (accent ?? scheme.primary);
       final background = filled ? scheme.primary : Colors.transparent;
       return ButtonStyle(
@@ -191,46 +330,55 @@ class _LoadingIconButtonState extends State<LoadingIconButton> {
 
   void _press() {
     if (_busy || widget.loading || widget.onPressed == null) return;
-    final result = widget.onPressed!();
-    if (result is Future) {
-      _busy = true;
-      setState(() {});
-      result.whenComplete(() {
-        if (mounted) setState(() => _busy = false);
-      });
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && scope.busy) return;
+    final action = widget.onPressed;
+    if (action == null) return;
+    if (scope != null && !scope.claim(this)) return;
+    _busy = true;
+    try {
+      final result = action();
+      if (result is Future) {
+        setState(() {});
+        result.then<void>((_) async {
+          await scope?.refresh();
+        }, onError: (Object _) {}).whenComplete(() {
+          scope?.release(this);
+          if (mounted) setState(() => _busy = false);
+        });
+      } else {
+        _busy = false;
+        scope?.refresh();
+        scope?.release(this);
+      }
+    } catch (_) {
+      _busy = false;
+      scope?.release(this);
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final enabled = widget.onPressed != null && !_showSpinner;
-    final background = enabled || _showSpinner
-        ? scheme.primary
-        : scheme.surfaceContainerHighest;
+    final scopeBusy =
+        MutationScope.busyOf(context) &&
+        !(MutationScope.maybeOf(context)?.owns(this) ?? false);
+    final enabled = widget.onPressed != null && !_showSpinner && !scopeBusy;
     final foreground = enabled || _showSpinner
-        ? scheme.onPrimary
+        ? scheme.primary
         : scheme.onSurface.withValues(alpha: 0.38);
-    return IconButton.filled(
+    return IconButton(
       tooltip: widget.tooltip,
+      iconSize: 24,
       onPressed: enabled ? _press : null,
-      style: IconButton.styleFrom(
-        backgroundColor: background,
-        foregroundColor: foreground,
-        disabledBackgroundColor: background,
-        disabledForegroundColor: foreground,
+      icon: SizedBox(
+        width: 24,
+        height: 24,
+        child: _showSpinner
+            ? AppSpinner(size: 24, color: scheme.primary)
+            : _tinted(widget.icon, foreground),
       ),
-      icon: _showSpinner
-          ? SizedBox(
-              key: LoadingButton.spinnerKey,
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: scheme.onPrimary,
-              ),
-            )
-          : _tinted(widget.icon, foreground),
     );
   }
 }

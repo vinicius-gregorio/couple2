@@ -1,4 +1,6 @@
+export 'net/request_timeout.dart';
 export 'domain/domain.dart';
+export 'errors/user_facing_error.dart';
 export 'domain/entities/entities.dart';
 export 'domain/entities/user.dart';
 export 'external/external.dart';

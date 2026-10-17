@@ -87,6 +87,7 @@ class _FakePairing implements IPairingRepository {
   int ensures = 0;
   Object? ensureError;
   Completer<void>? ensureGate;
+  String? issuedCode;
 
   @override
   Future<void> cancelRequest() async {
@@ -98,7 +99,20 @@ class _FakePairing implements IPairingRepository {
   }
 
   @override
-  Future<PairingSnapshot> getStatus() async => status;
+  Future<PairingSnapshot> getStatus() async {
+    final code = status.pairingCode;
+    if ((code == null || code.isEmpty) && issuedCode != null) {
+      return PairingSnapshot(
+        phase: status.phase,
+        message: status.message,
+        pendingCode: status.pendingCode,
+        pairingCode: issuedCode,
+        pairingCodeExpiresAt: status.pairingCodeExpiresAt,
+        partner: status.partner,
+      );
+    }
+    return status;
+  }
 
   @override
   Future<PairResult> pair(String code) async {
@@ -120,7 +134,19 @@ class _FakePairing implements IPairingRepository {
     if (error != null) throw error;
     final gate = ensureGate;
     if (gate != null) await gate.future;
+    issuedCode ??= 'HHHHHH';
   }
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async => const [];
+
+  @override
+  Future<PairResult> acceptRequest(String id) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> declineRequest(String id) async {}
 }
 
 class _CodeSession extends SessionNotifier {
@@ -322,6 +348,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('submit-partner-code')));
     await tester.pump();
+    await tester.pump();
     expect(
       find.text('Esse código expirou. Peça um código novo.'),
       findsOneWidget,
@@ -405,6 +432,10 @@ void main() {
     expect(find.text('Aguardando confirmação'), findsOneWidget);
     await tester.tap(find.byKey(const Key('cancel-pairing-request')));
     await tester.pumpAndSettle();
+    expect(repo.cancels, 0);
+    expect(find.text('Cancelar pedido?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-cancel-pairing')));
+    await tester.pumpAndSettle();
 
     expect(repo.cancels, 1);
     expect(find.text('Mostre o seu código'), findsOneWidget);
@@ -448,7 +479,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Manter o par'));
+    await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
     expect(repo.unpairs, 0);
 
@@ -482,11 +513,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    ElevatedButton submit() {
-      return tester.widget<ElevatedButton>(
+    FilledButton submit() {
+      return tester.widget<FilledButton>(
         find.descendant(
           of: find.byKey(const Key('submit-partner-code')),
-          matching: find.byType(ElevatedButton),
+          matching: find.byType(FilledButton),
         ),
       );
     }
@@ -624,5 +655,104 @@ void main() {
     );
     expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
     expect(find.text('Gerar código'), findsOneWidget);
+  });
+
+  testWidgets('waiting shows the caller code without a second primary', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(
+        phase: PairingPhase.pending,
+        pendingCode: 'MMMMMM',
+        pairingCode: 'HHHHHH',
+      ),
+    );
+    await _pumpPage(
+      tester,
+      home: const WaitingPage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    expect(find.text('HHHHHH'), findsOneWidget);
+    expect(find.text('Sem código ainda.'), findsNothing);
+    expect(find.text('Gerar código'), findsNothing);
+    expect(
+      find.text('Seu código aparece quando a tela atualizar.'),
+      findsNothing,
+    );
+    expect(find.textContaining('Aceitar ou Recusar'), findsOneWidget);
+    expect(repo.ensures, 0);
+  });
+
+  testWidgets('waiting loads the caller code when status and session omit it', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(phase: PairingPhase.pending, pendingCode: 'MMMMMM'),
+    );
+    await _pumpPage(
+      tester,
+      home: const WaitingPage(),
+      repo: repo,
+      session: _CodeSession.new,
+    );
+
+    expect(find.text('HHHHHH'), findsOneWidget);
+    expect(
+      find.text('Seu código aparece quando a tela atualizar.'),
+      findsNothing,
+    );
+    expect(find.text('Gerar código'), findsNothing);
+    expect(repo.ensures, 1);
+  });
+
+  testWidgets('a declined request is named when the sender returns', (
+    tester,
+  ) async {
+    final repo = _FakePairing(
+      const PairingSnapshot(
+        phase: PairingPhase.pending,
+        pendingCode: 'MMMMMM',
+        pairingCode: 'HHHHHH',
+      ),
+    );
+    final router = GoRouter(
+      initialLocation: PairingRoutes.waiting,
+      routes: [
+        GoRoute(
+          path: PairingRoutes.hub,
+          builder: (_, _) => const PairingCodePage(),
+        ),
+        GoRoute(
+          path: PairingRoutes.waiting,
+          builder: (_, _) => const WaitingPage(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWith(_CodeSession.new),
+        pairingRepositoryProvider.overrideWithValue(repo),
+        pairingPollIntervalProvider.overrideWithValue(null),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(theme: lightTheme, routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    container.read(pairingStatusProvider.notifier).state = const AsyncData(
+      PairingSnapshot(phase: PairingPhase.unpaired, pairingCode: 'HHHHHH'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(declinedPairingMessage), findsOneWidget);
+    expect(find.text('Aguardando confirmação'), findsNothing);
   });
 }

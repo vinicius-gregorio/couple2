@@ -62,9 +62,10 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
       metadata = draft.metadata;
     }
 
-    await ref
+    final saved = await ref
         .read(listsViewModelProvider.notifier)
         .addItem(list.id, content, metadata);
+    if (!saved || !mounted) return;
     _controller.clear();
     _priceController.clear();
     _urlController.clear();
@@ -80,38 +81,53 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final list = _getList(state);
 
     if (list == null && state.isLoading) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton(), title: AppText('Lista')),
-        body: const ListSkeleton(),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton(), title: AppText('Lista')),
+          body: const ListSkeleton(),
+        ),
       );
     }
 
     if (list == null && state.errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton()),
-        body: ErrorView(
-          message: 'Não foi possível carregar a lista.',
-          onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton()),
+          body: ErrorView(
+            message: state.errorMessage!,
+            onRetry: () => ref.read(listsViewModelProvider.notifier).refresh(),
+          ),
         ),
       );
     }
 
     if (list == null) {
-      return Scaffold(
-        appBar: AppBar(leading: AppBackButton()),
-        body: const EmptyView(message: 'List not found'),
+      return MutationScope(
+        child: Scaffold(
+          appBar: AppBar(leading: AppBackButton()),
+          body: const EmptyView(message: 'Lista não encontrada'),
+        ),
       );
     }
 
-    return Scaffold(
+    return MutationScope(
+      child: Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: AppText(list.name)),
       body: Column(
         children: [
+          ActionErrorReporter(message: state.actionError),
           if (list.visibility == 'PRIVATE_FROM_PARTNER')
-            const ListTile(dense: true, title: Text('🔒 Só você vê')),
+            ListTile(
+              dense: true,
+              leading: Icon(
+                Icons.lock_outline,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Só você vê'),
+            ),
           Expanded(
             child: list.items.isEmpty
-                ? const EmptyView(message: 'No items yet.')
+                ? const EmptyView(message: 'Nenhum item ainda.')
                 : ListView.builder(
                     itemCount: list.items.length,
                     itemBuilder: (context, index) {
@@ -120,6 +136,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
                         item: item,
                         listId: list.id,
                         listType: list.type,
+                        privateList: list.visibility == 'PRIVATE_FROM_PARTNER',
                       );
                     },
                   ),
@@ -133,11 +150,41 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
             bought: _bought,
             onOccasion: (value) => setState(() => _occasion = value),
             onBought: (value) => setState(() => _bought = value),
+            busy: state.addingListIds.contains(list.id),
             onAdd: () => _addItem(list),
           ),
         ],
       ),
+      ),
     );
+  }
+}
+
+Future<void> _confirmDeleteItem(
+  BuildContext context,
+  WidgetRef ref,
+  String listId,
+  ListItem item, {
+  required bool privateList,
+}) async {
+  ref.read(listsViewModelProvider.notifier).clearActionError();
+  final accepted = await confirmDestructive(
+    context,
+    title: 'Excluir item?',
+    message: privateList
+        ? '“${item.content}” é só seu. Seu par não vê este item. Não há como desfazer.'
+        : '“${item.content}” será apagado para os dois.',
+    confirmLabel: 'Excluir',
+    confirmKey: Key('confirm-delete-${item.id}'),
+  );
+  if (!accepted || !context.mounted) return;
+  final scope = MutationScope.maybeOf(context);
+  if (scope != null && !scope.claim(item)) return;
+  try {
+    await ref.read(listsViewModelProvider.notifier).deleteItem(listId, item.id);
+    await scope?.refresh();
+  } finally {
+    scope?.release(item);
   }
 }
 
@@ -146,53 +193,77 @@ class _ItemTile extends ConsumerWidget {
     required this.item,
     required this.listId,
     required this.listType,
+    required this.privateList,
   });
 
   final ListItem item;
   final String listId;
   final String listType;
+  final bool privateList;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.read(listsViewModelProvider.notifier);
 
-    return Dismissible(
-      key: Key(item.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
-      ),
-      onDismissed: (_) => vm.deleteItem(listId, item.id),
+    return StableSlot(
+      height: listItemSlotHeight,
       child: ListTile(
-        leading: Checkbox(
-          value: item.isCompleted,
-          onChanged: (_) => vm.toggleItem(listId, item.id),
-        ),
-        title: Text(
-          item.content,
-          style: item.isCompleted
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
-        ),
-        subtitle: _buildSubtitle(item, listType),
-        trailing: listTypeSupportsDatePlan(listType)
-            ? TextButton(
-                onPressed: () {
-                  final query = Uri(
-                    path: DatePlanRoutes.create,
-                    queryParameters: {
-                      'sourceListItemId': item.id,
-                      'title': item.content,
-                    },
-                  ).toString();
-                  context.push(query);
-                },
-                child: const Text('Planejar date'),
-              )
+      key: Key('list-item-${item.id}'),
+      leading: MutationCheckbox(
+        value: item.isCompleted,
+        loading: item.pending && item.id.startsWith('pending-'),
+        busyKey: const Key('item-pending'),
+        onChanged: item.pending || MutationScope.busyOf(context)
+            ? null
+            : (_) => vm.toggleItem(listId, item.id),
+      ),
+      title: Text(
+        item.content,
+        style: item.isCompleted
+            ? const TextStyle(decoration: TextDecoration.lineThrough)
             : null,
+      ),
+      subtitle: item.pending && item.id.startsWith('pending-')
+          ? const Text('Salvando…')
+          : _buildSubtitle(item, listType),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (listTypeSupportsDatePlan(listType) && !item.pending)
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
+              onPressed: () {
+                final query = Uri(
+                  path: DatePlanRoutes.create,
+                  queryParameters: {
+                    'sourceListItemId': item.id,
+                    'title': item.content,
+                  },
+                ).toString();
+                context.push(query);
+              },
+              child: const Text('Planejar encontro'),
+            ),
+          const SizedBox(width: 12),
+          LoadingIconButton(
+            key: Key('delete-item-${item.id}'),
+            tooltip: 'Excluir item',
+            loading: item.pending && !item.id.startsWith('pending-'),
+            onPressed: item.pending
+                ? null
+                : () {
+                    _confirmDeleteItem(
+                      context,
+                      ref,
+                      listId,
+                      item,
+                      privateList: privateList,
+                    );
+                  },
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
       ),
     );
   }
@@ -205,7 +276,7 @@ class _ItemTile extends ConsumerWidget {
     switch (type) {
       case 'SHOPPING_CART':
         final qty = meta['quantity'];
-        if (qty != null) return Text('Qty: $qty');
+        if (qty != null) return Text('Qtd: $qty');
       case 'MOVIES':
         final platform = meta['platform'];
         if (platform != null) return Chip(label: Text(platform.toString()));
@@ -252,7 +323,7 @@ class _ItemTile extends ConsumerWidget {
           ),
         if (bought) const Text('comprado'),
         if (link != null)
-          IconButton(
+          AppIconButton(
             tooltip: 'Abrir link',
             visualDensity: VisualDensity.compact,
             onPressed: () => launchUrl(
@@ -277,6 +348,7 @@ class _AddItemBar extends StatefulWidget {
     required this.onOccasion,
     required this.onBought,
     required this.onAdd,
+    required this.busy,
   });
 
   final String listType;
@@ -288,6 +360,7 @@ class _AddItemBar extends StatefulWidget {
   final ValueChanged<String?> onOccasion;
   final ValueChanged<bool> onBought;
   final Future<void> Function() onAdd;
+  final bool busy;
 
   @override
   State<_AddItemBar> createState() => _AddItemBarState();
@@ -405,11 +478,13 @@ class _AddItemBarState extends State<_AddItemBar> {
                 ],
                 onChanged: widget.onOccasion,
               ),
-              SwitchListTile(
+              MutationSwitch(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Já comprei'),
                 value: widget.bought,
-                onChanged: widget.onBought,
+                onChanged: widget.busy || MutationScope.busyOf(context)
+                    ? null
+                    : widget.onBought,
               ),
             ],
             Row(
@@ -417,19 +492,22 @@ class _AddItemBarState extends State<_AddItemBar> {
                 Expanded(
                   child: TextField(
                     controller: widget.controller,
+                    enabled: !widget.busy && !MutationScope.busyOf(context),
                     decoration: const InputDecoration(
-                      hintText: 'Add item...',
+                      hintText: 'Adicionar item…',
                       isDense: true,
                     ),
                     onSubmitted: (_) {
-                      if (_canAdd) widget.onAdd();
+                      if (_canAdd && !widget.busy) widget.onAdd();
                     },
                   ),
                 ),
                 const SizedBox(width: 8),
                 LoadingIconButton(
+                  key: const Key('add-item'),
                   tooltip: 'Adicionar',
-                  onPressed: _canAdd ? widget.onAdd : null,
+                  loading: widget.busy,
+                  onPressed: _canAdd && !widget.busy ? widget.onAdd : null,
                   icon: const Icon(Icons.add),
                 ),
               ],

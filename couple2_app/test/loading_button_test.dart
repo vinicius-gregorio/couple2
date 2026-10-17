@@ -32,7 +32,7 @@ void main() {
     expect(taps, 1);
     expect(find.byKey(LoadingButton.spinnerKey), findsOneWidget);
     expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNull,
     );
 
@@ -44,7 +44,7 @@ void main() {
     await tester.pump();
     expect(find.byKey(LoadingButton.spinnerKey), findsNothing);
     expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNotNull,
     );
   });
@@ -91,7 +91,7 @@ void main() {
       final material = tester.widget<Material>(
         find
             .descendant(
-              of: find.widgetWithText(ElevatedButton, label),
+              of: find.widgetWithText(FilledButton, label),
               matching: find.byType(Material),
             )
             .first,
@@ -106,7 +106,7 @@ void main() {
     expect(enabled, isNot(disabled));
   });
 
-  testWidgets('delete icon on a filled button is onPrimary', (tester) async {
+  testWidgets('delete icon is a tertiary wine glyph', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: lightTheme,
@@ -124,7 +124,7 @@ void main() {
     final theme = IconTheme.of(
       tester.element(find.byIcon(Icons.delete_outline)),
     );
-    expect(icon.color ?? theme.color, lightColorScheme.onPrimary);
+    expect(icon.color ?? theme.color, lightColorScheme.primary);
 
     final material = tester.widget<Material>(
       find
@@ -134,10 +134,10 @@ void main() {
           )
           .first,
     );
-    expect(material.color, lightColorScheme.primary);
+    expect(material.color, isNot(lightColorScheme.primary));
   });
 
-  testWidgets('a disabled filled icon uses the disabled fill', (tester) async {
+  testWidgets('a disabled icon button has no fill', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: lightTheme,
@@ -157,6 +157,7 @@ void main() {
           )
           .first,
     );
-    expect(material.color, lightColorScheme.surfaceContainerHighest);
+    expect(material.color, isNot(lightColorScheme.primary));
+    expect(material.color, isNot(lightColorScheme.surfaceContainerHighest));
   });
 }

@@ -19,6 +19,13 @@ class CouplePartner {
       birthDate: json['birthDate'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'picture': picture,
+    'birthDate': birthDate,
+  };
 }
 
 class UpcomingDate {
@@ -50,6 +57,15 @@ class UpcomingDate {
       self: json['self'] as bool? ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'kind': kind,
+    'title': title,
+    'date': date,
+    'inDays': inDays,
+    'coupleDateId': coupleDateId,
+    'self': self,
+  };
 }
 
 class Couple {
@@ -84,4 +100,14 @@ class Couple {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'pairedAt': pairedAt.toUtc().toIso8601String(),
+    'anniversaryDate': anniversaryDate,
+    'timezone': timezone,
+    'daysTogether': daysTogether,
+    'partner': partner.toJson(),
+    'upcoming': [for (final entry in upcoming) entry.toJson()],
+  };
 }

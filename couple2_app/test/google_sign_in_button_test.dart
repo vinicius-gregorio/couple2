@@ -287,7 +287,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Login cancelado'), findsOneWidget);
+    expect(find.text('Entrada cancelada'), findsOneWidget);
     expect(find.byKey(GoogleSignInButton.loadingIndicatorKey), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
   });

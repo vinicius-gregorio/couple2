@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../app/provider_load.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -11,22 +12,26 @@ final feedRepositoryProvider = Provider<IFeedRepository>((ref) {
 });
 
 final unreadCountProvider = FutureProvider<int>((ref) async {
-  final session = await ref.watch(sessionProvider.future);
-  if (session == null || session.coupleId == null) return 0;
+  final coupleId = await watchCoupleId(ref);
+  if (coupleId == null) return 0;
+  final repo = ref.watch(feedRepositoryProvider);
   try {
-    return await ref.watch(feedRepositoryProvider).unreadCount();
+    return await loadOrTimeout(repo.unreadCount());
   } on CPLHttpForbiddenException {
     return 0;
   }
-});
+}, retry: noProviderRetry);
 
 final feedPreviewProvider = FutureProvider<List<ActivityEvent>>((ref) async {
-  final session = await ref.watch(sessionProvider.future);
-  if (session == null || session.coupleId == null) return const [];
+  final coupleId = await watchCoupleId(ref);
+  if (coupleId == null) return const [];
+  final repo = ref.watch(feedRepositoryProvider);
   try {
-    final page = await ref.watch(feedRepositoryProvider).getFeed(limit: 3);
-    return page.items;
+    return await loadOrTimeout(() async {
+      final page = await repo.getFeed(limit: 3);
+      return page.items;
+    }());
   } on CPLHttpForbiddenException {
     return const [];
   }
-});
+}, retry: noProviderRetry);

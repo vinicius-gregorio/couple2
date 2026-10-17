@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/core.dart';
 import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
@@ -20,6 +21,9 @@ import '../../../../modules/feed/routing/routes.dart';
 import '../../../../modules/feed/ui/widgets/feed_preview.dart';
 import '../../../../modules/lists/routing/routes.dart';
 import '../../../providers.dart';
+import '../../home_failure_scope.dart';
+
+const homeHeaderAvatarKey = Key('home-header-avatar');
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -30,134 +34,285 @@ class HomePage extends ConsumerWidget {
     final coupleAsync = ref.watch(coupleProvider);
     final unread = ref.watch(unreadCountProvider).asData?.value ?? 0;
     final logout = ref.read(logoutActionProvider);
-    final needsPairing = sessionNeedsPairing(sessionAsync.asData?.value);
-    final paired = sessionAsync.asData?.value?.coupleId != null;
+    final session = sessionAsync.asData?.value;
+    final sessionFailed = sessionAsync.hasError && session == null;
+    final paired = session?.coupleId != null;
+    final showCoupleHome = paired || sessionFailed;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: AppText(needsPairing ? 'Parear' : 'Home'),
-        leading: sessionAsync.when(
-          data: (session) => _AvatarButton(
-            pictureUrl: session?.picture,
-            onPressed: session == null
-                ? null
-                : () {
-                    showModalBottomSheet<void>(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => ProfileSheet(session: session),
-                    );
-                  },
+    return MutationScope(
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: false,
+          title: const Text(
+            'Início',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          loading: () => const _AvatarButton(pictureUrl: null),
-          error: (_, __) => const _AvatarButton(pictureUrl: null),
-        ),
-        actions: [
-          if (paired)
-            _FeedBell(
-              count: unread,
-              onPressed: () => context.push(FeedRoutes.feed),
-            ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await logout();
-            },
-          ),
-        ],
-      ),
-      body: sessionAsync.when(
-        data: (session) {
-          if (session == null) {
-            return const ListSkeleton(rows: 4);
-          }
-
-          if (sessionNeedsPairing(session)) {
-            return const _NeedsPairingBody();
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(sessionProvider.notifier).refresh();
-              ref.invalidate(coupleProvider);
-              ref.invalidate(unreadCountProvider);
-              ref.invalidate(feedPreviewProvider);
-              ref.invalidate(todayQuestionProvider);
-              ref.invalidate(currentMoodProvider);
-              ref.invalidate(nextDateProvider);
-              await ref.read(coupleProvider.future);
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              children: [
-                if (session.picture != null)
-                  Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(session.picture!),
-                      onBackgroundImageError: (_, __) {},
-                    ),
-                  )
-                else
-                  const Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      child: Icon(Icons.person, size: 50),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                AppText(
-                  'Bem-vindo, ${session.name}!',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                if (session.coupleId != null)
-                  coupleAsync.when(
-                    data: (couple) {
-                      if (couple == null) return const SizedBox.shrink();
-                      return DaysTogetherCard(
-                        couple: couple,
-                        onOpenSettings: () =>
-                            context.push(CoupleRoutes.settings),
-                        onOpenDates: () => context.push(CoupleRoutes.dates),
+          leading: sessionAsync.when(
+            data: (session) => _AvatarButton(
+              pictureUrl: session?.picture,
+              onPressed: session == null
+                  ? null
+                  : () {
+                      final host = context;
+                      showAppSheet<void>(
+                        context: host,
+                        builder: (_) =>
+                            ProfileSheet(session: session, hostContext: host),
                       );
                     },
-                    loading: () => const CardSkeleton(),
-                    error: (error, _) => ErrorView(
-                      message: 'Erro ao carregar o casal',
-                      compact: true,
-                      onRetry: () => ref.invalidate(coupleProvider),
-                    ),
-                  ),
-                if (session.coupleId != null) ...[
-                  const SizedBox(height: 16),
-                  const MoodHomeCard(),
-                  const SizedBox(height: 16),
-                  const NextDateCard(),
-                  const SizedBox(height: 16),
-                  const TodayQuestionCard(),
-                  const SizedBox(height: 16),
-                  FeedPreview(onOpen: () => context.push(FeedRoutes.feed)),
-                ],
-                const SizedBox(height: 24),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () => context.push(ListsRoutes.lists),
-                    icon: const Icon(Icons.list),
-                    label: const Text('Our Lists'),
-                  ),
-                ),
-              ],
             ),
-          );
-        },
-        loading: () => const ListSkeleton(rows: 4),
-        error: (error, _) => ErrorView(
-          message: 'Erro ao carregar usuário',
-          onRetry: () => ref.read(sessionProvider.notifier).refresh(),
+            loading: () => const _AvatarButton(pictureUrl: null),
+            error: (_, __) => const _AvatarButton(pictureUrl: null),
+          ),
+          actions: [
+            if (showCoupleHome)
+              _FeedBell(
+                count: unread,
+                onPressed: () => context.push(FeedRoutes.feed),
+              ),
+            Builder(
+              builder: (context) {
+                return AppIconButton(
+                  tooltip: 'Sair',
+                  icon: const Icon(Icons.logout),
+                  onPressed: MutationScope.busyOf(context)
+                      ? null
+                      : () async {
+                          final accepted = await confirmDestructive(
+                            context,
+                            title: 'Sair da conta?',
+                            message:
+                                'Você volta para a tela de entrada. Sem internet, a saída também acontece neste aparelho.',
+                            confirmLabel: 'Sair',
+                          );
+                          if (!accepted) return;
+                          await logout();
+                        },
+                );
+              },
+            ),
+          ],
         ),
+        body: sessionFailed
+            ? ErrorView(
+                message: userFacingError(sessionAsync.error!),
+                onRetry: () => _retryHome(ref),
+              )
+            : sessionAsync.when(
+                data: (session) {
+                  if (session == null) {
+                    return const _BootBody();
+                  }
+
+                  if (sessionNeedsPairing(session)) {
+                    return const _NeedsPairingBody();
+                  }
+
+                  if (session.coupleId != null) {
+                    final failure = _homeReadError(ref);
+                    if (failure != null) {
+                      return ErrorView(
+                        message: userFacingError(failure),
+                        onRetry: () => _retryHome(ref),
+                      );
+                    }
+                  }
+
+                  return HomeFailureScope(
+                    retryAll: () => _retryHome(ref),
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        await _retryHome(ref);
+                        try {
+                          await ref.read(coupleProvider.future);
+                        } catch (_) {
+                          // The card shows the error. The indicator still completes.
+                        }
+                      },
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        children: [
+                          _HomeAvatar(picture: session.picture),
+                          const SizedBox(height: 16),
+                          _Welcome('Bem-vindo, ${session.name}!'),
+                          const SizedBox(height: 24),
+                          if (session.coupleId != null)
+                            coupleAsync.when(
+                              skipLoadingOnReload: true,
+                              data: (couple) {
+                                if (couple == null) {
+                                  return LoadErrorCard(
+                                    message: fallbackUserMessage,
+                                    onRetry: () => _retryHome(ref),
+                                  );
+                                }
+                                return _fixedCard(
+                                  homeDaysCardHeight,
+                                  DaysTogetherCard(
+                                    couple: couple,
+                                    onOpenSettings: () {
+                                      context.push(CoupleRoutes.settings);
+                                    },
+                                    onOpenDates: () {
+                                      context.push(CoupleRoutes.dates);
+                                    },
+                                  ),
+                                );
+                              },
+                              loading: () => _fixedCard(
+                                homeDaysCardHeight,
+                                const CardSkeleton(
+                                  lines: 2,
+                                  minHeight: homeDaysCardHeight,
+                                ),
+                              ),
+                              error: (error, _) => LoadErrorCard(
+                                message: userFacingError(error),
+                                onRetry: () => _retryHome(ref),
+                              ),
+                            ),
+                          if (session.coupleId != null) ...[
+                            const SizedBox(height: 16),
+                            const MoodHomeCard(),
+                            const SizedBox(height: 16),
+                            const NextDateCard(),
+                            const SizedBox(height: 16),
+                            const TodayQuestionCard(),
+                            const SizedBox(height: 16),
+                            FeedPreview(
+                              onOpen: () {
+                                context.push(FeedRoutes.feed);
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          const _ListsButton(),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const _BootBody(),
+                error: (_, __) => const _BootBody(),
+              ),
+      ),
+    );
+  }
+}
+
+/// One failure among the home cards replaces the whole page.
+///
+/// Every card provider is watched, so one retry refetches all of them.
+Object? _homeReadError(WidgetRef ref) {
+  final couple = ref.watch(coupleProvider);
+  final mood = ref.watch(currentMoodProvider);
+  final nextDate = ref.watch(nextDateProvider);
+  final today = ref.watch(todayQuestionProvider);
+  final feed = ref.watch(feedPreviewProvider);
+  if (couple.hasError) return couple.error;
+  if (mood.hasError) return mood.error;
+  if (nextDate.hasError) return nextDate.error;
+  if (today.hasError) return today.error;
+  if (feed.hasError) return feed.error;
+  return null;
+}
+
+Future<void> _retryHome(WidgetRef ref) async {
+  await ref.read(sessionProvider.notifier).refresh();
+  ref.invalidate(coupleProvider);
+  ref.invalidate(currentMoodProvider);
+  ref.invalidate(nextDateProvider);
+  ref.invalidate(todayQuestionProvider);
+  ref.invalidate(feedPreviewProvider);
+  ref.invalidate(unreadCountProvider);
+}
+
+Widget _fixedCard(double height, Widget child) {
+  return StableSlot(height: height, child: child);
+}
+
+class _HomeAvatar extends StatelessWidget {
+  const _HomeAvatar({required this.picture});
+
+  final String? picture;
+
+  @override
+  Widget build(BuildContext context) {
+    if (picture != null) {
+      return Center(
+        child: CircleAvatar(
+          key: homeHeaderAvatarKey,
+          radius: 50,
+          backgroundImage: NetworkImage(picture!),
+          onBackgroundImageError: (_, __) {},
+        ),
+      );
+    }
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: CircleAvatar(
+        key: homeHeaderAvatarKey,
+        radius: 50,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        child: Icon(Icons.person, size: 50, color: scheme.onPrimary),
+      ),
+    );
+  }
+}
+
+class _Welcome extends StatelessWidget {
+  const _Welcome(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppText(
+      text,
+      style: Theme.of(context).textTheme.headlineSmall,
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+class _ListsButton extends StatelessWidget {
+  const _ListsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: LoadingButton(
+        variant: LoadingButtonVariant.outlined,
+        icon: const Icon(Icons.list),
+        onPressed: () {
+          context.push(ListsRoutes.lists);
+        },
+        child: const Text('Nossas listas'),
+      ),
+    );
+  }
+}
+
+class _BootBody extends StatelessWidget {
+  const _BootBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(height: 16),
+          AppText('Abrindo a sessão…'),
+        ],
       ),
     );
   }
@@ -184,12 +339,14 @@ class _NeedsPairingBody extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const AppText(
-                'A Home do casal abre depois que os dois digitam o código um do outro.',
+                'A Home do casal abre quando um pedido de pareamento é aceito.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => context.go(PairingRoutes.hub),
+              LoadingButton(
+                onPressed: () {
+                  context.go(PairingRoutes.hub);
+                },
                 child: const Text('Ir para o pareamento'),
               ),
             ],
@@ -208,9 +365,10 @@ class _FeedBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'O que rolou',
-      onPressed: onPressed,
+    final locked = MutationScope.busyOf(context);
+    return AppIconButton(
+      tooltip: 'Notificações',
+      onPressed: locked ? null : onPressed,
       icon: Badge(
         isLabelVisible: count > 0,
         label: Text(count > 99 ? '99+' : '$count'),
@@ -228,16 +386,34 @@ class _AvatarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final avatar = pictureUrl == null
-        ? const CircleAvatar(child: Icon(Icons.person))
+        ? CircleAvatar(
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+            child: Icon(Icons.person, color: scheme.onPrimary),
+          )
         : CircleAvatar(
             backgroundImage: NetworkImage(pictureUrl!),
             onBackgroundImageError: (_, __) {},
           );
 
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: InkWell(onTap: onPressed, child: avatar),
+    final locked = MutationScope.busyOf(context);
+    final open = onPressed == null || locked ? null : onPressed;
+    return Semantics(
+      button: true,
+      enabled: open != null,
+      label: 'Perfil',
+      onTap: open,
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: AppInkWell(
+            onTap: open,
+            child: Tooltip(message: 'Perfil', child: avatar),
+          ),
+        ),
+      ),
     );
   }
 }

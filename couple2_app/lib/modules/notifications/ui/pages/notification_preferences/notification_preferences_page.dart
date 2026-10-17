@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/notifications_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -44,29 +45,36 @@ class _NotificationPreferencesPageState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = userFacingError(error);
         _loading = false;
       });
     }
   }
 
   Future<void> _patch(Map<String, dynamic> patch) async {
-    if (_saving) return;
+    if (_saving || MutationScope.busyOf(context)) return;
+    final scope = MutationScope.maybeOf(context);
+    if (scope != null && !scope.claim(this)) return;
     final previous = _prefs;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final next = await ref
           .read(notificationsRepositoryProvider)
           .updatePreferences(patch);
       if (!mounted) return;
       setState(() => _prefs = next);
+      await scope?.refresh();
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _prefs = previous;
-        _error = error.toString();
+        _error = userFacingError(error);
       });
     } finally {
+      scope?.release(this);
       if (mounted) setState(() => _saving = false);
     }
   }
@@ -89,66 +97,66 @@ class _NotificationPreferencesPageState
   @override
   Widget build(BuildContext context) {
     final prefs = _prefs;
-    return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Notificações')),
+    return MutationScope(
+      child: Scaffold(
+      appBar: AppBar(
+        leading: AppBackButton(enabled: !_saving),
+        title: AppText('Notificações'),
+      ),
       body: _loading && prefs == null
           ? const FormSkeleton()
           : prefs == null
           ? ErrorView(
-              message: _error ?? 'Não foi possível carregar',
+              message: _error ?? fallbackUserMessage,
               onRetry: _load,
             )
           : ListView(
               children: [
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: AppText(_error!),
-                  ),
-                SwitchListTile(
-                  title: const Text('Push'),
+                ActionErrorReporter(message: _error),
+                MutationSwitch(
+                  title: const Text('Alertas'),
                   value: prefs.pushEnabled,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'pushEnabled': value}),
                 ),
-                SwitchListTile(
+                MutationSwitch(
                   title: const Text('Listas'),
                   value: prefs.lists,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'lists': value}),
                 ),
-                SwitchListTile(
+                MutationSwitch(
                   title: const Text('Datas importantes'),
                   value: prefs.importantDates,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'importantDates': value}),
                 ),
-                SwitchListTile(
+                MutationSwitch(
                   title: const Text('Pergunta do dia'),
                   value: prefs.dailyQuestion,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'dailyQuestion': value}),
                 ),
-                SwitchListTile(
+                MutationSwitch(
                   title: const Text('Humor'),
                   value: prefs.mood,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'mood': value}),
                 ),
-                SwitchListTile(
+                MutationSwitch(
                   title: const Text('Carinhos'),
                   value: prefs.nudges,
                   onChanged: _saving
                       ? null
                       : (value) => _patch({'nudges': value}),
                 ),
-                SwitchListTile(
-                  title: const Text('Planos de date'),
+                MutationSwitch(
+                  title: const Text('Planos de encontro'),
                   value: prefs.datePlans,
                   onChanged: _saving
                       ? null
@@ -187,6 +195,7 @@ class _NotificationPreferencesPageState
                   ),
               ],
             ),
+      ),
     );
   }
 }

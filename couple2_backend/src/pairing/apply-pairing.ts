@@ -26,7 +26,7 @@ export async function applyPairing(
   partnerId: string,
 ): Promise<{ coupleId: string; partner: { id: string; name: string | null } }> {
   if (requesterId === partnerId) {
-    throw new BadRequestException('You cannot pair with yourself');
+    throw new BadRequestException('Você não pode parear consigo.');
   }
 
   const { userAId, userBId } = canonicalPair(requesterId, partnerId);

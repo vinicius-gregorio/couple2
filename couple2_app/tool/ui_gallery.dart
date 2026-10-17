@@ -41,6 +41,7 @@ void main() {
         sessionProvider.overrideWith(_GallerySession.new),
         pairingStatusProvider.overrideWith(_GalleryPairing.new),
         pairingPollIntervalProvider.overrideWithValue(null),
+        incomingPairingRequestsProvider.overrideWith(_GalleryIncoming.new),
         logoutActionProvider.overrideWithValue(() async {}),
         coupleProvider.overrideWith((ref) async => _couple),
         unreadCountProvider.overrideWith((ref) async => 2),
@@ -108,6 +109,11 @@ class _GallerySession extends SessionNotifier {
   }
 }
 
+class _GalleryIncoming extends IncomingPairingRequestsNotifier {
+  @override
+  Future<List<IncomingPairingRequest>> build() async => const [];
+}
+
 class _GalleryPairing extends PairingStatusNotifier {
   @override
   Future<PairingSnapshot> build() async {
@@ -151,8 +157,6 @@ class _ButtonsPreview extends StatelessWidget {
         children: [
           const Text('Enabled'),
           const SizedBox(height: 8),
-          ElevatedButton(onPressed: () {}, child: const Text('Elevated')),
-          const SizedBox(height: 8),
           FilledButton(onPressed: () {}, child: const Text('Filled')),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: () {}, child: const Text('Outlined')),
@@ -160,8 +164,6 @@ class _ButtonsPreview extends StatelessWidget {
           TextButton(onPressed: () {}, child: const Text('Text')),
           const SizedBox(height: 24),
           const Text('Disabled'),
-          const SizedBox(height: 8),
-          const ElevatedButton(onPressed: null, child: Text('Elevated')),
           const SizedBox(height: 8),
           const FilledButton(onPressed: null, child: Text('Filled')),
           const SizedBox(height: 8),

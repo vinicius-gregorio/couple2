@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../app/session_provider.dart';
+import '../../../../../core/core.dart';
 import '../../../../../design_system/design_system.dart';
 import '../../../../pairing/routing/routes.dart';
 import '../../../domain/domain.dart';
@@ -19,11 +20,11 @@ const _listTypes = [
 ];
 
 const _typeLabels = {
-  'SHOPPING_CART': 'Shopping Cart',
-  'MOVIES': 'Movies',
-  'MILESTONES': 'Milestones',
-  'TRAVEL': 'Travel',
-  'GIFT_IDEAS': 'Ideias de presente 🎁',
+  'SHOPPING_CART': 'Carrinho',
+  'MOVIES': 'Filmes',
+  'MILESTONES': 'Marcos',
+  'TRAVEL': 'Viagem',
+  'GIFT_IDEAS': 'Ideias de presente',
 };
 
 const _typeIcons = {
@@ -71,13 +72,19 @@ class _ListsPageState extends ConsumerState<ListsPage>
     final state = ref.watch(listsViewModelProvider);
     final partnerName = ref.watch(sessionProvider).asData?.value?.partnerName;
 
-    return Scaffold(
-      appBar: AppBar(leading: AppBackButton(), title: AppText('Our Lists')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateListSheet(context, ref, partnerName),
-        child: const Icon(Icons.add),
+    return MutationScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: AppBackButton(),
+          title: AppText('Nossas listas'),
+        ),
+        floatingActionButton: AppFab(
+          tooltip: 'Nova lista',
+          onPressed: () => _showCreateListSheet(context, ref, partnerName),
+          icon: const Icon(Icons.add),
+        ),
+        body: _buildBody(context, state),
       ),
-      body: _buildBody(context, state),
     );
   }
 
@@ -96,15 +103,23 @@ class _ListsPageState extends ConsumerState<ListsPage>
       );
     }
 
-    return AsyncBody(
-      isLoading: state.isLoading,
-      hasData: state.lists.isNotEmpty,
-      error: state.errorMessage,
-      errorMessage: 'Não foi possível carregar as listas.',
-      onRetry: _refresh,
-      isEmpty: state.lists.isEmpty,
-      emptyMessage: 'No lists yet. Create one!',
-      child: _ListsBody(state: state),
+    return Column(
+      children: [
+        ActionErrorReporter(message: state.actionError),
+        Expanded(
+          child: AsyncBody(
+            isLoading: state.isLoading,
+            hasData: state.lists.isNotEmpty,
+            error: state.errorMessage,
+            errorMessage: state.errorMessage ?? fallbackUserMessage,
+            slotHeight: listCardSlotHeight,
+            onRetry: _refresh,
+            isEmpty: state.lists.isEmpty,
+            emptyMessage: 'Nenhuma lista ainda. Crie uma!',
+            child: _ListsBody(state: state),
+          ),
+        ),
+      ],
     );
   }
 
@@ -113,9 +128,8 @@ class _ListsPageState extends ConsumerState<ListsPage>
     WidgetRef ref,
     String? partnerName,
   ) {
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
       builder: (ctx) => _CreateListSheet(
         partnerName: partnerName,
         onConfirm: (type, name, visibility) {
@@ -144,7 +158,7 @@ class _ListsBody extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, AppFab.clearance),
       children: [
         for (final list in sharedLists) _ListCard(list: list),
         if (privateLists.isNotEmpty) ...[
@@ -162,6 +176,37 @@ class _ListsBody extends StatelessWidget {
   }
 }
 
+String _deleteListMessage(PartnerList list) {
+  if (list.visibility == 'PRIVATE_FROM_PARTNER') {
+    return '“${list.name}” é só sua. Seu par não vê esta lista. Não há como desfazer.';
+  }
+  return '“${list.name}” e os itens somem para os dois. Não há como desfazer.';
+}
+
+Future<void> _confirmDeleteList(
+  BuildContext context,
+  WidgetRef ref,
+  PartnerList list,
+) async {
+  ref.read(listsViewModelProvider.notifier).clearActionError();
+  final accepted = await confirmDestructive(
+    context,
+    title: 'Excluir lista?',
+    message: _deleteListMessage(list),
+    confirmLabel: 'Excluir',
+    confirmKey: const Key('confirm-delete-list'),
+  );
+  if (!accepted || !context.mounted) return;
+  final scope = MutationScope.maybeOf(context);
+  if (scope != null && !scope.claim(list)) return;
+  try {
+    await ref.read(listsViewModelProvider.notifier).deleteList(list.id);
+    await scope?.refresh();
+  } finally {
+    scope?.release(list);
+  }
+}
+
 class _ListCard extends ConsumerWidget {
   const _ListCard({required this.list});
   final PartnerList list;
@@ -173,38 +218,93 @@ class _ListCard extends ConsumerWidget {
     final done = list.items.where((i) => i.isCompleted).length;
     final total = list.items.length;
     final isPrivate = list.visibility == 'PRIVATE_FROM_PARTNER';
+    final cardLabel = '${list.name}, $label, $done de $total feitos';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon),
-        title: AppText(list.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final scheme = Theme.of(context).colorScheme;
+    final deleting = ref
+        .watch(listsViewModelProvider)
+        .deletingListIds
+        .contains(list.id);
+    final busy = deleting || MutationScope.busyOf(context);
+    return StableSlot(
+      height: listCardSlotHeight,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            AppText('$label · $done/$total done'),
-            if (isPrivate) const AppText('🔒 Só você vê'),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LoadingIconButton(
-              tooltip: 'Excluir lista',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () =>
-                  ref.read(listsViewModelProvider.notifier).deleteList(list.id),
+            Expanded(
+              child: AppInkWell(
+                semanticLabel: cardLabel,
+                onTap: busy
+                    ? null
+                    : () async {
+                        await context.push(
+                          ListsRoutes.listDetail.replaceFirst(':id', list.id),
+                        );
+                        if (!context.mounted) return;
+                        await ref
+                            .read(listsViewModelProvider.notifier)
+                            .refresh();
+                      },
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: scheme.primary),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            key: Key('list-card-copy-${list.id}'),
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IgnorePointer(child: AppText(list.name)),
+                              IgnorePointer(
+                                child: AppText('$label · $done/$total feitos'),
+                              ),
+                              if (isPrivate)
+                                IgnorePointer(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.lock_outline,
+                                        size: 16,
+                                        color: scheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const AppText('Só você vê'),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: scheme.primary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            const Icon(Icons.chevron_right),
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 8),
+              child: LoadingIconButton(
+                tooltip: 'Excluir lista',
+                loading: deleting,
+                icon: const Icon(Icons.delete_outline),
+                onPressed: busy
+                    ? null
+                    : () {
+                        _confirmDeleteList(context, ref, list);
+                      },
+              ),
+            ),
           ],
         ),
-        onTap: () async {
-          await context.push(
-            ListsRoutes.listDetail.replaceFirst(':id', list.id),
-          );
-          if (!context.mounted) return;
-          await ref.read(listsViewModelProvider.notifier).refresh();
-        },
       ),
     );
   }
@@ -213,7 +313,7 @@ class _ListCard extends ConsumerWidget {
 class _CreateListSheet extends StatefulWidget {
   const _CreateListSheet({required this.onConfirm, required this.partnerName});
 
-  final Future<bool> Function(String type, String name, String? visibility)
+  final Future<String?> Function(String type, String name, String? visibility)
   onConfirm;
   final String? partnerName;
 
@@ -224,7 +324,10 @@ class _CreateListSheet extends StatefulWidget {
 class _CreateListSheetState extends State<_CreateListSheet> {
   String _selectedType = _listTypes.first;
   bool _hideFromPartner = true;
+  bool _saving = false;
+  String? _error;
   final _nameController = TextEditingController();
+  final _pop = PopGuard();
 
   @override
   void initState() {
@@ -263,7 +366,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppText('New List', style: Theme.of(context).textTheme.titleLarge),
+          AppText('Nova lista', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedType,
@@ -275,47 +378,66 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                   ),
                 )
                 .toList(),
-            onChanged: (v) => setState(() {
-              _selectedType = v!;
-              if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
-            }),
-            decoration: const InputDecoration(labelText: 'Type'),
+            onChanged: _saving
+                ? null
+                : (v) => setState(() {
+                    _selectedType = v!;
+                    if (_selectedType == 'GIFT_IDEAS') _hideFromPartner = true;
+                  }),
+            decoration: const InputDecoration(labelText: 'Tipo'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
+            enabled: !_saving,
+            decoration: const InputDecoration(labelText: 'Nome'),
             autofocus: true,
           ),
           if (isGift) ...[
             const SizedBox(height: 8),
-            SwitchListTile(
+            MutationSwitch(
               contentPadding: EdgeInsets.zero,
               title: Text('Esconder de $_partnerLabel'),
               subtitle: Text(
                 '$_partnerLabel não verá esta lista nem receberá notificações',
               ),
               value: _hideFromPartner,
-              onChanged: (value) => setState(() => _hideFromPartner = value),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _hideFromPartner = value),
             ),
           ],
           const SizedBox(height: 16),
+          ActionErrorReporter(message: _error),
           LoadingButton(
-            onPressed: _nameController.text.trim().isEmpty
+            onPressed:
+                _saving || _nameController.text.trim().isEmpty || _pop.used
                 ? null
                 : () async {
+                    if (_pop.used || _saving) return;
+                    setState(() => _saving = true);
                     final name = _nameController.text.trim();
                     final visibility = isGift
                         ? (_hideFromPartner ? 'PRIVATE_FROM_PARTNER' : 'SHARED')
                         : null;
-                    final created = await widget.onConfirm(
+                    final message = await widget.onConfirm(
                       _selectedType,
                       name,
                       visibility,
                     );
-                    if (created && context.mounted) Navigator.of(context).pop();
+                    if (!context.mounted || _pop.used) return;
+                    if (message == null) {
+                      await MutationScope.refreshOf(context);
+                      if (!context.mounted || _pop.used) return;
+                      _pop.pop(context);
+                      return;
+                    }
+                    setState(() {
+                      _saving = false;
+                      _error = message;
+                    });
                   },
-            child: const Text('Create'),
+            child: const Text('Criar'),
           ),
         ],
       ),

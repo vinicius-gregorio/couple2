@@ -51,6 +51,8 @@ class PairingSnapshot {
           phase: PairingPhase.pending,
           message: _string(json['message']),
           pendingCode: _string(json['pendingCode']),
+          pairingCode: _string(json['pairingCode']),
+          pairingCodeExpiresAt: _date(json['pairingCodeExpiresAt']),
         );
       case 'paired':
         return PairingSnapshot(
@@ -85,6 +87,59 @@ class PairResult {
     );
   }
 }
+
+/// A request someone sent by entering the current user's code.
+/// The payload has no pairing code.
+class IncomingPairingRequest {
+  const IncomingPairingRequest({
+    required this.id,
+    required this.requesterId,
+    required this.createdAt,
+    this.requesterName,
+  });
+
+  final String id;
+  final String requesterId;
+  final String? requesterName;
+  final DateTime createdAt;
+
+  factory IncomingPairingRequest.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final requester = json['requester'];
+    if (id is! String || id.isEmpty || requester is! Map) {
+      throw const FormatException('Pedido de pareamento incompleto');
+    }
+    final requesterId = requester['id'];
+    if (requesterId is! String || requesterId.isEmpty) {
+      throw const FormatException('Pedido de pareamento sem remetente');
+    }
+    final name = requester['name'];
+    final created = json['createdAt'];
+    return IncomingPairingRequest(
+      id: id,
+      requesterId: requesterId,
+      requesterName: name is String && name.trim().isNotEmpty
+          ? name.trim()
+          : null,
+      createdAt: created is String
+          ? DateTime.tryParse(created) ?? DateTime.utc(1970)
+          : DateTime.utc(1970),
+    );
+  }
+}
+
+/// Copy for a pending pairing. A code we already sent is an outgoing request.
+String pairingRequestNotice(PairingSnapshot status) {
+  final sent = status.pendingCode;
+  if (sent != null && sent.isNotEmpty) {
+    return 'Pedido enviado ($sent). A outra pessoa pode Aceitar ou Recusar. Ela também pode digitar o seu código.';
+  }
+  return 'Seu par enviou um pedido de pareamento. Aceite ou recuse aqui, ou digite o código dele.';
+}
+
+/// Shown on the code step after the other person declines.
+const declinedPairingMessage =
+    'Seu par recusou o pedido. Vocês podem enviar outro.';
 
 /// Code to show the user. Pending status does not include `pairingCode`;
 /// that value stays on `GET /auth/me`.

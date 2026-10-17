@@ -1,6 +1,8 @@
 import 'package:couple2_app/modules/auth/ui/widgets/google_logo.dart';
 import 'package:flutter/services.dart';
 
+import 'material_icons.dart';
+
 /// Loads the login font files and Google mark while the HTML splash is up.
 ///
 /// The engine already registered Plus Jakarta Sans from the font manifest.
@@ -15,6 +17,7 @@ Future<void> warmLoginFirstFrame() async {
       rootBundle.load('assets/fonts/PlusJakartaSans-Bold.ttf'),
       kGoogleLogoLoader.loadBytes(null),
     ]);
+    await warmMaterialIcons();
   } catch (_) {
     // A missing file must not leave the splash up after the first frame.
   }

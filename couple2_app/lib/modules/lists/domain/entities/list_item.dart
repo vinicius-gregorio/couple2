@@ -7,6 +7,9 @@ class ListItem {
   final String addedById;
   final DateTime createdAt;
 
+  /// True while an add, check, or delete for this row is in flight.
+  final bool pending;
+
   const ListItem({
     required this.id,
     required this.listId,
@@ -15,6 +18,7 @@ class ListItem {
     required this.isCompleted,
     required this.addedById,
     required this.createdAt,
+    this.pending = false,
   });
 
   factory ListItem.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,7 @@ class ListItem {
     bool? isCompleted,
     String? addedById,
     DateTime? createdAt,
+    bool? pending,
   }) {
     return ListItem(
       id: id ?? this.id,
@@ -58,6 +63,7 @@ class ListItem {
       isCompleted: isCompleted ?? this.isCompleted,
       addedById: addedById ?? this.addedById,
       createdAt: createdAt ?? this.createdAt,
+      pending: pending ?? this.pending,
     );
   }
 }

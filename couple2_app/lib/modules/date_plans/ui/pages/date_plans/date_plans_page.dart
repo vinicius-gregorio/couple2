@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/provider_load.dart';
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/date_plans_providers.dart';
 import '../../../domain/domain.dart';
 import '../../../routing/routes.dart';
@@ -24,8 +26,8 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
   String? _pastCursor;
   bool _loadingUpcoming = true;
   bool _loadingPast = true;
-  Object? _upcomingError;
-  Object? _pastError;
+  String? _upcomingError;
+  String? _pastError;
 
   @override
   void initState() {
@@ -66,9 +68,11 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
       }
     });
     try {
-      final page = await ref
-          .read(datePlansRepositoryProvider)
-          .list(scope: scope, cursor: reset ? null : cursor);
+      final page = await loadOrTimeout(
+        ref
+            .read(datePlansRepositoryProvider)
+            .list(scope: scope, cursor: reset ? null : cursor),
+      );
       if (!mounted) return;
       setState(() {
         final target = isUpcoming ? _upcoming : _past;
@@ -85,11 +89,15 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        final message = userFacingError(
+          error,
+          fallback: 'Não consegui carregar os encontros.',
+        );
         if (isUpcoming) {
-          _upcomingError = error;
+          if (_upcoming.isEmpty) _upcomingError = message;
           _loadingUpcoming = false;
         } else {
-          _pastError = error;
+          if (_past.isEmpty) _pastError = message;
           _loadingPast = false;
         }
       });
@@ -119,7 +127,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: const AppText('Dates'),
+        title: const AppText('Nossos encontros'),
         bottom: TabBar(
           controller: _tabs,
           tabs: const [
@@ -128,14 +136,15 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFab(
+        tooltip: 'Planejar um encontro',
+        label: 'Planejar um encontro',
+        icon: const Icon(Icons.add),
         onPressed: () async {
           await context.push(DatePlanRoutes.create);
           if (!mounted) return;
           await _refreshAll();
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Planejar um date'),
       ),
       body: TabBarView(
         controller: _tabs,
@@ -145,7 +154,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
             loading: _loadingUpcoming,
             error: _upcomingError,
             hasMore: _upcomingCursor != null,
-            empty: 'Nenhum date por vir.',
+            empty: 'Nenhum encontro por vir.',
             onRefresh: () => _load('upcoming', reset: true),
             onMore: () => _load('upcoming'),
             onOpen: (id) async {
@@ -159,7 +168,7 @@ class _DatePlansPageState extends ConsumerState<DatePlansPage>
             loading: _loadingPast,
             error: _pastError,
             hasMore: _pastCursor != null,
-            empty: 'Nenhum date passado.',
+            empty: 'Nenhum encontro passado.',
             onRefresh: () => _load('past', reset: true),
             onMore: () => _load('past'),
             onOpen: (id) async {
@@ -188,7 +197,7 @@ class _DateList extends StatelessWidget {
 
   final List<DatePlan> items;
   final bool loading;
-  final Object? error;
+  final String? error;
   final bool hasMore;
   final String empty;
   final Future<void> Function() onRefresh;
@@ -202,7 +211,7 @@ class _DateList extends StatelessWidget {
     }
     if (error != null && items.isEmpty) {
       return ErrorView(
-        message: 'Não consegui carregar os dates.',
+        message: error!,
         onRetry: () {
           onRefresh();
         },
@@ -217,32 +226,47 @@ class _DateList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        itemCount: items.length + (hasMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index >= items.length) {
-            return LoadingButton(
-              variant: LoadingButtonVariant.text,
-              loading: loading,
-              onPressed: loading ? null : onMore,
-              child: const Text('Carregar mais'),
-            );
-          }
-          final plan = items[index];
-          return Card(
-            child: ListTile(
-              title: Text(plan.title),
-              subtitle: Text(
-                '${datePlanWhen(plan.scheduledAt)} · horário do aparelho',
-              ),
-              trailing: Chip(label: Text(plan.status.label)),
-              onTap: () => onOpen(plan.id),
+      child: Column(
+        children: [
+          if (error != null) ActionErrorReporter(message: error),
+          Expanded(
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
+              itemCount: items.length + (hasMore ? 1 : 0),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                if (index >= items.length) {
+                  return LoadingButton(
+                    variant: LoadingButtonVariant.text,
+                    loading: loading,
+                    onPressed: loading ? null : onMore,
+                    child: const Text('Carregar mais'),
+                  );
+                }
+                final plan = items[index];
+                final when =
+                    '${datePlanWhen(plan.scheduledAt)} · horário do aparelho';
+                void open() => onOpen(plan.id);
+                return Semantics(
+                  button: true,
+                  label: '${plan.title}, $when, ${plan.status.label}',
+                  onTap: open,
+                  child: ExcludeSemantics(
+                    child: Card(
+                      child: ListTile(
+                        title: Text(plan.title),
+                        subtitle: Text(when),
+                        trailing: Chip(label: Text(plan.status.label)),
+                        onTap: open,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

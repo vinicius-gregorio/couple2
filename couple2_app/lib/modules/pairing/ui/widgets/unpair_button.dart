@@ -10,7 +10,10 @@ import '../../domain/domain.dart';
 import '../../routing/routes.dart';
 
 class UnpairButton extends ConsumerStatefulWidget {
-  const UnpairButton({super.key});
+  const UnpairButton({super.key, this.enabled = true, this.onBusyChanged});
+
+  final bool enabled;
+  final ValueChanged<bool>? onBusyChanged;
 
   @override
   ConsumerState<UnpairButton> createState() => _UnpairButtonState();
@@ -18,37 +21,39 @@ class UnpairButton extends ConsumerStatefulWidget {
 
 class _UnpairButtonState extends ConsumerState<UnpairButton> {
   var _busy = false;
+  var _confirming = false;
   String? _error;
 
-  Future<void> _confirm() async {
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Desfazer o par?'),
-          content: const Text(
-            'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Manter o par'),
-            ),
-            TextButton(
-              key: const Key('confirm-unpair'),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Desfazer'),
-            ),
-          ],
-        );
-      },
-    );
-    if (accepted != true || !mounted) return;
+  void _setBusy(bool confirming, bool busy) {
+    final was = _busy || _confirming;
+    _confirming = confirming;
+    _busy = busy;
+    final now = _busy || _confirming;
+    if (was != now) widget.onBusyChanged?.call(now);
+    if (mounted) setState(() {});
+  }
 
-    setState(() {
-      _busy = true;
+  Future<void> _confirm() async {
+    if (_busy || _confirming || !widget.enabled) return;
+    _setBusy(true, false);
+    setState(() => _error = null);
+    final accepted = await confirmDestructive(
+      context,
+      title: 'Desfazer o par?',
+      message:
+          'Os dois deixam de estar pareados. As listas deste casal ficam inacessíveis para os dois — não há arquivo. Um novo pareamento cria um casal novo.',
+      confirmLabel: 'Desfazer',
+      confirmKey: const Key('confirm-unpair'),
+    );
+    if (!mounted) return;
+    if (accepted != true) {
       _error = null;
-    });
+      _setBusy(false, false);
+      return;
+    }
+
+    _error = null;
+    _setBusy(false, true);
     try {
       await ref.read(pairingStatusProvider.notifier).unpair();
       if (!mounted) return;
@@ -67,13 +72,12 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
         _error = pairingErrorMessage(error, action: PairingAction.unpair);
       });
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) _setBusy(false, false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -81,18 +85,14 @@ class _UnpairButtonState extends ConsumerState<UnpairButton> {
           key: const Key('unpair-button'),
           variant: LoadingButtonVariant.outlined,
           loading: _busy,
-          foregroundColor: theme.colorScheme.error,
-          onPressed: _busy
+          onPressed: _busy || _confirming || !widget.enabled
               ? null
               : () {
                   _confirm();
                 },
-          child: Text(_busy ? 'Desfazendo...' : 'Desfazer o par'),
+          child: const Text('Desfazer o par'),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-        ],
+        ActionErrorReporter(message: _error),
       ],
     );
   }

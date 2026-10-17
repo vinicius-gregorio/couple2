@@ -2,7 +2,9 @@ import 'package:couple2_app/design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../app/provider_load.dart';
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../data/mood_providers.dart';
 import '../../../domain/domain.dart';
 
@@ -20,7 +22,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
   bool _loading = true;
   bool _loadingMore = false;
   bool _celebrate = false;
-  Object? _error;
+  String? _error;
   late final AnimationController _heart = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
@@ -44,7 +46,9 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
       _error = null;
     });
     try {
-      final page = await ref.read(nudgesRepositoryProvider).received();
+      final page = await loadOrTimeout(
+        ref.read(nudgesRepositoryProvider).received(),
+      );
       final unseen = page.items.where((item) => !item.seen).toList();
       if (!mounted) return;
       setState(() {
@@ -62,7 +66,9 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error;
+        _error = userFacingError(
+          error,
+        );
         _loading = false;
       });
     }
@@ -73,9 +79,9 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
     if (cursor == null || _loadingMore) return;
     setState(() => _loadingMore = true);
     try {
-      final page = await ref
-          .read(nudgesRepositoryProvider)
-          .received(cursor: cursor);
+      final page = await loadOrTimeout(
+        ref.read(nudgesRepositoryProvider).received(cursor: cursor),
+      );
       final unseen = page.items.where((item) => !item.seen).toList();
       if (!mounted) return;
       setState(() {
@@ -84,8 +90,14 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
         _loadingMore = false;
       });
       await _mark(unseen);
-    } catch (_) {
-      if (mounted) setState(() => _loadingMore = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMore = false;
+        _error = userFacingError(
+          error,
+        );
+      });
     }
   }
 
@@ -102,8 +114,13 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
           if (index >= 0) {
             setState(() => _items[index] = seen);
           }
-        } catch (_) {
-          // A failed seen call can be retried the next time the screen opens.
+        } catch (error) {
+          if (!mounted) return;
+          setState(() {
+            _error = userFacingError(
+              error,
+            );
+          });
         }
       }),
     );
@@ -119,7 +136,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
           isLoading: _loading,
           hasData: _items.isNotEmpty,
           error: _error,
-          errorMessage: 'Não foi possível carregar os carinhos.',
+          errorMessage: _error ?? fallbackUserMessage,
           onRetry: _refresh,
           isEmpty: _items.isEmpty,
           emptyMessage: 'Os carinhos que você receber aparecem aqui.',
@@ -127,12 +144,7 @@ class _NudgesPageState extends ConsumerState<NudgesPage>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(vertical: 12),
             children: [
-              if (_error != null)
-                ErrorView(
-                  message: 'Não foi possível atualizar os carinhos.',
-                  compact: true,
-                  onRetry: _refresh,
-                ),
+              ActionErrorReporter(message: _items.isNotEmpty ? _error : null),
               if (_celebrate)
                 ScaleTransition(
                   scale: CurvedAnimation(

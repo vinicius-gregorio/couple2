@@ -154,6 +154,20 @@ void main() {
     );
   });
 
+  test('a hash fragment keeps the code entry route', () {
+    expect(
+      routeLocation(matchedLocation: '/', fragment: '/pairing/enter'),
+      '/pairing/enter',
+    );
+    expect(
+      resolvePairingRedirect(
+        needsPairing: true,
+        matchedLocation: '/pairing/enter',
+      ),
+      isNull,
+    );
+  });
+
   test('partnerId alone is enough to leave the pairing gate', () {
     const legacy = Session(
       id: 'a',

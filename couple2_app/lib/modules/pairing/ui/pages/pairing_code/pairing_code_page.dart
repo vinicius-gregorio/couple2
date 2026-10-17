@@ -26,6 +26,8 @@ class PairingCodePage extends ConsumerWidget {
     final statusAsync = ref.watch(pairingStatusProvider);
     final session = ref.watch(sessionProvider).asData?.value;
     final status = statusAsync.asData?.value;
+    final controlsLocked = ref.watch(pairingControlsLockedProvider) > 0;
+    final declined = ref.watch(pairingDeclineMessageProvider);
     final shown = shownPairingCode(
       status: status,
       sessionCode: session?.pairingCode,
@@ -35,10 +37,14 @@ class PairingCodePage extends ConsumerWidget {
     final pending = status?.phase == PairingPhase.pending;
 
     return PairingPoller(
-      enabled: pending,
+      enabled: status?.phase != PairingPhase.paired,
       child: PairingScaffold(
         step: 1,
-        onRefresh: () => _reload(ref),
+        actionsEnabled: !controlsLocked,
+        onRefresh: () async {
+          ref.read(pairingDeclineMessageProvider.notifier).clear();
+          await _reload(ref);
+        },
         children: [
           const AppText(
             'Mostre o seu código',
@@ -46,34 +52,32 @@ class PairingCodePage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           const AppText(
-            'O pareamento só termina quando cada pessoa digita o código da outra. Enquanto isso, a Home do casal fica fechada.',
+            'Mostre o seu código ou digite o do seu par. O pedido pode ser aceito ou recusado. A Home abre quando o par existir.',
           ),
+          ActionErrorReporter(message: declined),
           const SizedBox(height: 20),
           if (statusAsync.isLoading && shown.code == null)
-            const CardSkeleton(lines: 2)
+            const CardSkeleton(lines: 2, minHeight: 200)
           else ...[
             if (statusAsync.hasError && shown.code == null)
-              ErrorView(
+              LoadErrorCard(
                 message: pairingErrorMessage(
                   statusAsync.error!,
                   action: PairingAction.status,
                 ),
-                compact: true,
                 onRetry: () => _reload(ref),
               )
             else if (statusAsync.hasError)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AppText(
-                  pairingErrorMessage(
-                    statusAsync.error!,
-                    action: PairingAction.status,
-                  ),
+              ActionErrorReporter(
+                message: pairingErrorMessage(
+                  statusAsync.error!,
+                  action: PairingAction.status,
                 ),
               ),
             PairingCodeCard(
               code: shown.code,
               expiryLabel: expiry,
+              actionsEnabled: !controlsLocked,
               onCopy: shown.code == null
                   ? null
                   : () async {
@@ -105,34 +109,56 @@ class PairingCodePage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AppText(
-                      'Pedido enviado',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    AppText(() {
+                      final sent = status?.pendingCode;
+                      if (sent == null || sent.isEmpty) {
+                        return 'Pedido recebido';
+                      }
+                      return 'Pedido enviado';
+                    }(), style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
-                    AppText(
-                      status?.pendingCode == null
-                          ? 'Esperando a outra pessoa digitar o seu código.'
-                          : 'Esperando a outra pessoa digitar o seu código. Você enviou ${status!.pendingCode}.',
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () => context.push(PairingRoutes.waiting),
-                      child: const Text('Acompanhar pedido'),
-                    ),
+                    AppText(pairingRequestNotice(status!)),
+                    if ((status.pendingCode ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      LoadingButton(
+                        variant: LoadingButtonVariant.outlined,
+                        onPressed: () {
+                          context.push(PairingRoutes.waiting);
+                        },
+                        child: const Text('Acompanhar pedido'),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ],
           const SizedBox(height: 24),
-          ElevatedButton(
-            key: const Key('enter-partner-code'),
-            onPressed: () => context.push(PairingRoutes.enter),
-            child: const Text('Digitar o código do meu par'),
-          ),
+          _EnterPartnerCode(enabled: !controlsLocked),
         ],
       ),
+    );
+  }
+}
+
+/// Stays outlined. "Gerar código" is the only filled action, and this control
+/// must not switch to filled once a code appears.
+class _EnterPartnerCode extends StatelessWidget {
+  const _EnterPartnerCode({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return LoadingButton(
+      key: const Key('enter-partner-code'),
+      variant: LoadingButtonVariant.outlined,
+      onPressed: enabled
+          ? () {
+              context.push(PairingRoutes.enter);
+            }
+          : null,
+      child: const Text('Digitar o código do meu par'),
     );
   }
 }

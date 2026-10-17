@@ -9,9 +9,7 @@ Future<void> dismissSplashWhenReady({
 }) async {
   try {
     await assetsReady.timeout(timeout);
-    if (afterReady != null) {
-      await afterReady().timeout(timeout);
-    }
+    if (afterReady != null) await afterReady();
   } catch (_) {
     // A failed or slow font must not leave the splash up.
   }

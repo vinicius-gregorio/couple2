@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../notifications/routing/routes.dart';
 import '../../../domain/domain.dart';
 import '../../widgets/activity_icon.dart';
@@ -57,7 +58,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
         leading: const AppBackButton(),
         title: const AppText('O que rolou'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: 'Notificações',
             icon: const Icon(Icons.tune),
             onPressed: () => context.push(NotificationRoutes.preferences),
@@ -70,8 +71,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
           error: state.errorMessage,
-          errorMessage:
-              state.errorMessage ?? 'Não foi possível carregar o feed.',
+          errorMessage: state.errorMessage ?? fallbackUserMessage,
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nada por aqui ainda.',
@@ -110,12 +110,15 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.errorMessage != null) {
+    if (state.errorMessage != null && state.items.isEmpty) {
       return ErrorView(
         message: state.errorMessage!,
         compact: true,
         onRetry: onRetry,
       );
+    }
+    if (state.errorMessage != null) {
+      return ActionErrorReporter(message: state.errorMessage);
     }
     if (state.isLoadingMore) {
       return const Padding(
@@ -141,14 +144,27 @@ class _ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = feedActionText(event.type, event.payload);
-    return ListTile(
-      leading: Icon(activityIcon(event.type)),
-      title: AppText('$actor $text'),
-      subtitle: AppText(
-        _shortTime(event.createdAt.toLocal()),
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+    final label = '$actor $text';
+    return Semantics(
+      button: true,
+      label: label,
       onTap: onTap,
+      child: ExcludeSemantics(
+        child: ListTile(
+          leading: Icon(
+            activityIcon(event.type),
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          title: IgnorePointer(child: AppText(label)),
+          subtitle: IgnorePointer(
+            child: AppText(
+              _shortTime(event.createdAt.toLocal()),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          onTap: onTap,
+        ),
+      ),
     );
   }
 }

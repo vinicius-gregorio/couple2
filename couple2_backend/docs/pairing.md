@@ -134,9 +134,13 @@ Gets the current pairing status for the authenticated user.
 {
   "status": "pending",
   "pendingCode": "XYZ789",
-  "message": "Waiting for your partner to enter your code"
+  "pairingCode": "ABC123",
+  "pairingCodeExpiresAt": "2024-02-18T12:00:00.000Z",
+  "message": "Waiting for your partner to accept or decline"
 }
 ```
+
+`pairingCode` is the caller's own code, so the waiting screen can keep showing it.
 
 **Response (Unpaired):**
 ```json
@@ -146,6 +150,41 @@ Gets the current pairing status for the authenticated user.
   "pairingCodeExpiresAt": "2024-02-18T12:00:00.000Z"
 }
 ```
+
+### GET /pairing/requests/received
+
+Lists pairing requests **sent to the authenticated user** (another person entered this user's current pairing code). The caller cannot ask for anyone else's list. The response never includes a pairing code, `targetCode`, or the requester's email.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "createdAt": "2024-01-18T12:00:00.000Z",
+    "requester": { "id": "uuid", "name": "Partner Name" }
+  }
+]
+```
+
+An unpaired user with no incoming requests gets `[]`.
+
+### POST /pairing/requests/:id/accept
+
+Completes pairing for a request that targets the caller's current code. Same paired payload as `POST /pairing/pair`. A second accept of a request that already succeeded returns that paired payload again. Two accepts in flight share a row lock, so one unique-constraint failure becomes 409 or the paired payload, never 500.
+
+| Status | Cause |
+|--------|-------|
+| 404 | Missing id while the caller is still unpaired, or the request targets someone else's code |
+| 409 | The request is still open and the caller or requester is already paired, or the couple row lost a race |
+
+### POST /pairing/requests/:id/decline
+
+Deletes that one request. Requests addressed to other people are left in place.
+
+| Status | Cause |
+|--------|-------|
+| 404 | Missing id, or the request targets someone else's code |
+| 409 | Caller is already paired |
 
 ### DELETE /pairing/request
 

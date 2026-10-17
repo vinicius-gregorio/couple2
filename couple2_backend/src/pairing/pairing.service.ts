@@ -4,13 +4,44 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../notifications/prisma-errors';
 import { PrismaService } from '../prisma';
 import { UsersService } from '../users';
 import { PairResponseDto, PairingStatus } from './dto';
 import { applyPairing } from './apply-pairing';
 
+const copy = {
+  badFormat: 'O código precisa ter 6 letras ou números.',
+  userNotFound: 'Usuário não encontrado.',
+  alreadyPaired: 'Você já está pareado.',
+  self: 'Você não pode parear consigo.',
+  codeNotFound: 'Não encontramos ninguém com esse código.',
+  expired: 'Esse código de pareamento expirou.',
+  partnerPaired: 'Essa pessoa já está pareada com outra.',
+  pendingSent: 'Pedido enviado. Aguardando a outra pessoa aceitar ou recusar.',
+  waiting: 'Aguardando a outra pessoa aceitar ou recusar.',
+  paired: 'Pareamento concluído.',
+  requestNotFound: 'Pedido de pareamento não encontrado.',
+  declined: 'Pedido recusado.',
+  notPaired: 'Você não está pareado com ninguém.',
+};
+
 @Injectable()
 export class PairingService {
+  /** Serializes accepts for the same pair inside this process. */
+  private readonly acceptTails = new Map<string, Promise<void>>();
+
+  /**
+   * Request ids this process already accepted. A replay of one of these ids
+   * is 201. Any other id, including a bogus one after the user is paired, is
+   * 404 so a guessed id cannot look like success.
+   */
+  private readonly acceptedRequests = new Map<
+    string,
+    { userId: string; partnerId: string }
+  >();
+
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
@@ -31,9 +62,7 @@ export class PairingService {
 
     // Validate code format
     if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
-      throw new BadRequestException(
-        'Invalid code format. Must be 6 alphanumeric characters.',
-      );
+      throw new BadRequestException(copy.badFormat);
     }
 
     // Get the requester
@@ -42,17 +71,17 @@ export class PairingService {
     });
 
     if (!requester) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(copy.userNotFound);
     }
 
     // Check if requester already has a partner
     if (requester.partnerId) {
-      throw new ConflictException('You are already paired with a partner');
+      throw new ConflictException(copy.alreadyPaired);
     }
 
     // Check if user is trying to use their own code
     if (requester.pairingCode === normalizedCode) {
-      throw new BadRequestException('You cannot pair with yourself');
+      throw new BadRequestException(copy.self);
     }
 
     // Find the target user by their pairing code
@@ -60,21 +89,17 @@ export class PairingService {
       await this.usersService.findByPairingCode(normalizedCode);
 
     if (!targetUser) {
-      throw new NotFoundException(
-        'Invalid pairing code. No user found with this code.',
-      );
+      throw new NotFoundException(copy.codeNotFound);
     }
 
     // Check if target code is expired
     if (!this.usersService.isPairingCodeValid(targetUser)) {
-      throw new BadRequestException('This pairing code has expired');
+      throw new BadRequestException(copy.expired);
     }
 
     // Check if target user already has a partner
     if (targetUser.partnerId) {
-      throw new ConflictException(
-        'This user is already paired with someone else',
-      );
+      throw new ConflictException(copy.partnerPaired);
     }
 
     // Check if there's a reciprocal request (target has already requested pairing with requester)
@@ -95,8 +120,7 @@ export class PairingService {
 
     return {
       status: PairingStatus.PENDING,
-      message:
-        'Pairing request sent. Waiting for your partner to enter your code.',
+      message: copy.pendingSent,
     };
   }
 
@@ -126,15 +150,19 @@ export class PairingService {
     userAId: string,
     userBId: string,
   ): Promise<PairResponseDto> {
-    const paired = await this.prisma.$transaction((tx) =>
-      applyPairing(tx, userAId, userBId),
-    );
+    try {
+      const paired = await this.prisma.$transaction(async (tx) => {
+        await this.lockUsers(tx, [userAId, userBId]);
+        const existing = await this.alreadyPaired(tx, userAId, userBId);
+        if (existing) return existing;
+        return applyPairing(tx, userAId, userBId);
+      });
 
-    return {
-      status: PairingStatus.PAIRED,
-      message: 'Successfully paired with your partner!',
-      partner: paired.partner,
-    };
+      return this.pairedBody(paired.partner);
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return this.conflictOrExistingPair(userAId, userBId);
+    }
   }
 
   /**
@@ -153,7 +181,7 @@ export class PairingService {
   async ensureOwnPairingCode(userId: string) {
     const user = await this.usersService.ensurePairingCode(userId);
     if (user.partnerId) {
-      throw new ConflictException('You are already paired with a partner');
+      throw new ConflictException(copy.alreadyPaired);
     }
     return {
       pairingCode: user.pairingCode,
@@ -176,7 +204,7 @@ export class PairingService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(copy.userNotFound);
     }
 
     if (user.partnerId && user.partner) {
@@ -189,19 +217,277 @@ export class PairingService {
       };
     }
 
-    if (user.pairingRequestsSent.length > 0) {
+    const ready = await this.usersService.ensurePairingCode(userId);
+    const sent = user.pairingRequestsSent ?? [];
+
+    if (sent.length > 0) {
       return {
         status: 'pending',
-        pendingCode: user.pairingRequestsSent[0].targetCode,
-        message: 'Waiting for your partner to enter your code',
+        pendingCode: sent[0].targetCode,
+        pairingCode: ready.pairingCode,
+        pairingCodeExpiresAt: ready.pairingCodeExpiresAt,
+        message: copy.waiting,
       };
     }
 
     return {
       status: 'unpaired',
-      pairingCode: user.pairingCode,
-      pairingCodeExpiresAt: user.pairingCodeExpiresAt,
+      pairingCode: ready.pairingCode,
+      pairingCodeExpiresAt: ready.pairingCodeExpiresAt,
     };
+  }
+
+  /**
+   * Requests whose target code is the caller's current pairing code.
+   * The payload is id, time, and the requester's id and name. Never a code.
+   */
+  async listReceivedRequests(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(copy.userNotFound);
+    }
+    if (!user.pairingCode) return [];
+
+    const rows = await this.prisma.pairingRequest.findMany({
+      where: { targetCode: user.pairingCode },
+      include: {
+        requester: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      requester: {
+        id: row.requester.id,
+        name: row.requester.name,
+      },
+    }));
+  }
+
+  /**
+   * Accepts one request addressed to the caller and completes the pair.
+   * A repeated or concurrent accept of the same request returns the paired
+   * result. It never surfaces a unique-constraint 500.
+   * A request for anyone else is 404, so ids cannot be used to probe.
+   */
+  async acceptReceivedRequest(userId: string, requestId: string) {
+    const preview = await this.prisma.pairingRequest.findUnique({
+      where: { id: requestId },
+    });
+    const key = [userId, preview?.requesterId ?? '']
+      .filter((id) => id.length > 0)
+      .sort()
+      .join(':');
+    return this.runExclusive(key, () => this.acceptOnce(userId, requestId));
+  }
+
+  private async acceptOnce(
+    userId: string,
+    requestId: string,
+  ): Promise<PairResponseDto> {
+    try {
+      const body = await this.prisma.$transaction(async (tx) => {
+        const request = await tx.pairingRequest.findUnique({
+          where: { id: requestId },
+        });
+        const ids = [userId];
+        if (request) ids.push(request.requesterId);
+        await this.lockUsers(tx, ids);
+
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          include: { partner: { select: { id: true, name: true } } },
+        });
+        if (!user) {
+          throw new NotFoundException(copy.userNotFound);
+        }
+
+        const owned =
+          !!request &&
+          !!user.pairingCode &&
+          request.targetCode === user.pairingCode;
+
+        if (!owned) {
+          const replay = this.replayAccept(userId, requestId, user);
+          if (replay) return replay;
+          throw new NotFoundException(copy.requestNotFound);
+        }
+
+        if (user.partnerId) {
+          throw new ConflictException(copy.alreadyPaired);
+        }
+
+        const requester = await tx.user.findUnique({
+          where: { id: request.requesterId },
+        });
+        if (!requester) {
+          throw new NotFoundException(copy.requestNotFound);
+        }
+        if (requester.partnerId) {
+          throw new ConflictException(copy.partnerPaired);
+        }
+
+        const paired = await applyPairing(tx, user.id, requester.id);
+        return this.pairedBody(paired.partner);
+      });
+      if (body.partner) {
+        this.acceptedRequests.set(requestId, {
+          userId,
+          partnerId: body.partner.id,
+        });
+      }
+      return body;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { partner: { select: { id: true, name: true } } },
+      });
+      const replay = user ? this.replayAccept(userId, requestId, user) : null;
+      if (replay) return replay;
+      if (user?.partnerId && user.partner) {
+        this.acceptedRequests.set(requestId, {
+          userId,
+          partnerId: user.partner.id,
+        });
+        return this.pairedBody({
+          id: user.partner.id,
+          name: user.partner.name,
+        });
+      }
+      throw new ConflictException(copy.alreadyPaired);
+    }
+  }
+
+  /**
+   * 201 only when this process already accepted this exact id into the
+   * caller's current pair. A bogus id stays 404 even if the caller is paired.
+   */
+  private replayAccept(
+    userId: string,
+    requestId: string,
+    user: {
+      partnerId: string | null;
+      partner: { id: string; name: string | null } | null;
+    },
+  ): PairResponseDto | null {
+    const remembered = this.acceptedRequests.get(requestId);
+    if (!remembered || remembered.userId !== userId) return null;
+    if (
+      !user.partnerId ||
+      user.partnerId !== remembered.partnerId ||
+      !user.partner
+    ) {
+      return null;
+    }
+    return this.pairedBody({ id: user.partner.id, name: user.partner.name });
+  }
+
+  private pairedBody(partner: {
+    id: string;
+    name: string | null;
+  }): PairResponseDto {
+    return {
+      status: PairingStatus.PAIRED,
+      message: copy.paired,
+      partner,
+    };
+  }
+
+  private async alreadyPaired(
+    tx: Prisma.TransactionClient,
+    userAId: string,
+    userBId: string,
+  ) {
+    const user = await tx.user.findUnique({
+      where: { id: userAId },
+      include: { partner: { select: { id: true, name: true } } },
+    });
+    if (user?.partnerId === userBId && user.partner) {
+      return {
+        coupleId: user.coupleId ?? '',
+        partner: { id: user.partner.id, name: user.partner.name },
+      };
+    }
+    const other = await tx.user.findUnique({
+      where: { id: userBId },
+      include: { partner: { select: { id: true, name: true } } },
+    });
+    if (other?.partnerId === userAId) {
+      return {
+        coupleId: other.coupleId ?? '',
+        partner: { id: other.id, name: other.name },
+      };
+    }
+    if (user?.partnerId || other?.partnerId) {
+      throw new ConflictException(copy.alreadyPaired);
+    }
+    return null;
+  }
+
+  private async conflictOrExistingPair(userAId: string, userBId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userAId },
+      include: { partner: { select: { id: true, name: true } } },
+    });
+    if (user?.partnerId === userBId && user.partner) {
+      return this.pairedBody({
+        id: user.partner.id,
+        name: user.partner.name,
+      });
+    }
+    throw new ConflictException(copy.alreadyPaired);
+  }
+
+  /** Row lock in id order so two accepts cannot both create an active couple. */
+  private async lockUsers(tx: Prisma.TransactionClient, ids: string[]) {
+    const sorted = [...new Set(ids)].filter((id) => id.length > 0).sort();
+    for (const id of sorted) {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${id} FOR UPDATE`;
+    }
+  }
+
+  private runExclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.acceptTails.get(key) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(fn);
+    this.acceptTails.set(
+      key,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
+  }
+
+  /**
+   * Declines one request addressed to the caller. Other people's requests stay.
+   */
+  async declineReceivedRequest(userId: string, requestId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(copy.userNotFound);
+    }
+
+    const request = await this.ownedRequest(user.pairingCode, requestId);
+    if (user.partnerId) {
+      throw new ConflictException(copy.alreadyPaired);
+    }
+
+    await this.prisma.pairingRequest.delete({ where: { id: request.id } });
+    return { message: copy.declined };
+  }
+
+  private async ownedRequest(pairingCode: string | null, requestId: string) {
+    const request = await this.prisma.pairingRequest.findUnique({
+      where: { id: requestId },
+    });
+    if (!request || !pairingCode || request.targetCode !== pairingCode) {
+      throw new NotFoundException(copy.requestNotFound);
+    }
+    return request;
   }
 
   /**
@@ -213,11 +499,11 @@ export class PairingService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(copy.userNotFound);
     }
 
     if (!user.partnerId) {
-      throw new BadRequestException('You are not paired with anyone');
+      throw new BadRequestException(copy.notPaired);
     }
 
     const partnerId = user.partnerId;

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/ui/home_failure_scope.dart';
+import '../../../../core/core.dart';
 import '../../data/date_plans_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -15,63 +17,89 @@ class NextDateCard extends ConsumerWidget {
     final next = ref.watch(nextDateProvider);
     final theme = Theme.of(context);
 
-    return next.when(
-      loading: () => const CardSkeleton(lines: 2),
-      error: (_, __) => ErrorView(
-        message: 'Não consegui carregar os dates.',
-        compact: true,
-        onRetry: () => ref.invalidate(nextDateProvider),
-      ),
-      data: (plan) {
-        if (plan == null) {
+    if (next.hasError) {
+      return LoadErrorCard(
+        message: userFacingError(next.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(nextDateProvider);
+          }
+        },
+      );
+    }
+
+    return StableSlot(
+      height: homeNextDateCardHeight,
+      child: next.when(
+        skipLoadingOnReload: true,
+        loading: () => const CardSkeleton(
+          lines: 2,
+          minHeight: homeNextDateCardHeight,
+        ),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (plan) {
+          if (plan == null) return _emptyCard(context, theme);
+
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 24),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppText('Próximo date', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: () => context.push(DatePlanRoutes.create),
-                    icon: const Icon(Icons.event_available_outlined),
-                    label: const Text('Planejar um date'),
-                  ),
-                ],
+            child: AppInkWell(
+              semanticLabel: nextDateHeadline(plan),
+              onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      nextDateHeadline(plan),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Horário do aparelho',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: LoadingButton(
+                        variant: LoadingButtonVariant.text,
+                        onPressed: () {
+                          context.push(DatePlanRoutes.list);
+                        },
+                        child: const Text('Ver encontros'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
-        }
-
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          child: InkWell(
-            onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(
-                    nextDateHeadline(plan),
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Horário do aparelho', style: theme.textTheme.bodySmall),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push(DatePlanRoutes.list),
-                      child: const Text('Ver dates'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+        },
+    ),
     );
   }
+}
+
+Widget _emptyCard(BuildContext context, ThemeData theme) {
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 24),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppText('Próximo encontro', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 12),
+          LoadingButton(
+            variant: LoadingButtonVariant.outlined,
+            icon: const Icon(Icons.event_available_outlined),
+            onPressed: () {
+              context.push(DatePlanRoutes.create);
+            },
+            child: const Text('Planejar um encontro'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

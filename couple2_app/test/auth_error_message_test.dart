@@ -12,7 +12,7 @@ void main() {
           message: 'The popup has been closed by the user before finalizing.',
         ),
       );
-      expect(message, 'Login cancelado');
+      expect(message, 'Entrada cancelada');
       expect(message.toLowerCase(), isNot(contains('popup')));
     }
   });
@@ -47,7 +47,7 @@ void main() {
     );
 
     expect(message, 'Sem conexão. Verifique a internet e tente de novo.');
-    expect(message, isNot('Login cancelado'));
+    expect(message, isNot('Entrada cancelada'));
   });
 
   test('a cancelled Google redirect clears the spinner', () {
@@ -58,7 +58,7 @@ void main() {
     );
 
     expect(next.googleLoading, isFalse);
-    expect(next.errorMessage, 'Login cancelado');
+    expect(next.errorMessage, 'Entrada cancelada');
     expect(formatAuthError(const CancelledGoogleRedirect()), next.errorMessage);
   });
 

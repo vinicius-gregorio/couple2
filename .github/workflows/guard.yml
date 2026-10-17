@@ -1,0 +1,13 @@
+name: guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  buttons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Button, checkable, and error-banner guard
+        run: bash couple2_app/scripts/check_buttons.sh

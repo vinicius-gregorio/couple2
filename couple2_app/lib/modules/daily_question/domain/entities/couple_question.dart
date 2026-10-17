@@ -16,6 +16,12 @@ class QuestionAnswer {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
 }
 
 class QuestionPrompt {
@@ -30,6 +36,8 @@ class QuestionPrompt {
       category: json['category'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {'text': text, 'category': category};
 }
 
 class CoupleQuestion {
@@ -79,6 +87,17 @@ class CoupleQuestion {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'date': date,
+    'question': question.toJson(),
+    'myAnswer': myAnswer?.toJson(),
+    'partnerAnswered': partnerAnswered,
+    'unlockedAt': unlockedAt?.toUtc().toIso8601String(),
+    'answerable': answerable,
+    'partnerAnswer': partnerAnswer?.toJson(),
+  };
 }
 
 class QuestionHistoryPageResult {

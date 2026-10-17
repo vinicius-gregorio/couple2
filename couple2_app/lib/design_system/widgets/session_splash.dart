@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'skeleton.dart';
-
 /// Covers the navigator until auth and the session are known.
 ///
 /// The router keeps the browser URL in that window. Without this cover, Home
@@ -37,9 +35,11 @@ class SessionSplash extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              const CardSkeleton(),
-              const SizedBox(height: 16),
-              const CardSkeleton(lines: 2),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ],
           ),
         ),

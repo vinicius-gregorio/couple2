@@ -9,6 +9,15 @@ abstract class IPairingRepository {
 
   /// `POST /pairing/code`. Creates the code when login never stored one.
   Future<void> ensurePairingCode();
+
+  /// `GET /pairing/requests/received`. Only the caller's incoming requests.
+  Future<List<IncomingPairingRequest>> receivedRequests();
+
+  /// `POST /pairing/requests/:id/accept`.
+  Future<PairResult> acceptRequest(String id);
+
+  /// `POST /pairing/requests/:id/decline`.
+  Future<void> declineRequest(String id);
 }
 
 class PairingRepository implements IPairingRepository {
@@ -47,6 +56,35 @@ class PairingRepository implements IPairingRepository {
   @override
   Future<void> ensurePairingCode() async {
     await _httpClient.post<Map<String, dynamic>>('/pairing/code');
+  }
+
+  @override
+  Future<List<IncomingPairingRequest>> receivedRequests() async {
+    final response = await _httpClient.get<Object?>(
+      '/pairing/requests/received',
+    );
+    final data = response.data;
+    if (data is! List) {
+      throw const FormatException('Resposta inesperada do servidor');
+    }
+    return [
+      for (final row in data) IncomingPairingRequest.fromJson(_asMap(row)),
+    ];
+  }
+
+  @override
+  Future<PairResult> acceptRequest(String id) async {
+    final response = await _httpClient.post<Map<String, dynamic>>(
+      '/pairing/requests/$id/accept',
+    );
+    return PairResult.fromJson(_asMap(response.data));
+  }
+
+  @override
+  Future<void> declineRequest(String id) async {
+    await _httpClient.post<Map<String, dynamic>>(
+      '/pairing/requests/$id/decline',
+    );
   }
 
   Map<String, dynamic> _asMap(Object? data) {

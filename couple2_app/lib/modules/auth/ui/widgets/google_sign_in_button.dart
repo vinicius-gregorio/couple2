@@ -5,7 +5,7 @@ import 'google_logo.dart';
 
 /// "Entrar com Google" button.
 ///
-/// On Flutter web the canvas hit test misses [ElevatedButton] taps, and a
+/// On Flutter web the canvas hit test misses a Material button, and a
 /// [SelectableText] label wins the gesture arena so the press never fires.
 /// This target is one opaque, full-width control. Children cannot take the tap.
 /// Colors come from the app [ColorScheme] so the label stays onPrimary.
@@ -32,41 +32,53 @@ class GoogleSignInButton extends StatelessWidget {
         ? scheme.onPrimary
         : scheme.onSurface.withValues(alpha: 0.38);
     final border = active
-        ? Color.alphaBlend(const Color(0x59000000), scheme.primary)
-        : scheme.outline.withValues(alpha: 0.45);
-    return Material(
-      color: background,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: border, width: 2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onPressed : null,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: minHeight),
-          child: SizedBox(
-            width: double.infinity,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: IgnorePointer(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _leading(foreground),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Entrar com Google',
-                      style: TextStyle(
-                        color: foreground,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
+        ? Color.alphaBlend(scheme.scrim.withValues(alpha: 0.35), scheme.primary)
+        : scheme.outline;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: 'Entrar com Google',
+      onTap: enabled ? onPressed : null,
+      child: Material(
+        color: background,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: border, width: 2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: GestureDetector(
+          excludeFromSemantics: true,
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? onPressed : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: minHeight),
+            child: SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: ExcludeSemantics(
+                  child: IgnorePointer(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _leading(foreground),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Entrar com Google',
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -82,10 +94,7 @@ class GoogleSignInButton extends StatelessWidget {
         key: loadingIndicatorKey,
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: foreground,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: foreground),
       );
     }
     return SvgPicture(

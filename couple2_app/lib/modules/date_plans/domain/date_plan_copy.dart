@@ -1,3 +1,5 @@
+import 'package:couple2_app/core/core.dart';
+
 import 'entities/date_plan.dart';
 
 const dateWeekdays = <int, String>{
@@ -24,7 +26,7 @@ String datePlanWhen(DateTime scheduledAt) {
 
 /// Home card line. The clock is the device timezone.
 String nextDateHeadline(DatePlan plan) {
-  return 'Próximo date: ${datePlanWhen(plan.scheduledAt)} — ${plan.title}';
+  return 'Próximo encontro: ${datePlanWhen(plan.scheduledAt)} — ${plan.title}';
 }
 
 String datePlanErrorMessage(int? statusCode, {bool linkingItem = false}) {
@@ -34,14 +36,26 @@ String datePlanErrorMessage(int? statusCode, {bool linkingItem = false}) {
     case 403:
       return 'Essa ação não é sua.';
     case 404:
-      return 'Esse date não está mais aqui.';
+      return 'Esse encontro não está mais aqui.';
     case 409:
-      return 'Esse date mudou. Atualize e tente de novo.';
+      return 'Esse encontro mudou. Atualize e tente de novo.';
     case 422:
       return linkingItem
-          ? 'Esse item não pode virar um date.'
+          ? 'Esse item não pode virar um encontro.'
           : 'Ainda não dá para marcar como feito.';
     default:
-      return 'Não consegui salvar agora.';
+      return fallbackUserMessage;
   }
+}
+
+/// Offline failures name the network. Other HTTP statuses keep the date copy.
+String datePlanFailureMessage(Object error, {bool linkingItem = false}) {
+  if (isOfflineFailure(error)) return offlineUserMessage;
+  if (error is CPLHttpException) {
+    return datePlanErrorMessage(
+      error.response?.statusCode,
+      linkingItem: linkingItem,
+    );
+  }
+  return userFacingError(error);
 }

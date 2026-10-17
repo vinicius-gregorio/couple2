@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Production Flutter web build for Firebase Hosting (project couple42-f87b6).
 # Dev builds keep http://localhost:3000 when API_BASE_URL is not passed.
+# Icon glyphs are const, so tree shaking stays on. Do not pass
+# --no-tree-shake-icons.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
+import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -17,7 +19,8 @@ class TodayQuestionCard extends ConsumerWidget {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = session?.partnerName ?? '';
 
-    final question = today.asData?.value;
+    final question = today.hasError ? null : today.value;
+    final failed = today.hasError;
     final copy = question == null
         ? null
         : todayCardCopy(
@@ -27,45 +30,59 @@ class TodayQuestionCard extends ConsumerWidget {
             partnerAnswered: question.partnerAnswered,
           );
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: InkWell(
-        onTap: () => context.push(DailyQuestionRoutes.today),
-        child: IgnorePointer(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppText(
-                        'Pergunta do dia',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      if (today.isLoading && question == null)
-                        const SkeletonBox(height: 14)
-                      else if (today.hasError)
-                        const AppText(
-                          'Não foi possível carregar a pergunta. Toque para abrir.',
-                        )
-                      else if (copy != null)
-                        AppText(copy.title)
-                      else
-                        const AppText('Responda a pergunta de hoje'),
-                    ],
+    if (failed) {
+      return LoadErrorCard(
+        message: userFacingError(today.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(todayQuestionProvider);
+          }
+        },
+      );
+    }
+
+    return StableSlot(
+      height: homeQuestionCardHeight,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: AppInkWell(
+          semanticLabel: copy == null
+              ? 'Pergunta do dia'
+              : 'Pergunta do dia, ${copy.title}',
+          onTap: () => context.push(DailyQuestionRoutes.today),
+          child: IgnorePointer(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(
+                          'Pergunta do dia',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        if (today.isLoading && !today.hasValue)
+                          const SkeletonBox(height: 14)
+                        else if (copy != null)
+                          AppText(copy.title)
+                        else
+                          const AppText('Responda a pergunta de hoje'),
+                      ],
+                    ),
                   ),
-                ),
-                if (copy != null && copy.kind != TodayCardKind.unanswered) ...[
-                  const SizedBox(width: 12),
-                  _PartnerAvatar(
-                    pictureUrl: session?.partnerPicture,
-                    gray: copy.grayPartnerAvatar,
-                  ),
+                  if (copy != null &&
+                      copy.kind != TodayCardKind.unanswered) ...[
+                    const SizedBox(width: 12),
+                    _PartnerAvatar(
+                      pictureUrl: session?.partnerPicture,
+                      gray: copy.grayPartnerAvatar,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

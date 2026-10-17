@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/routing/app_back_button.dart';
+import '../../../../../core/core.dart';
 import '../../../../../app/session_provider.dart';
 import '../../../domain/domain.dart';
 import 'question_history_viewmodel.dart';
@@ -79,14 +80,18 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
         leading: const AppBackButton(),
         title: const AppText('Histórico'),
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (state.items.isNotEmpty)
+            ActionErrorReporter(message: state.errorMessage),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: viewModel.refresh,
         child: AsyncBody(
           isLoading: state.isLoading,
           hasData: state.items.isNotEmpty,
-          error: state.errorMessage,
-          errorMessage:
-              state.errorMessage ?? 'Não foi possível carregar o histórico.',
+          error: state.items.isEmpty ? state.errorMessage : null,
+          errorMessage: state.errorMessage ?? fallbackUserMessage,
           onRetry: viewModel.refresh,
           isEmpty: state.items.isEmpty,
           emptyMessage: 'Nenhuma pergunta ainda.',
@@ -113,6 +118,9 @@ class _QuestionHistoryPageState extends ConsumerState<QuestionHistoryPage> {
             },
           ),
         ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -174,7 +182,8 @@ class _HistoryTile extends StatelessWidget {
           if (showAnswer || showEdit) ...[
             const SizedBox(height: 8),
             if (!editing)
-              TextButton(
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
                 onPressed: onAnswer,
                 child: Text(showAnswer ? 'Responder' : 'Editar'),
               )
@@ -195,7 +204,7 @@ class _HistoryTile extends StatelessWidget {
                   onPressed: saving || draft.text.trim().isEmpty
                       ? null
                       : onSubmit,
-                  child: Text(showAnswer ? 'Enviar' : 'Editar'),
+                  child: Text(showAnswer ? 'Enviar' : 'Salvar'),
                 ),
               ),
             ],

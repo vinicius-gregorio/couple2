@@ -70,6 +70,14 @@ void main() {
     expect(pending.pendingCode, 'XYZ789');
     expect(pending.pairingCode, isNull);
 
+    final pendingWithOwnCode = PairingSnapshot.fromJson({
+      'status': 'pending',
+      'pendingCode': 'XYZ789',
+      'pairingCode': 'HHHHHH',
+    });
+    expect(pendingWithOwnCode.pairingCode, 'HHHHHH');
+    expect(shownPairingCode(status: pendingWithOwnCode).code, 'HHHHHH');
+
     final paired = PairingSnapshot.fromJson({
       'status': 'paired',
       'partner': {'id': 'user-b', 'name': 'Bruno'},
@@ -237,6 +245,84 @@ void main() {
     expect(
       pairingErrorMessage(Exception('nope'), action: PairingAction.unpair),
       'Não foi possível desfazer o par. Tente de novo.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpBadRequestException(
+          response: CPLHttpResponse(
+            data: {'message': 'Você não pode parear consigo.'},
+            statusCode: 400,
+            statusMessage: 'Bad Request',
+            headers: null,
+          ),
+        ),
+      ),
+      'Você não pode usar o seu próprio código.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpBadRequestException(
+          response: CPLHttpResponse(
+            data: {'message': 'Esse código de pareamento expirou.'},
+            statusCode: 400,
+            statusMessage: 'Bad Request',
+            headers: null,
+          ),
+        ),
+      ),
+      'Esse código expirou. Peça um código novo.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpConflictException(
+          response: CPLHttpResponse(
+            data: {'message': 'Essa pessoa já está pareada com outra.'},
+            statusCode: 409,
+            statusMessage: 'Conflict',
+            headers: null,
+          ),
+        ),
+      ),
+      'Essa pessoa já está pareada com outra.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpConflictException(
+          response: CPLHttpResponse(
+            data: {'message': 'Você já está pareado.'},
+            statusCode: 409,
+            statusMessage: 'Conflict',
+            headers: null,
+          ),
+        ),
+      ),
+      'Você já está pareado.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpNotFoundException(
+          response: CPLHttpResponse(
+            data: {'message': 'Pedido de pareamento não encontrado.'},
+            statusCode: 404,
+            statusMessage: 'Not Found',
+            headers: null,
+          ),
+        ),
+      ),
+      'Esse pedido não está mais disponível.',
+    );
+    expect(
+      pairingErrorMessage(
+        CPLHttpNotFoundException(
+          response: CPLHttpResponse(
+            data: {'message': 'Não encontramos ninguém com esse código.'},
+            statusCode: 404,
+            statusMessage: 'Not Found',
+            headers: null,
+          ),
+        ),
+      ),
+      'Não encontramos ninguém com esse código.',
     );
   });
 

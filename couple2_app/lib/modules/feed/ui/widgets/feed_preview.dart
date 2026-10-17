@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session_provider.dart';
+import '../../../../app/ui/home_failure_scope.dart';
+import '../../../../core/core.dart';
 import '../../data/feed_providers.dart';
 import '../../domain/domain.dart';
 import 'activity_icon.dart';
@@ -17,63 +19,117 @@ class FeedPreview extends ConsumerWidget {
     final preview = ref.watch(feedPreviewProvider);
     final session = ref.watch(sessionProvider).asData?.value;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              title: const AppText('O que rolou'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onOpen,
-            ),
-            preview.when(
-              skipLoadingOnReload: true,
-              loading: () => const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Shimmer(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SkeletonBox(height: 14),
-                      SizedBox(height: 10),
-                      SkeletonBox(height: 14, width: 180),
-                    ],
-                  ),
+    if (preview.hasError) {
+      return LoadErrorCard(
+        message: userFacingError(preview.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(feedPreviewProvider);
+          }
+        },
+      );
+    }
+
+    return StableSlot(
+      height: homeFeedCardHeight,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LoadingButton(
+                variant: LoadingButtonVariant.text,
+                onPressed: onOpen,
+                child: const Row(
+                  children: [
+                    Text('O que rolou'),
+                    Spacer(),
+                    Icon(Icons.chevron_right),
+                  ],
                 ),
               ),
-              error: (error, _) => ErrorView(
-                message: 'Não foi possível carregar o feed',
-                compact: true,
-                onRetry: () => ref.invalidate(feedPreviewProvider),
+              _FeedLines(
+                loading: preview.isLoading && !preview.hasValue,
+                items: preview.hasValue ? preview.value : null,
+                failed: preview.hasError && !preview.hasValue,
+                sessionId: session?.id,
+                onOpen: onOpen,
               ),
-              data: (items) {
-                if (items.isEmpty) {
-                  return const EmptyView(
-                    message: 'Nada por aqui ainda.',
-                    compact: true,
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final event in items)
-                      ListTile(
-                        dense: true,
-                        leading: Icon(activityIcon(event.type)),
-                        title: AppText(
-                          '${feedActorLabel(actorId: event.actorId, currentUserId: session?.id, actorName: event.payload['actorName'] is String ? event.payload['actorName'] as String : null)} ${feedActionText(event.type, event.payload)}',
-                        ),
-                        onTap: onOpen,
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _FeedLines extends StatelessWidget {
+  const _FeedLines({
+    required this.loading,
+    required this.items,
+    required this.failed,
+    required this.sessionId,
+    required this.onOpen,
+  });
+
+  final bool loading;
+  final List<ActivityEvent>? items;
+  final bool failed;
+  final String? sessionId;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Shimmer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(height: 14),
+              SizedBox(height: 10),
+              SkeletonBox(height: 14, width: 180),
+            ],
+          ),
+        ),
+      );
+    }
+    final rows = items;
+    if (rows == null || (rows.isEmpty && failed)) {
+      return const SizedBox.shrink();
+    }
+    if (rows.isEmpty) {
+      return const EmptyView(message: 'Nada por aqui ainda.', compact: true);
+    }
+    return Column(
+      children: [
+        for (final event in rows)
+          Builder(
+            builder: (context) {
+              final label =
+                  '${feedActorLabel(actorId: event.actorId, currentUserId: sessionId, actorName: event.payload['actorName'] is String ? event.payload['actorName'] as String : null)} ${feedActionText(event.type, event.payload)}';
+              return Semantics(
+                button: true,
+                label: label,
+                onTap: onOpen,
+                child: ExcludeSemantics(
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(
+                      activityIcon(event.type),
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: IgnorePointer(child: AppText(label)),
+                    onTap: onOpen,
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

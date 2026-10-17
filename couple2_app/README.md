@@ -20,6 +20,6 @@ flutter build web --release --dart-define=API_BASE_URL=https://couple2-api-produ
 firebase deploy --only hosting
 ```
 
-Or `./scripts/build_web_release.sh`, then `firebase deploy --only hosting`.
+Or `./scripts/build_web_release.sh`, then `firebase deploy --only hosting`. Do not pass `--no-tree-shake-icons`; the icons are const and the subset font keeps them.
 
 `API_BASE_URL` is a compile-time value. Changing the API host means rebuilding the web app. Do not commit secrets; this URL is the public API.

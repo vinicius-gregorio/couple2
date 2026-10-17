@@ -40,26 +40,32 @@ class ListSkeleton extends StatelessWidget {
 }
 
 class CardSkeleton extends StatelessWidget {
-  const CardSkeleton({super.key, this.lines = 3});
+  const CardSkeleton({super.key, this.lines = 3, this.minHeight});
 
   final int lines;
 
+  /// Matches the loaded card so the list does not jump when data arrives.
+  final double? minHeight;
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Shimmer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SkeletonBox(height: 14, width: 140),
-              for (var i = 0; i < lines; i++) ...[
-                const SizedBox(height: 12),
-                SkeletonBox(height: 12, width: i == lines - 1 ? 160 : null),
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight ?? 0),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Shimmer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonBox(height: 14, width: 140),
+                for (var i = 0; i < lines; i++) ...[
+                  const SizedBox(height: 12),
+                  SkeletonBox(height: 12, width: i == lines - 1 ? 160 : null),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

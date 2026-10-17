@@ -4,8 +4,9 @@ const anniversary = new Date('2024-10-05T00:00:00.000Z');
 const saoPaulo = 'America/Sao_Paulo';
 
 describe('daysTogether', () => {
-  it('counts the anniversary date as day 1 in the couple timezone', () => {
+  it('counts the start day as 1, so the anniversary evening is 731', () => {
     // 05/10/2026 23:30 in America/Sao_Paulo is already 06/10 02:30 UTC.
+    // features/couple-record.md: 2024-10-05 through 2026-10-05 is 731.
     const lateEvening = new Date('2026-10-06T02:30:00.000Z');
     expect(
       daysTogether({
@@ -26,6 +27,66 @@ describe('daysTogether', () => {
         now: justAfterMidnight,
       }),
     ).toBe(732);
+  });
+
+  it('counts 10/10 through 15/10 as 6 days, including the start day', () => {
+    const start = new Date('2026-10-10T00:00:00.000Z');
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: 'UTC',
+        now: new Date('2026-10-15T12:00:00.000Z'),
+      }),
+    ).toBe(6);
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: 'UTC',
+        now: new Date('2026-10-10T23:00:00.000Z'),
+      }),
+    ).toBe(1);
+  });
+
+  it('uses the couple timezone across midnight', () => {
+    const start = new Date('2026-10-10T00:00:00.000Z');
+    // 14/10 23:30 in America/Sao_Paulo.
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: saoPaulo,
+        now: new Date('2026-10-15T02:30:00.000Z'),
+      }),
+    ).toBe(5);
+    // 15/10 00:30 in America/Sao_Paulo.
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: saoPaulo,
+        now: new Date('2026-10-15T03:30:00.000Z'),
+      }),
+    ).toBe(6);
+    // The local start day counts as 1 just before the next midnight.
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: saoPaulo,
+        now: new Date('2026-10-11T02:30:00.000Z'),
+      }),
+    ).toBe(1);
+    // 11/10 00:00 in America/Sao_Paulo.
+    expect(
+      daysTogether({
+        anniversaryDate: start,
+        pairedAt: start,
+        timezone: saoPaulo,
+        now: new Date('2026-10-11T03:00:00.000Z'),
+      }),
+    ).toBe(2);
   });
 
   it('uses the pairedAt calendar day in the couple timezone when anniversary is unset', () => {

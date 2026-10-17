@@ -36,6 +36,17 @@ class ActivityEvent {
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'coupleId': coupleId,
+    'actorId': actorId,
+    'type': type,
+    'entityType': entityType,
+    'entityId': entityId,
+    'payload': payload,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+  };
 }
 
 class FeedPageResult {

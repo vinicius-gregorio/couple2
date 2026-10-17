@@ -1,8 +1,9 @@
 import '../../../core/external/http_client/exceptions/exceptions.dart';
 
-enum PairingAction { pair, cancel, unpair, status, generate }
+enum PairingAction { pair, cancel, unpair, status, generate, accept, decline }
 
-/// Maps Nest pairing errors to PT-BR. The server messages stay in English.
+/// Maps Nest pairing errors to the sentence the screen shows.
+/// The API speaks Portuguese. Older English bodies still match.
 String pairingErrorMessage(
   Object error, {
   PairingAction action = PairingAction.pair,
@@ -24,33 +25,49 @@ String pairingErrorMessage(
   }
 
   if (server.contains('cannot pair with yourself') ||
-      server.contains('pair with yourself')) {
+      server.contains('pair with yourself') ||
+      server.contains('parear consigo') ||
+      server.contains('seu próprio código')) {
     return 'Você não pode usar o seu próprio código.';
   }
-  if (server.contains('expired')) {
+  if (server.contains('expired') || server.contains('expirou')) {
     return 'Esse código expirou. Peça um código novo.';
   }
   if (server.contains('invalid code format') ||
       server.contains('alphanumeric') ||
-      server.contains('must match')) {
+      server.contains('must match') ||
+      server.contains('6 letras')) {
     return 'O código precisa ter 6 letras ou números.';
   }
-  if (server.contains('no user found') ||
-      server.contains('invalid pairing code')) {
-    return 'Não encontramos ninguém com esse código.';
-  }
-  if (server.contains('already paired with a partner') ||
-      server.contains('you are already paired')) {
-    return 'Você já está pareado.';
-  }
-  if (server.contains('already paired with someone')) {
+  // "com outra" before the generic "já está paread…" so the partner case wins.
+  if (server.contains('someone else') ||
+      server.contains('already paired with someone') ||
+      server.contains('pareada com outra') ||
+      server.contains('pareado com outra')) {
     return 'Essa pessoa já está pareada com outra.';
   }
+  if (server.contains('already paired') ||
+      server.contains('já está pareado') ||
+      server.contains('já está pareada')) {
+    return 'Você já está pareado.';
+  }
+  // The missing-request sentence also contains "não encontrado".
+  if (server.contains('pairing request not found') ||
+      server.contains('pedido de pareamento não encontrado')) {
+    return 'Esse pedido não está mais disponível.';
+  }
+  if (server.contains('no user found') ||
+      server.contains('invalid pairing code') ||
+      server.contains('não encontramos')) {
+    return 'Não encontramos ninguém com esse código.';
+  }
   if (server.contains('not paired') ||
+      server.contains('não está pareado') ||
       server.contains('requires you to be paired')) {
     return 'Você não está pareado.';
   }
-  if (server.contains('user not found')) {
+  if (server.contains('user not found') ||
+      server.contains('usuário não encontrado')) {
     return 'Não encontrei sua conta. Entre de novo.';
   }
 
@@ -80,6 +97,10 @@ String pairingErrorMessage(
       return 'Não foi possível atualizar o pareamento. Tente de novo.';
     case PairingAction.generate:
       return 'Não foi possível gerar o código. Tente de novo.';
+    case PairingAction.accept:
+      return 'Não foi possível aceitar o pedido. Tente de novo.';
+    case PairingAction.decline:
+      return 'Não foi possível recusar o pedido. Tente de novo.';
     case PairingAction.pair:
       return 'Não foi possível parear agora. Tente de novo.';
   }

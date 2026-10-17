@@ -25,7 +25,9 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
   DatePlan? _plan;
   Object? _error;
   bool _loading = true;
-  bool _busy = false;
+  String? _busyAction;
+  bool _confirming = false;
+  String? _actionError;
 
   @override
   void initState() {
@@ -54,50 +56,74 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     }
   }
 
-  Future<void> _run(Future<DatePlan> Function() action) async {
-    if (_busy) return;
-    setState(() => _busy = true);
+  Future<void> _run(String action, Future<DatePlan> Function() work) async {
+    if (_busyAction != null) return;
+    setState(() => _busyAction = action);
     try {
-      final plan = await action();
+      final plan = await work();
       ref.invalidate(nextDateProvider);
       ref.invalidate(feedPreviewProvider);
       ref.read(datePlansChangedProvider.notifier).bump();
       if (!mounted) return;
       setState(() => _plan = plan);
-    } on CPLHttpException catch (error) {
-      _toast(datePlanErrorMessage(error.response?.statusCode));
-      await _load();
-    } catch (_) {
-      _toast('Não consegui salvar agora.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _actionError = userFacingError(
+          error,
+          fallback: datePlanErrorMessage(
+            error is CPLHttpException ? error.response?.statusCode : null,
+          ),
+        );
+      });
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _busyAction = null);
     }
   }
 
   Future<void> _accept() {
-    return _run(() => ref.read(datePlansRepositoryProvider).accept(widget.id));
+    return _run(
+      'accept',
+      () => ref.read(datePlansRepositoryProvider).accept(widget.id),
+    );
   }
 
   Future<void> _decline() async {
-    final note = await _askNote(title: 'Recusar date', confirm: 'Recusar');
+    if (_busyAction != null || _confirming) return;
+    setState(() => _confirming = true);
+    final note = await _askNote(title: 'Recusar encontro', confirm: 'Recusar');
+    if (!mounted) return;
+    setState(() => _confirming = false);
     if (note == null) return;
     await _run(
+      'decline',
       () =>
           ref.read(datePlansRepositoryProvider).decline(widget.id, note: note),
     );
   }
 
   Future<void> _cancel() async {
-    final note = await _askNote(title: 'Cancelar date', confirm: 'Cancelar');
+    if (_busyAction != null || _confirming) return;
+    setState(() {
+      _confirming = true;
+      _actionError = null;
+    });
+    final note = await _askNote(
+      title: 'Cancelar encontro',
+      confirm: 'Cancelar',
+    );
+    if (!mounted) return;
+    setState(() => _confirming = false);
     if (note == null) return;
     await _run(
+      'cancel',
       () => ref.read(datePlansRepositoryProvider).cancel(widget.id, note: note),
     );
   }
 
   Future<void> _counter() async {
     final current = _plan?.scheduledAt.toLocal() ?? DateTime.now();
-    final date = await showDatePicker(
+    final date = await showAppDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime.now(),
@@ -117,7 +143,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       time.minute,
     );
     if (!when.isAfter(DateTime.now())) {
-      _toast('Escolha um horário no futuro.');
+      setState(() => _actionError = 'Escolha um horário no futuro.');
       return;
     }
     final note = await _askNote(
@@ -126,6 +152,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     );
     if (note == null) return;
     await _run(
+      'counter',
       () => ref
           .read(datePlansRepositoryProvider)
           .counter(widget.id, scheduledAt: when, note: note),
@@ -134,7 +161,7 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
 
   Future<void> _done() async {
     DatePlan? updated;
-    await _run(() async {
+    await _run('done', () async {
       updated = await ref.read(datePlansRepositoryProvider).done(widget.id);
       return updated!;
     });
@@ -150,18 +177,22 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     }
     final yes = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        content: Text("Marcar '${item.content}' como assistido?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Agora não'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Marcar'),
-          ),
-        ],
+      builder: (context) => SinglePop(
+        builder: (context, pop) => AlertDialog(
+          content: Text("Marcar '${item.content}' como assistido?"),
+          actions: [
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
+              onPressed: () => pop.pop(context, false),
+              child: const Text('Agora não'),
+            ),
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
+              onPressed: () => pop.pop(context, true),
+              child: const Text('Marcar'),
+            ),
+          ],
+        ),
       ),
     );
     if (yes != true || !mounted) return;
@@ -169,17 +200,20 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       await ref.read(listsRepositoryProvider).toggleItem(item.id);
       ref.invalidate(listsViewModelProvider);
     } catch (_) {
-      _toast('O date foi marcado, mas o item da lista não.');
+      setState(() => _actionError = 'O encontro foi marcado, mas o item da lista não.');
     }
   }
 
   Future<void> _edit() async {
     final plan = _plan;
     if (plan == null) return;
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => DatePlanFormPage(existing: plan)),
+    final saved = await Navigator.of(context).push<DatePlan>(
+      MaterialPageRoute<DatePlan>(
+        builder: (_) => DatePlanFormPage(existing: plan),
+      ),
     );
-    if (saved == true) await _load();
+    if (saved == null || !mounted) return;
+    setState(() => _plan = saved);
   }
 
   /// Returns the note, or null when the dialog is dismissed.
@@ -188,32 +222,28 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          maxLength: 140,
-          decoration: const InputDecoration(labelText: 'Nota (opcional)'),
+      builder: (context) => SinglePop(
+        builder: (context, pop) => AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            maxLength: 140,
+            decoration: const InputDecoration(labelText: 'Nota (opcional)'),
+          ),
+          actions: [
+            LoadingButton(
+              variant: LoadingButtonVariant.text,
+              onPressed: () => pop.pop(context),
+              child: const Text('Voltar'),
+            ),
+            LoadingButton(
+              onPressed: () => pop.pop(context, controller.text),
+              child: Text(confirm),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Voltar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: Text(confirm),
-          ),
-        ],
       ),
     );
-  }
-
-  void _toast(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -232,9 +262,14 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
       return Scaffold(
         appBar: AppBar(leading: AppBackButton()),
         body: missing
-            ? const EmptyView(message: 'Date não encontrado')
+            ? const EmptyView(message: 'Encontro não encontrado')
             : ErrorView(
-                message: 'Não consegui carregar o date.',
+                message: _error == null
+                    ? 'Não consegui carregar o encontro.'
+                    : userFacingError(
+                        _error!,
+                        fallback: 'Não consegui carregar o encontro.',
+                      ),
                 onRetry: _load,
               ),
       );
@@ -244,12 +279,13 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),
+        leading: AppBackButton(enabled: _busyAction == null && !_confirming),
         title: AppText(plan.title),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          ActionErrorReporter(message: _actionError),
           Align(
             alignment: Alignment.centerLeft,
             child: Chip(label: Text(plan.status.label)),
@@ -288,7 +324,8 @@ class _DatePlanDetailPageState extends ConsumerState<DatePlanDetailPage> {
             _Actions(
               plan: plan,
               me: me,
-              busy: _busy,
+              busyAction: _busyAction,
+              confirming: _confirming,
               onAccept: _accept,
               onDecline: _decline,
               onCounter: _counter,
@@ -306,7 +343,8 @@ class _Actions extends StatelessWidget {
   const _Actions({
     required this.plan,
     required this.me,
-    required this.busy,
+    required this.busyAction,
+    required this.confirming,
     required this.onAccept,
     required this.onDecline,
     required this.onCounter,
@@ -317,7 +355,8 @@ class _Actions extends StatelessWidget {
 
   final DatePlan plan;
   final String me;
-  final bool busy;
+  final String? busyAction;
+  final bool confirming;
   final Future<void> Function() onAccept;
   final Future<void> Function() onDecline;
   final Future<void> Function() onCounter;
@@ -327,47 +366,72 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locked = busyAction != null || confirming;
     final buttons = <Widget>[
       if (plan.canAccept(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onAccept,
+          loading: busyAction == 'accept',
+          onPressed: locked
+              ? null
+              : () {
+                  onAccept();
+                },
           child: const Text('Aceitar'),
         ),
       if (plan.canDecline(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
-          loading: busy,
-          onPressed: busy ? null : onDecline,
+          loading: busyAction == 'decline',
+          onPressed: locked
+              ? null
+              : () {
+                  onDecline();
+                },
           child: const Text('Recusar'),
         ),
       if (plan.canCounter(me))
         LoadingButton(
           variant: LoadingButtonVariant.text,
-          loading: busy,
-          onPressed: busy ? null : onCounter,
+          loading: busyAction == 'counter',
+          onPressed: locked
+              ? null
+              : () {
+                  onCounter();
+                },
           child: const Text('Sugerir outro horário'),
         ),
       if (plan.canEdit(me))
         LoadingButton(
-          variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onEdit,
+          variant: LoadingButtonVariant.outlined,
+          loading: busyAction == 'edit',
+          onPressed: locked
+              ? null
+              : () {
+                  onEdit();
+                },
           child: const Text('Editar'),
         ),
       if (plan.canCancel(me))
         LoadingButton(
           variant: LoadingButtonVariant.outlined,
-          loading: busy,
-          onPressed: busy ? null : onCancel,
+          loading: busyAction == 'cancel',
+          onPressed: locked
+              ? null
+              : () {
+                  onCancel();
+                },
           child: const Text('Cancelar'),
         ),
       if (plan.canDone(me))
         LoadingButton(
           variant: LoadingButtonVariant.filled,
-          loading: busy,
-          onPressed: busy ? null : onDone,
+          loading: busyAction == 'done',
+          onPressed: locked
+              ? null
+              : () {
+                  onDone();
+                },
           child: const Text('Marcar como feito'),
         ),
     ];

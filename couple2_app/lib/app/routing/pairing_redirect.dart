@@ -1,5 +1,16 @@
 import '../../modules/pairing/routing/routes.dart';
 
+/// Hash URLs can report `/` while the route lives in the fragment.
+String routeLocation({
+  required String matchedLocation,
+  required String fragment,
+}) {
+  if (matchedLocation.length > 1) return matchedLocation;
+  final path = fragment.split('?').first;
+  if (path.startsWith('/')) return path;
+  return matchedLocation;
+}
+
 /// Pairing screens. Matched locations from GoRouter have no query string.
 bool isPairingLocation(String matchedLocation) {
   return matchedLocation == PairingRoutes.hub ||

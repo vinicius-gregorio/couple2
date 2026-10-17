@@ -6,7 +6,25 @@ import '../ui/pages/waiting/waiting_page.dart';
 import 'routes.dart';
 
 final pairingRoutes = [
-  GoRoute(path: PairingRoutes.hub, builder: (_, __) => const PairingCodePage()),
-  GoRoute(path: PairingRoutes.enter, builder: (_, __) => const EnterCodePage()),
-  GoRoute(path: PairingRoutes.waiting, builder: (_, __) => const WaitingPage()),
+  GoRoute(
+    path: PairingRoutes.hub,
+    pageBuilder: (_, state) => NoTransitionPage(
+      key: state.pageKey,
+      child: const PairingCodePage(),
+    ),
+  ),
+  GoRoute(
+    path: PairingRoutes.enter,
+    pageBuilder: (_, state) => NoTransitionPage(
+      key: state.pageKey,
+      child: const EnterCodePage(),
+    ),
+  ),
+  GoRoute(
+    path: PairingRoutes.waiting,
+    pageBuilder: (_, state) => NoTransitionPage(
+      key: state.pageKey,
+      child: const WaitingPage(),
+    ),
+  ),
 ];
