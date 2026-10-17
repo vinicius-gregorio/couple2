@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:couple2_app/app/session.dart';
-import 'package:couple2_app/app/session_cache.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/app/ui/pages/home/home_page.dart';
 import 'package:couple2_app/core/core.dart';
@@ -44,36 +42,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-  });
-
-  test(
-    'session cache round-trips and the boot splash is not a card skeleton',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      const session = Session(
-        id: 'ada',
-        email: 'a@example.com',
-        name: 'Ada',
-        isPaired: true,
-        coupleId: 'couple-1',
-      );
-      await SessionCache.write(session);
-      final read = await SessionCache.read();
-      expect(read?.name, 'Ada');
-      expect(read?.coupleId, 'couple-1');
-      expect(jsonDecode(jsonEncode(session.toCacheJson()))['name'], 'Ada');
-
-      await SessionCache.write(null);
-      expect(await SessionCache.read(), isNull);
-    },
-  );
 
   testWidgets('session splash does not paint home card skeletons', (
     tester,
@@ -137,7 +108,7 @@ void main() {
     expect(find.text('pagina-listas'), findsNothing);
   });
 
-  testWidgets('offline home keeps one banner and the carinho button', (
+  testWidgets('a failed home load shows the error instead of the cards', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 2400);
@@ -169,10 +140,7 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(find.text('Não foi possível carregar o humor.'), findsOneWidget);
-    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsNWidgets(5));
     expect(find.text('Tentar de novo'), findsNWidgets(5));
     expect(find.text('Atualizar'), findsNothing);
     expect(find.text('💗 Pensando em você'), findsNothing);

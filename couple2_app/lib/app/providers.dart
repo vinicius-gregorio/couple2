@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modules/auth/data/auth_providers.dart';
-import 'read_cache.dart';
 import 'session_provider.dart';
 import '../modules/auth/ui/pages/auth/auth_viewmodel.dart';
 import '../modules/couple/data/couple_providers.dart';
@@ -24,8 +23,6 @@ final logoutActionProvider = Provider<Future<void> Function()>((ref) {
     final authRepository = ref.read(authRepositoryProvider);
     await authRepository.logOut();
     await ref.read(pushServiceProvider).stop();
-    await ReadCache.clear();
-    ref.read(staleReadsProvider.notifier).clearAll();
     _invalidateUserScope(ref);
   };
 });

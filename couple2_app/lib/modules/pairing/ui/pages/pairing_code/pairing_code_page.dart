@@ -66,7 +66,6 @@ class PairingCodePage extends ConsumerWidget {
                   action: PairingAction.status,
                 ),
                 onRetry: () => _reload(ref),
-                minHeight: 200,
               )
             else if (statusAsync.hasError)
               ActionErrorReporter(

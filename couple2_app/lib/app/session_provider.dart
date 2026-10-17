@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
@@ -7,7 +5,6 @@ import '../core/core.dart';
 import '../modules/auth/data/auth_providers.dart';
 import 'provider_load.dart';
 import 'session.dart';
-import 'session_cache.dart';
 
 /// Loads `GET /auth/me` on boot, when auth changes, and when [refresh] runs
 /// (app resume and after pairing). Replaces the static SharedPreferences user,
@@ -30,15 +27,8 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     auth.authStateNotifier.addListener(onAuthChanged);
     ref.onDispose(() => auth.authStateNotifier.removeListener(onAuthChanged));
 
-    final cached = await SessionCache.read();
-    if (cached != null) {
-      unawaited(_refreshFromNetwork());
-      return cached;
-    }
     return _load();
   }
-
-  Future<void> _refreshFromNetwork() => refresh();
 
   /// Call after pairing (P0) and on app resume so Home picks up the couple
   /// without a logout. Overlapping callers share one `/auth/me`.
@@ -60,10 +50,7 @@ class SessionNotifier extends AsyncNotifier<Session?> {
 
   Future<Session?> _loadOnce() async {
     final auth = ref.read(authRepositoryProvider);
-    if (!await auth.isLoggedIn()) {
-      await SessionCache.write(null);
-      return null;
-    }
+    if (!await auth.isLoggedIn()) return null;
 
     final response = await loadOrTimeout(
       GetIt.I<ICPLHttpClient>().get<Map<String, dynamic>>('/auth/me'),
@@ -72,9 +59,7 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     if (data is! Map<String, dynamic>) {
       throw Exception('Resposta inválida de /auth/me');
     }
-    final session = Session.fromMe(data);
-    await SessionCache.write(session);
-    return session;
+    return Session.fromMe(data);
   }
 }
 

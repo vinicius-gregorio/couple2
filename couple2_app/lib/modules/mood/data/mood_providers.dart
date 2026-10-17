@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
-import '../../../app/read_cache.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -22,14 +21,7 @@ final currentMoodProvider = FutureProvider<MoodCurrent?>((ref) async {
   if (coupleId == null) return null;
   final repo = ref.watch(moodRepositoryProvider);
   try {
-    return await loadKeepingCache(
-      ref: ref,
-      key: 'mood:$coupleId',
-      load: () => repo.current(),
-      encode: (mood) => mood?.toJson(),
-      decode: (json) =>
-          json == null ? null : MoodCurrent.fromJson(cacheMap(json)),
-    );
+    return await loadOrTimeout(repo.current());
   } on CPLHttpForbiddenException {
     return null;
   }

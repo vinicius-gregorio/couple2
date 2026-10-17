@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/ui/home_failure_scope.dart';
+import '../../../../core/core.dart';
 import '../../data/date_plans_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -16,24 +17,26 @@ class NextDateCard extends ConsumerWidget {
     final next = ref.watch(nextDateProvider);
     final theme = Theme.of(context);
 
+    if (next.hasError) {
+      return LoadErrorCard(
+        message: userFacingError(next.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(nextDateProvider);
+          }
+        },
+      );
+    }
+
     return StableSlot(
       height: homeNextDateCardHeight,
       child: next.when(
-        skipError: true,
         skipLoadingOnReload: true,
         loading: () => const CardSkeleton(
           lines: 2,
           minHeight: homeNextDateCardHeight,
         ),
-        error: (error, _) => LoadErrorCard(
-          message: homeCardMessage(error, homeDatesLoadError),
-          onRetry: () {
-            if (!HomeFailureScope.retry(context)) {
-              ref.invalidate(nextDateProvider);
-            }
-          },
-          minHeight: homeNextDateCardHeight,
-        ),
+        error: (_, __) => const SizedBox.shrink(),
         data: (plan) {
           if (plan == null) return _emptyCard(context, theme);
 

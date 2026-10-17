@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
-import '../../../app/read_cache.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -17,13 +16,7 @@ final unreadCountProvider = FutureProvider<int>((ref) async {
   if (coupleId == null) return 0;
   final repo = ref.watch(feedRepositoryProvider);
   try {
-    return await loadKeepingCache(
-      ref: ref,
-      key: 'unread:$coupleId',
-      load: () => repo.unreadCount(),
-      encode: (count) => count,
-      decode: (json) => json is int ? json : 0,
-    );
+    return await loadOrTimeout(repo.unreadCount());
   } on CPLHttpForbiddenException {
     return 0;
   }
@@ -34,23 +27,10 @@ final feedPreviewProvider = FutureProvider<List<ActivityEvent>>((ref) async {
   if (coupleId == null) return const [];
   final repo = ref.watch(feedRepositoryProvider);
   try {
-    return await loadKeepingCache(
-      ref: ref,
-      key: 'feed-preview:$coupleId',
-      load: () async {
-        final page = await repo.getFeed(limit: 3);
-        return page.items;
-      },
-      encode: (items) => [for (final item in items) item.toJson()],
-      decode: (json) {
-        if (json is! List) return const <ActivityEvent>[];
-        return [
-          for (final entry in json)
-            if (entry is Map)
-              ActivityEvent.fromJson(Map<String, dynamic>.from(entry)),
-        ];
-      },
-    );
+    return await loadOrTimeout(() async {
+      final page = await repo.getFeed(limit: 3);
+      return page.items;
+    }());
   } on CPLHttpForbiddenException {
     return const [];
   }

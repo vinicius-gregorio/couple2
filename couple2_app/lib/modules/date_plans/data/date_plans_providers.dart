@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
-import '../../../app/read_cache.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -32,17 +31,11 @@ final nextDateProvider = FutureProvider<DatePlan?>((ref) async {
   if (coupleId == null) return null;
   final repo = ref.watch(datePlansRepositoryProvider);
   try {
-    return await loadKeepingCache(
-      ref: ref,
-      key: 'next-date:$coupleId',
-      load: () async {
-        final page = await repo.list(scope: 'upcoming');
-        if (page.items.isEmpty) return null;
-        return page.items.first;
-      },
-      encode: (plan) => plan?.toJson(),
-      decode: (json) => json == null ? null : DatePlan.fromJson(cacheMap(json)),
-    );
+    return await loadOrTimeout(() async {
+      final page = await repo.list(scope: 'upcoming');
+      if (page.items.isEmpty) return null;
+      return page.items.first;
+    }());
   } on CPLHttpForbiddenException {
     return null;
   }

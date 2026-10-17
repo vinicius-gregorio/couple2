@@ -6,35 +6,24 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('load error matches the skeleton height of each home card', (
+  testWidgets('load error is the message and retry, not the skeleton height', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    const cases = <(int, double)>[
-      (4, 460),
-      (2, 160),
-      (2, 112),
-      (3, 220),
-    ];
-    for (final entry in cases) {
-      final lines = entry.$1;
-      final height = entry.$2;
-      final skeleton = await _height(
-        tester,
-        CardSkeleton(lines: lines, minHeight: height),
-      );
-      final error = await _height(
-        tester,
-        LoadErrorCard(
-          message: 'Sem conexão. Verifique a internet e tente de novo.',
-          onRetry: () {},
-          minHeight: height,
-        ),
-      );
-      expect(skeleton, height, reason: 'skeleton $height');
-      expect(error, skeleton, reason: 'height $height');
-    }
+    const message = 'Sem conexão. Verifique a internet e tente de novo.';
+    final skeleton = await _height(
+      tester,
+      const CardSkeleton(lines: 4, minHeight: 460),
+    );
+    final error = await _height(
+      tester,
+      LoadErrorCard(message: message, onRetry: () {}),
+    );
+    expect(skeleton, 460);
+    expect(error, lessThan(skeleton));
+    expect(find.text(message), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
   });
 
   testWidgets('picker arrows are enabled buttons with PT-BR names', (

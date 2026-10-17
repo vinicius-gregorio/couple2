@@ -57,7 +57,6 @@ class AsyncBody extends StatelessWidget {
           LoadErrorCard(
             message: message,
             onRetry: onRetry,
-            minHeight: slotHeight,
           ),
         ],
       );
@@ -110,25 +109,20 @@ class AsyncValueView<T> extends StatelessWidget {
   }
 }
 
-/// Load failure that replaces a card or a screen at the skeleton's height.
+/// Load failure in place of a card or a screen.
 ///
-/// The message is Portuguese. Retry is the tertiary text button.
+/// The message comes from [userFacingError]. Retry reloads that content.
 class LoadErrorCard extends StatelessWidget {
   const LoadErrorCard({
     super.key,
     required this.message,
     this.onRetry,
-    this.minHeight,
     this.margin = const EdgeInsets.symmetric(horizontal: 24),
     this.retryKey = ErrorView.retryKey,
   });
 
   final String message;
   final VoidCallback? onRetry;
-
-  /// When set, the card is exactly this tall — the same height as the skeleton
-  /// it replaces, including when the message wraps.
-  final double? minHeight;
   final EdgeInsetsGeometry margin;
   final Key retryKey;
 
@@ -137,61 +131,32 @@ class LoadErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fixed = minHeight != null;
-    final tight = fixed && minHeight! <= 120;
-    final text = Text(
-      message,
-      textAlign: TextAlign.center,
-      maxLines: tight ? 2 : null,
-      overflow: tight ? TextOverflow.ellipsis : TextOverflow.visible,
-      style: theme.textTheme.bodyLarge?.copyWith(
-        color: theme.colorScheme.error,
-      ),
-    );
-    final retry = onRetry == null
-        ? null
-        : LoadingButton(
-            key: retryKey,
-            variant: LoadingButtonVariant.text,
-            compact: true,
-            onPressed: onRetry,
-            child: const Text(retryLabel),
-          );
-    final group = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        text,
-        if (retry != null) retry,
-      ],
-    );
-    final card = Card(
+    return Card(
       margin: margin,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: tight ? 0 : (fixed ? 8 : 20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+            if (onRetry != null)
+              LoadingButton(
+                key: retryKey,
+                variant: LoadingButtonVariant.text,
+                compact: true,
+                onPressed: onRetry,
+                child: const Text(retryLabel),
+              ),
+          ],
         ),
-        child: fixed
-            ? LayoutBuilder(
-                builder: (context, constraints) {
-                  // Short rows stay centered. A tall Home card keeps the
-                  // message at the top, otherwise the fold hides it.
-                  final child = ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                    child: group,
-                  );
-                  if (minHeight! > 240) {
-                    return Align(alignment: Alignment.topCenter, child: child);
-                  }
-                  return Center(child: child);
-                },
-              )
-            : group,
       ),
     );
-    if (!fixed) return card;
-    return SizedBox(height: minHeight, width: double.infinity, child: card);
   }
 }
 

@@ -18,7 +18,7 @@ void main() {
     'item': listItemSlotHeight,
   };
 
-  testWidgets('loading, error, and loaded share one height at both viewports', (
+  testWidgets('loading and loaded share one height at both viewports', (
     tester,
   ) async {
     for (final viewport in const [Size(360, 640), Size(1280, 800)]) {
@@ -29,32 +29,26 @@ void main() {
 
       for (final slot in slots.entries) {
         final heights = <double>[];
-        for (final state in ['loading', 'error', 'loaded']) {
-          final child = switch (state) {
-            'loading' => slot.value < 120
-                ? const SizedBox.expand()
-                : CardSkeleton(lines: 2, minHeight: slot.value),
-            'error' => LoadErrorCard(
-              message: 'Não foi possível carregar.',
-              onRetry: () {},
-              minHeight: slot.value,
-            ),
-            _ => slot.key == 'days'
-                ? DaysTogetherCard(
-                    couple: Couple(
-                      id: 'c',
-                      pairedAt: DateTime.utc(2024, 1, 1),
-                      anniversaryDate: '2024-01-01',
-                      timezone: 'America/Sao_Paulo',
-                      daysTogether: 1020,
-                      partner: const CouplePartner(id: 'b', name: 'Bruno'),
-                      upcoming: const [],
-                    ),
-                    onOpenSettings: () {},
-                    onOpenDates: () {},
-                  )
-                : const SizedBox.expand(),
-          };
+        for (final state in ['loading', 'loaded']) {
+          final child = state == 'loading'
+              ? (slot.value < 120
+                    ? const SizedBox.expand()
+                    : CardSkeleton(lines: 2, minHeight: slot.value))
+              : slot.key == 'days'
+              ? DaysTogetherCard(
+                  couple: Couple(
+                    id: 'c',
+                    pairedAt: DateTime.utc(2024, 1, 1),
+                    anniversaryDate: '2024-01-01',
+                    timezone: 'America/Sao_Paulo',
+                    daysTogether: 1020,
+                    partner: const CouplePartner(id: 'b', name: 'Bruno'),
+                    upcoming: const [],
+                  ),
+                  onOpenSettings: () {},
+                  onOpenDates: () {},
+                )
+              : const SizedBox.expand();
           await tester.pumpWidget(
             MaterialApp(
               theme: lightTheme,
@@ -72,6 +66,27 @@ void main() {
         }
         expect(heights.toSet(), {slot.value}, reason: slot.key);
       }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: lightTheme,
+          home: Scaffold(
+            body: LoadErrorCard(
+              message: 'Não foi possível carregar.',
+              onRetry: _noop,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Tentar de novo'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(LoadErrorCard)).height,
+        lessThan(homeDaysCardHeight),
+      );
     }
   });
 }
+
+void _noop() {}

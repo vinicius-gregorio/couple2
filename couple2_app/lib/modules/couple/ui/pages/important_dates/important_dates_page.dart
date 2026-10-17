@@ -134,11 +134,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
   Widget build(BuildContext context) {
     final coupleAsync = ref.watch(coupleProvider);
     final datesAsync = ref.watch(coupleDatesProvider);
-    final dates = datesAsync.value ?? const <CoupleDate>[];
+    final dates = datesAsync.asData?.value ?? const <CoupleDate>[];
     final loadError = datesAsync.hasError && dates.isEmpty
         ? userFacingError(datesAsync.error!)
         : null;
-    final refreshError = ref.read(coupleDatesProvider.notifier).reloadError;
     final failedEmpty = loadError != null;
     final upcoming = failedEmpty
         ? const <UpcomingDate>[]
@@ -159,7 +158,7 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
         children: [
-          ActionErrorReporter(message: _actionError ?? refreshError),
+          ActionErrorReporter(message: _actionError),
           const AppText(
             'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
           ),

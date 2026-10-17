@@ -142,7 +142,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'offline home keeps loaded cards and the notice misses the avatar',
+    'a failed refresh replaces the home cards with the error',
     (tester) async {
       _pin(tester);
       const offline = CPLHttpNoInternetConnectionException();
@@ -180,10 +180,7 @@ void main() {
       expect(find.text('7 dias juntos'), findsOneWidget);
       expect(find.textContaining('Japonês'), findsOneWidget);
       expect(find.text('Planejar um encontro'), findsNothing);
-      expect(find.byKey(offlineHomeNoticeKey), findsNothing);
-      final avatarBefore = tester.getRect(find.byKey(homeHeaderAvatarKey));
-      final daysBefore = tester.getRect(find.text('7 dias juntos'));
-      final welcomeBefore = tester.getRect(find.text('Bem-vindo, Kai!'));
+      expect(find.byType(LoadErrorCard), findsNothing);
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(HomePage)),
@@ -191,30 +188,10 @@ void main() {
       container.read(_homeOfflineProvider.notifier).down();
       await tester.pumpAndSettle();
 
-      expect(find.text('7 dias juntos'), findsOneWidget);
-      expect(find.textContaining('Japonês'), findsOneWidget);
-      expect(find.text('Planejar um encontro'), findsNothing);
-      expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-      expect(find.text(offlineUserMessage), findsOneWidget);
-
-      final avatarAfter = tester.getRect(find.byKey(homeHeaderAvatarKey));
-      final daysAfter = tester.getRect(find.text('7 dias juntos'));
-      final welcomeAfter = tester.getRect(find.text('Bem-vindo, Kai!'));
-      final notice = tester.getRect(find.byKey(offlineHomeNoticeKey));
-      expect(avatarAfter.top, avatarBefore.top);
-      expect(daysAfter.top, daysBefore.top);
-      expect(welcomeAfter.top, welcomeBefore.top);
-      expect(notice.overlaps(avatarAfter), isFalse);
-      expect(notice.overlaps(welcomeAfter), isFalse);
-      expect(notice.overlaps(daysAfter), isFalse);
-      final avatars = find.byType(CircleAvatar);
-      for (var i = 0; i < avatars.evaluate().length; i++) {
-        expect(
-          notice.overlaps(tester.getRect(avatars.at(i))),
-          isFalse,
-          reason: 'offline notice overlaps avatar $i',
-        );
-      }
+      expect(find.text('7 dias juntos'), findsNothing);
+      expect(find.textContaining('Japonês'), findsNothing);
+      expect(find.text(offlineUserMessage), findsNWidgets(5));
+      expect(find.text('Tentar de novo'), findsNWidgets(5));
     },
   );
 

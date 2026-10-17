@@ -17,7 +17,6 @@ import 'package:couple2_app/modules/couple/ui/widgets/profile_sheet.dart';
 import 'package:couple2_app/modules/daily_question/data/daily_question_providers.dart';
 import 'package:couple2_app/modules/date_plans/data/date_plans_providers.dart';
 import 'package:couple2_app/modules/feed/data/feed_providers.dart';
-import 'package:couple2_app/modules/feed/domain/domain.dart';
 import 'package:couple2_app/modules/feed/ui/pages/feed/feed_page.dart';
 import 'package:couple2_app/modules/feed/ui/pages/feed/feed_viewmodel.dart';
 import 'package:couple2_app/modules/lists/data/lists_providers.dart';
@@ -158,23 +157,10 @@ class _ListsRepo implements IListsRepository {
   Future<void> deleteList(String listId) async {}
 }
 
-class _CachedErrorFeed extends FeedViewModel {
+class _FailedFeed extends FeedViewModel {
   @override
   FeedState build() {
-    return FeedState(
-      errorMessage: offlineUserMessage,
-      items: [
-        ActivityEvent(
-          id: 'e1',
-          coupleId: 'couple-1',
-          type: 'LIST_CREATED',
-          entityType: 'LIST',
-          entityId: 'list-1',
-          createdAt: DateTime.utc(2026, 10, 1),
-          payload: const {'listName': 'Mercado secreto'},
-        ),
-      ],
-    );
+    return const FeedState(errorMessage: offlineUserMessage);
   }
 }
 
@@ -438,7 +424,7 @@ void main() {
     expect(find.text('Humor'), findsOneWidget);
   });
 
-  testWidgets('home retry clears the offline subtitle before success', (
+  testWidgets('home retry reloads the card that failed', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 2400);
@@ -468,31 +454,18 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(find.text('Não foi possível carregar o humor.'), findsOneWidget);
-    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsNWidgets(5));
+    expect(find.text('Tentar de novo'), findsNWidgets(5));
 
-    final moodCard = find.widgetWithText(
-      LoadErrorCard,
-      'Não foi possível carregar o humor.',
-    );
-    await tester.tap(
-      find.descendant(of: moodCard, matching: find.text('Tentar de novo')),
-    );
+    await tester.tap(find.text('Tentar de novo').at(1));
     await tester.pump();
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text('Não foi possível carregar os encontros.'), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
-
     mood.complete(null);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(find.text('Como vocês estão'), findsOneWidget);
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsNWidgets(4));
   });
 
-  testWidgets('days together stays at the skeleton height, online or offline', (
+  testWidgets('days together stays at the skeleton height when it loads', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 2400);
@@ -516,16 +489,6 @@ void main() {
       const StableSlot(
         height: homeDaysCardHeight,
         child: CardSkeleton(lines: 2, minHeight: homeDaysCardHeight),
-      ),
-    );
-    final error = await cardHeight(
-      StableSlot(
-        height: homeDaysCardHeight,
-        child: LoadErrorCard(
-          message: homeDaysLoadError,
-          onRetry: () {},
-          minHeight: homeDaysCardHeight,
-        ),
       ),
     );
     final loaded = await cardHeight(
@@ -557,7 +520,6 @@ void main() {
       ),
     );
     expect(skeleton, homeDaysCardHeight);
-    expect(error, skeleton);
     expect(loaded, skeleton);
     expect(withNext, loaded);
 
@@ -567,18 +529,7 @@ void main() {
         child: CardSkeleton(lines: 2, minHeight: homeMoodCardHeight),
       ),
     );
-    final moodError = await cardHeight(
-      StableSlot(
-        height: homeMoodCardHeight,
-        child: LoadErrorCard(
-          message: homeMoodLoadError,
-          onRetry: () {},
-          minHeight: homeMoodCardHeight,
-        ),
-      ),
-    );
     expect(moodSkeleton, homeMoodCardHeight);
-    expect(moodError, moodSkeleton);
 
     const offline = CPLHttpNoInternetConnectionException();
     await tester.pumpWidget(
@@ -596,20 +547,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(find.text(fallbackUserMessage), findsOneWidget);
     expect(
-      find.text('Não foi possível carregar os dias juntos.'),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .getSize(
-            find.widgetWithText(
-              LoadErrorCard,
-              'Não foi possível carregar os dias juntos.',
-            ),
-          )
-          .height,
-      homeDaysCardHeight,
+      tester.getSize(find.byType(LoadErrorCard)).height,
+      lessThan(homeDaysCardHeight),
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -628,27 +569,15 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text(offlineUserMessage), findsOneWidget);
-    final days = find.byWidgetPredicate(
-      (widget) =>
-          widget is LoadErrorCard && widget.minHeight == homeDaysCardHeight,
-    );
-    expect(days, findsOneWidget);
-    expect(tester.getSize(days).height, homeDaysCardHeight);
+    expect(find.text(offlineUserMessage), findsNWidgets(5));
+    expect(find.text('Tentar de novo'), findsNWidgets(5));
     expect(
-      tester
-          .getSize(
-            find.widgetWithText(
-              LoadErrorCard,
-              'Não foi possível carregar o humor.',
-            ),
-          )
-          .height,
-      homeMoodCardHeight,
+      tester.getSize(find.byType(LoadErrorCard).first).height,
+      lessThan(homeDaysCardHeight),
     );
   });
 
-  testWidgets('important dates show cache or the error, and clear the FAB', (
+  testWidgets('important dates show the error, then the list, and clear the FAB', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(360, 640));
@@ -686,11 +615,12 @@ void main() {
     expect(find.text(offlineUserMessage), findsNothing);
 
     repo.fail = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    expect(find.text('Data guardada'), findsOneWidget);
-    expect(find.byType(ErrorView), findsNothing);
-    expect(find.textContaining('Casamento secreto'), findsOneWidget);
+    expect(find.text('Data guardada'), findsNothing);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
     repo
@@ -751,24 +681,21 @@ void main() {
     expect(last.bottom, lessThanOrEqualTo(fab.top + 0.5));
   });
 
-  testWidgets('feed refresh keeps the cache without an error card', (
-    tester,
-  ) async {
+  testWidgets('a failed feed load shows the error card', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           sessionProvider.overrideWith(() => _Session(_ada)),
-          feedViewModelProvider.overrideWith(_CachedErrorFeed.new),
+          feedViewModelProvider.overrideWith(_FailedFeed.new),
         ],
         child: MaterialApp(theme: lightTheme, home: const FeedPage()),
       ),
     );
     await tester.pump();
     await tester.pump();
-    expect(find.textContaining('Mercado secreto'), findsOneWidget);
-    expect(find.byType(LoadErrorCard), findsNothing);
-    expect(find.byType(ErrorView), findsNothing);
-    expect(find.text('Tentar de novo'), findsNothing);
+    expect(find.textContaining('Mercado secreto'), findsNothing);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
   });
 
   test('showModalBottomSheet stays inside showAppSheet', () {

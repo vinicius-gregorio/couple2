@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/session_provider.dart';
 import '../../../../app/ui/home_failure_scope.dart';
+import '../../../../core/core.dart';
 import '../../data/daily_question_providers.dart';
 import '../../domain/domain.dart';
 import '../../routing/routes.dart';
@@ -18,8 +19,8 @@ class TodayQuestionCard extends ConsumerWidget {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = session?.partnerName ?? '';
 
-    final question = today.hasValue ? today.value : null;
-    final failedWithoutData = today.hasError && !today.hasValue;
+    final question = today.hasError ? null : today.value;
+    final failed = today.hasError;
     final copy = question == null
         ? null
         : todayCardCopy(
@@ -29,18 +30,14 @@ class TodayQuestionCard extends ConsumerWidget {
             partnerAnswered: question.partnerAnswered,
           );
 
-    if (failedWithoutData) {
-      return StableSlot(
-        height: homeQuestionCardHeight,
-        child: LoadErrorCard(
-          message: homeCardMessage(today.error!, homeQuestionLoadError),
-          onRetry: () {
-            if (!HomeFailureScope.retry(context)) {
-              ref.invalidate(todayQuestionProvider);
-            }
-          },
-          minHeight: homeQuestionCardHeight,
-        ),
+    if (failed) {
+      return LoadErrorCard(
+        message: userFacingError(today.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(todayQuestionProvider);
+          }
+        },
       );
     }
 

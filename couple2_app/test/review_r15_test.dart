@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:couple2_app/app/read_cache.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
 import 'package:couple2_app/app/ui/home_failure_scope.dart';
@@ -34,7 +33,6 @@ import 'package:couple2_app/modules/mood/ui/widgets/mood_home_card.dart';
 import 'package:couple2_app/modules/mood/ui/widgets/mood_picker_sheet.dart';
 import 'package:couple2_app/modules/mood/ui/widgets/nudge_composer_sheet.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -367,7 +365,7 @@ void main() {
     }
   });
 
-  testWidgets('one home notice reloads every card and then leaves', (
+  testWidgets('a failed home load shows the error card and retry restores it', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 2400);
@@ -419,23 +417,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(find.text(homeMoodLoadError), findsOneWidget);
-    expect(find.text(homeDatesLoadError), findsOneWidget);
-    expect(find.text(homeDaysLoadError), findsOneWidget);
-    expect(find.text(homeQuestionLoadError), findsOneWidget);
-    expect(find.text(homeFeedLoadError), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsNWidgets(5));
+    expect(find.text('Tentar de novo'), findsNWidgets(5));
     expect(find.byTooltip('Notificações'), findsOneWidget);
-    expect(tester.getSize(find.byType(MoodHomeCard)).height, homeMoodCardHeight);
-
-    final daysError = find.widgetWithText(LoadErrorCard, homeDaysLoadError);
-    expect(tester.getSize(daysError).height, homeDaysCardHeight);
-    expect(
-      tester.getSize(find.widgetWithText(LoadErrorCard, homeMoodLoadError)).height,
-      homeMoodCardHeight,
-    );
-    final careBefore = tester.getTopLeft(find.text('Nossas listas')).dy;
+    expect(find.text('Como vocês estão'), findsNothing);
+    final daysError = find.byType(LoadErrorCard).first;
+    expect(tester.getSize(daysError).height, lessThan(homeDaysCardHeight));
 
     wave = 1;
     await tester.tap(
@@ -443,7 +430,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
     expect(find.text(offlineUserMessage), findsNothing);
     expect(find.byType(LoadErrorCard), findsNothing);
     expect(find.text('7 dias juntos'), findsOneWidget);
@@ -452,10 +438,9 @@ void main() {
     expect(find.byTooltip('Notificações'), findsOneWidget);
     expect(tester.getSize(find.byType(DaysTogetherCard)).height, homeDaysCardHeight);
     expect(tester.getSize(find.byType(MoodHomeCard)).height, homeMoodCardHeight);
-    expect(tester.getTopLeft(find.text('Nossas listas')).dy, careBefore);
   });
 
-  testWidgets('cold offline still shows the bell and dias juntos', (
+  testWidgets('a failed session shows one error and the bell', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 2400);
@@ -475,10 +460,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Notificações'), findsOneWidget);
-    expect(find.text(homeDaysLoadError), findsOneWidget);
     expect(find.text(offlineUserMessage), findsOneWidget);
-    expect(tester.getSize(find.widgetWithText(LoadErrorCard, homeDaysLoadError)).height, homeDaysCardHeight);
-    expect(find.byType(LoadErrorCard), findsNWidgets(5));
+    expect(find.text('Tentar de novo'), findsOneWidget);
+    expect(find.byType(LoadErrorCard), findsOneWidget);
   });
 
   testWidgets('list rows and carinho stay put at 360x640', (tester) async {
@@ -548,15 +532,13 @@ void main() {
     expect(find.text('Aniversario lento'), findsOneWidget);
   });
 
-  testWidgets('offline refresh keeps every home card and one notice', (
+  testWidgets('a failed refresh replaces home cards with the error', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(ReadCache.clear);
-    SharedPreferences.setMockInitialValues({});
 
     final repos = _HomeCacheRepos();
     await tester.pumpWidget(
@@ -581,7 +563,6 @@ void main() {
     expect(find.text('Responda a pergunta de hoje'), findsOneWidget);
     expect(find.textContaining('mandou um carinho'), findsOneWidget);
     expect(find.byType(LoadErrorCard), findsNothing);
-    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
 
     repos.offline = true;
     final container = ProviderScope.containerOf(
@@ -596,15 +577,12 @@ void main() {
       ..invalidate(unreadCountProvider);
     await tester.pumpAndSettle();
 
-    expect(find.text('1020 dias juntos'), findsOneWidget);
-    expect(find.text('Como vocês estão'), findsOneWidget);
-    expect(find.text('💗 Pensando em você'), findsOneWidget);
-    expect(find.textContaining('Japonês'), findsOneWidget);
-    expect(find.text('Responda a pergunta de hoje'), findsOneWidget);
-    expect(find.textContaining('mandou um carinho'), findsOneWidget);
-    expect(find.byType(LoadErrorCard), findsNothing);
-    expect(find.byKey(offlineHomeNoticeKey), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('1020 dias juntos'), findsNothing);
+    expect(find.text('Como vocês estão'), findsNothing);
+    expect(find.textContaining('Japonês'), findsNothing);
+    expect(find.byType(LoadErrorCard), findsNWidgets(5));
+    expect(find.text(offlineUserMessage), findsNWidgets(5));
+    expect(find.text('Tentar de novo'), findsNWidgets(5));
 
     repos.offline = false;
     container
@@ -618,7 +596,7 @@ void main() {
 
     expect(find.text('1020 dias juntos'), findsOneWidget);
     expect(find.byType(LoadErrorCard), findsNothing);
-    expect(find.byKey(offlineHomeNoticeKey), findsNothing);
+    expect(find.text(offlineUserMessage), findsNothing);
   });
 }
 

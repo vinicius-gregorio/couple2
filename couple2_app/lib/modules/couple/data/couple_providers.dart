@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../app/provider_load.dart';
-import '../../../app/read_cache.dart';
 import '../../../app/session_provider.dart';
 import '../../../core/core.dart';
 import '../domain/domain.dart';
@@ -19,11 +18,8 @@ final coupleDatesProvider =
     );
 
 /// Dates for the open couple. [remember] publishes a save immediately.
-/// [reload] re-reads the list and keeps the previous rows if that read fails.
+/// [reload] re-reads the list. A failed read replaces the list with the error.
 class CoupleDatesNotifier extends AsyncNotifier<List<CoupleDate>> {
-  /// Set when a reload fails and the previous rows stay on screen.
-  String? reloadError;
-
   @override
   Future<List<CoupleDate>> build() async {
     final coupleId = await watchCoupleId(ref);
@@ -41,26 +37,17 @@ class CoupleDatesNotifier extends AsyncNotifier<List<CoupleDate>> {
   }
 
   Future<void> reload() async {
-    final previous = state.value;
     try {
       final coupleId = ref.read(sessionProvider).asData?.value?.coupleId;
       if (coupleId == null) {
-        reloadError = null;
         state = const AsyncData([]);
         return;
       }
       final next = await loadOrTimeout(
         ref.read(coupleRepositoryProvider).getDates(),
       );
-      reloadError = null;
       state = AsyncData(next);
     } catch (error, stack) {
-      if (previous != null) {
-        reloadError = userFacingError(error);
-        state = AsyncData(List<CoupleDate>.of(previous));
-        return;
-      }
-      reloadError = null;
       state = AsyncError(error, stack);
     }
   }
@@ -71,13 +58,7 @@ final coupleProvider = FutureProvider<Couple?>((ref) async {
   if (coupleId == null) return null;
   final repo = ref.watch(coupleRepositoryProvider);
   try {
-    return await loadKeepingCache(
-      ref: ref,
-      key: 'couple:$coupleId',
-      load: () => repo.getCouple(),
-      encode: (couple) => couple?.toJson(),
-      decode: (json) => json == null ? null : Couple.fromJson(cacheMap(json)),
-    );
+    return await loadOrTimeout(repo.getCouple());
   } on CPLHttpForbiddenException {
     return null;
   }

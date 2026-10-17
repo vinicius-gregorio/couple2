@@ -3,23 +3,17 @@ import 'dart:async';
 import 'package:couple2_app/app/providers.dart';
 import 'package:couple2_app/app/session.dart';
 import 'package:couple2_app/app/session_provider.dart';
-import 'package:couple2_app/app/ui/pages/home/home_page.dart';
-import 'package:couple2_app/core/core.dart';
 import 'package:couple2_app/design_system/design_system.dart';
 import 'package:couple2_app/modules/couple/data/couple_providers.dart';
 import 'package:couple2_app/modules/couple/data/couple_repository.dart';
 import 'package:couple2_app/modules/couple/domain/domain.dart';
 import 'package:couple2_app/modules/couple/ui/widgets/couple_date_sheet.dart';
 import 'package:couple2_app/modules/couple/ui/widgets/profile_sheet.dart';
-import 'package:couple2_app/modules/daily_question/data/daily_question_providers.dart';
-import 'package:couple2_app/modules/date_plans/data/date_plans_providers.dart';
 import 'package:couple2_app/modules/date_plans/ui/pages/date_plan_form/date_plan_form_page.dart';
-import 'package:couple2_app/modules/feed/data/feed_providers.dart';
 import 'package:couple2_app/modules/lists/data/lists_providers.dart';
 import 'package:couple2_app/modules/lists/data/lists_repository.dart';
 import 'package:couple2_app/modules/lists/domain/domain.dart';
 import 'package:couple2_app/modules/lists/ui/pages/lists/lists_page.dart';
-import 'package:couple2_app/modules/mood/data/mood_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -218,73 +212,23 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     const message = 'Não foi possível carregar o humor.';
-    for (final height in const [460.0, 160.0, 112.0, 220.0]) {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: lightTheme,
-          home: Scaffold(
-            body: ListView(
-              children: [
-                LoadErrorCard(
-                  message: message,
-                  onRetry: () {},
-                  minHeight: height,
-                ),
-              ],
-            ),
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lightTheme,
+        home: Scaffold(
+          body: LoadErrorCard(message: message, onRetry: () {}),
         ),
-      );
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-      final box = tester.getRect(find.byType(LoadErrorCard));
-      final text = tester.getRect(find.text(message));
-      final retry = tester.getRect(find.text(LoadErrorCard.retryLabel));
-      final button = tester.getRect(
-        find.widgetWithText(TextButton, LoadErrorCard.retryLabel),
-      );
-      expect(box.height, height);
-      expect(retry.top - text.bottom, inInclusiveRange(0, 16));
-      if (height > 240) {
-        expect(text.top - box.top, inInclusiveRange(0, 24));
-      } else {
-        final mid = (text.top + button.bottom) / 2;
-        expect((mid - box.center.dy).abs(), lessThanOrEqualTo(8));
-      }
-      expect((text.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
-      expect((retry.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
-    }
-  });
-
-  testWidgets('offline subtitle wraps at 320 and 360', (tester) async {
-    for (final width in const [320.0, 360.0]) {
-      await tester.binding.setSurfaceSize(Size(width, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(_offlineHome());
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      final notice = tester.widget<Text>(find.byKey(offlineHomeNoticeKey));
-      expect(notice.data, offlineUserMessage);
-      expect(notice.maxLines, isNot(1));
-      expect(notice.overflow, TextOverflow.visible);
-      expect(notice.softWrap, isTrue);
-      final paragraph = tester.renderObject<RenderParagraph>(
-        find.byKey(offlineHomeNoticeKey),
-      );
-      expect(paragraph.didExceedMaxLines, isFalse);
-      final painter = TextPainter(
-        text: TextSpan(text: offlineUserMessage, style: notice.style),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: paragraph.size.width);
-      expect(painter.computeLineMetrics().length, greaterThan(1));
-      expect(paragraph.size.height, greaterThanOrEqualTo(painter.height - 0.5));
-      final noticeRect = tester.getRect(find.byKey(offlineHomeNoticeKey));
-      final bar = tester.getRect(find.byType(AppBar));
-      expect(noticeRect.top, greaterThanOrEqualTo(bar.top - 0.5));
-      expect(noticeRect.bottom, lessThanOrEqualTo(bar.bottom + 0.5));
-      expect(noticeRect.left, greaterThanOrEqualTo(-0.5));
-      expect(noticeRect.right, lessThanOrEqualTo(width + 0.5));
-    }
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    final box = tester.getRect(find.byType(LoadErrorCard));
+    final text = tester.getRect(find.text(message));
+    final retry = tester.getRect(find.text(LoadErrorCard.retryLabel));
+    expect(retry.top - text.bottom, inInclusiveRange(0, 16));
+    expect((text.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
+    expect((retry.center.dx - box.center.dx).abs(), lessThanOrEqualTo(8));
+    expect(box.height, lessThan(160));
   });
 }
 
@@ -527,20 +471,4 @@ Future<void> _openListSheet(WidgetTester tester) async {
 Future<void> _closeDialog(WidgetTester tester) async {
   await tester.tap(find.text('Cancelar'));
   await tester.pumpAndSettle();
-}
-
-Widget _offlineHome() {
-  const offline = CPLHttpNoInternetConnectionException();
-  return ProviderScope(
-    overrides: [
-      sessionProvider.overrideWith(() => _Session(_ada)),
-      coupleProvider.overrideWith((ref) async => throw offline),
-      nextDateProvider.overrideWith((ref) async => throw offline),
-      currentMoodProvider.overrideWith((ref) async => throw offline),
-      todayQuestionProvider.overrideWith((ref) async => throw offline),
-      feedPreviewProvider.overrideWith((ref) async => throw offline),
-      unreadCountProvider.overrideWith((ref) async => 0),
-    ],
-    child: MaterialApp(theme: lightTheme, home: const HomePage()),
-  );
 }

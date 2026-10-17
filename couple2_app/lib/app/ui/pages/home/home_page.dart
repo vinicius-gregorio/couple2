@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/core.dart';
-import '../../../connectivity.dart';
 import '../../../session.dart';
 import '../../../../modules/couple/data/couple_providers.dart';
 import '../../../../modules/couple/routing/routes.dart';
@@ -25,7 +24,6 @@ import '../../../providers.dart';
 import '../../home_failure_scope.dart';
 
 const homeHeaderAvatarKey = Key('home-header-avatar');
-const offlineHomeNoticeKey = Key('offline-home-notice');
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -40,13 +38,6 @@ class HomePage extends ConsumerWidget {
     final sessionFailed = sessionAsync.hasError && session == null;
     final paired = session?.coupleId != null;
     final showCoupleHome = paired || sessionFailed;
-    final offline =
-        !ref.watch(connectivityProvider) ||
-        _offlineCount(ref, sessionAsync) >= 1;
-    final showNotice = sessionFailed || offline;
-    final noticeMessage = sessionFailed
-        ? userFacingError(sessionAsync.error!)
-        : offlineUserMessage;
 
     return MutationScope(
       child: Scaffold(
@@ -56,16 +47,6 @@ class HomePage extends ConsumerWidget {
           'Início',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-        ),
-        // Full-width slot under the toolbar so the sentence can wrap.
-        // The slot stays when the notice is hidden, so the body does not jump.
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(_offlineNoticeSlot),
-          child: _OfflineNotice(
-            offline: showNotice,
-            message: noticeMessage,
-            onRetry: () => _retryHome(ref),
-          ),
         ),
         leading: sessionAsync.when(
           data: (session) => _AvatarButton(
@@ -114,64 +95,9 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: sessionFailed
-          ? HomeFailureScope(
-              retryAll: () => _retryHome(ref),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                children: [
-                  const _HomeAvatar(picture: null),
-                  const SizedBox(height: 16),
-                  const _Welcome('Bem-vindo!'),
-                  const SizedBox(height: 24),
-                  _fixedCard(
-                    homeDaysCardHeight,
-                    LoadErrorCard(
-                      message: homeDaysLoadError,
-                      onRetry: () => _retryHome(ref),
-                      minHeight: homeDaysCardHeight,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _fixedCard(
-                    homeMoodCardHeight,
-                    LoadErrorCard(
-                      message: homeMoodLoadError,
-                      onRetry: () => _retryHome(ref),
-                      minHeight: homeMoodCardHeight,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _fixedCard(
-                    homeNextDateCardHeight,
-                    LoadErrorCard(
-                      message: homeDatesLoadError,
-                      onRetry: () => _retryHome(ref),
-                      minHeight: homeNextDateCardHeight,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _fixedCard(
-                    homeQuestionCardHeight,
-                    LoadErrorCard(
-                      message: homeQuestionLoadError,
-                      onRetry: () => _retryHome(ref),
-                      minHeight: homeQuestionCardHeight,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _fixedCard(
-                    homeFeedCardHeight,
-                    LoadErrorCard(
-                      message: homeFeedLoadError,
-                      onRetry: () => _retryHome(ref),
-                      minHeight: homeFeedCardHeight,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const _ListsButton(),
-                ],
-              ),
+          ? ErrorView(
+              message: userFacingError(sessionAsync.error!),
+              onRetry: () => _retryHome(ref),
             )
           : sessionAsync.when(
         data: (session) {
@@ -191,8 +117,7 @@ class HomePage extends ConsumerWidget {
                 try {
                   await ref.read(coupleProvider.future);
                 } catch (_) {
-                  // A failed refresh keeps the cached couple. The future still
-                  // completes with the error when nothing was stored yet.
+                  // The card shows the error. The indicator still completes.
                 }
               },
               child: ListView(
@@ -204,20 +129,18 @@ class HomePage extends ConsumerWidget {
                   _Welcome('Bem-vindo, ${session.name}!'),
                   const SizedBox(height: 24),
                   if (session.coupleId != null)
-                    _fixedCard(
-                      homeDaysCardHeight,
-                      coupleAsync.when(
-                        skipError: true,
-                        skipLoadingOnReload: true,
-                        data: (couple) {
-                          if (couple == null) {
-                            return LoadErrorCard(
-                              message: homeDaysLoadError,
-                              onRetry: () => _retryHome(ref),
-                              minHeight: homeDaysCardHeight,
-                            );
-                          }
-                          return DaysTogetherCard(
+                    coupleAsync.when(
+                      skipLoadingOnReload: true,
+                      data: (couple) {
+                        if (couple == null) {
+                          return LoadErrorCard(
+                            message: fallbackUserMessage,
+                            onRetry: () => _retryHome(ref),
+                          );
+                        }
+                        return _fixedCard(
+                          homeDaysCardHeight,
+                          DaysTogetherCard(
                             couple: couple,
                             onOpenSettings: () {
                               context.push(CoupleRoutes.settings);
@@ -225,17 +148,19 @@ class HomePage extends ConsumerWidget {
                             onOpenDates: () {
                               context.push(CoupleRoutes.dates);
                             },
-                          );
-                        },
-                        loading: () => const CardSkeleton(
+                          ),
+                        );
+                      },
+                      loading: () => _fixedCard(
+                        homeDaysCardHeight,
+                        const CardSkeleton(
                           lines: 2,
                           minHeight: homeDaysCardHeight,
                         ),
-                        error: (error, _) => LoadErrorCard(
-                          message: homeCardMessage(error, homeDaysLoadError),
-                          onRetry: () => _retryHome(ref),
-                          minHeight: homeDaysCardHeight,
-                        ),
+                      ),
+                      error: (error, _) => LoadErrorCard(
+                        message: userFacingError(error),
+                        onRetry: () => _retryHome(ref),
                       ),
                     ),
                   if (session.coupleId != null) ...[
@@ -267,21 +192,6 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-int _offlineCount(WidgetRef ref, AsyncValue<Session?> session) {
-  if (session.asData?.value?.coupleId == null) return 0;
-  var count = 0;
-  void add(AsyncValue<dynamic> value) {
-    if (value.hasError && isOfflineFailure(value.error!)) count++;
-  }
-
-  add(ref.watch(coupleProvider));
-  add(ref.watch(currentMoodProvider));
-  add(ref.watch(nextDateProvider));
-  add(ref.watch(todayQuestionProvider));
-  add(ref.watch(feedPreviewProvider));
-  return count;
-}
-
 Future<void> _retryHome(WidgetRef ref) async {
   await ref.read(sessionProvider.notifier).refresh();
   ref.invalidate(coupleProvider);
@@ -294,52 +204,6 @@ Future<void> _retryHome(WidgetRef ref) async {
 
 Widget _fixedCard(double height, Widget child) {
   return StableSlot(height: height, child: child);
-}
-
-/// Two wrapped lines of the offline sentence, plus a little padding.
-const _offlineNoticeSlot = 48.0;
-
-class _OfflineNotice extends StatelessWidget {
-  const _OfflineNotice({
-    required this.offline,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final bool offline;
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: _offlineNoticeSlot,
-      width: double.infinity,
-      child: offline
-          ? Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: AppInkWell(
-                  onTap: onRetry,
-                  child: Text(
-                    message,
-                    key: offlineHomeNoticeKey,
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.25,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            )
-          : const SizedBox.shrink(),
-    );
-  }
 }
 
 class _HomeAvatar extends StatelessWidget {

@@ -71,10 +71,20 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
     final session = ref.watch(sessionProvider).asData?.value;
     final partnerName = _name(session?.partnerName);
 
+    if (mood.hasError) {
+      return LoadErrorCard(
+        message: userFacingError(mood.error!),
+        onRetry: () {
+          if (!HomeFailureScope.retry(context)) {
+            ref.invalidate(currentMoodProvider);
+          }
+        },
+      );
+    }
+
     return StableSlot(
       height: homeMoodCardHeight,
       child: mood.when(
-        skipError: true,
         skipLoadingOnReload: true,
         data: (current) {
           if (current == null) {
@@ -190,15 +200,7 @@ class _MoodHomeCardState extends ConsumerState<MoodHomeCard> {
           lines: 2,
           minHeight: homeMoodCardHeight,
         ),
-        error: (error, _) => LoadErrorCard(
-          message: homeCardMessage(error, homeMoodLoadError),
-          onRetry: () {
-            if (!HomeFailureScope.retry(context)) {
-              ref.invalidate(currentMoodProvider);
-            }
-          },
-          minHeight: homeMoodCardHeight,
-        ),
+        error: (_, __) => const SizedBox.shrink(),
       ),
     );
   }
