@@ -454,15 +454,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text(offlineUserMessage), findsNWidgets(5));
-    expect(find.text('Tentar de novo'), findsNWidgets(5));
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
+    expect(find.text('Como vocês estão'), findsNothing);
 
-    await tester.tap(find.text('Tentar de novo').at(1));
+    await tester.tap(find.text('Tentar de novo'));
     await tester.pump();
     mood.complete(null);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text('Como vocês estão'), findsOneWidget);
-    expect(find.text(offlineUserMessage), findsNWidgets(4));
+    expect(moodFetches, greaterThan(1));
+    expect(find.text('Como vocês estão'), findsNothing);
+    expect(find.text(offlineUserMessage), findsOneWidget);
   });
 
   testWidgets('days together stays at the skeleton height when it loads', (
@@ -569,10 +571,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text(offlineUserMessage), findsNWidgets(5));
-    expect(find.text('Tentar de novo'), findsNWidgets(5));
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
     expect(
-      tester.getSize(find.byType(LoadErrorCard).first).height,
+      tester.getSize(find.byType(LoadErrorCard)).height,
       lessThan(homeDaysCardHeight),
     );
   });

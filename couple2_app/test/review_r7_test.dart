@@ -190,8 +190,8 @@ void main() {
 
       expect(find.text('7 dias juntos'), findsNothing);
       expect(find.textContaining('Japonês'), findsNothing);
-      expect(find.text(offlineUserMessage), findsNWidgets(5));
-      expect(find.text('Tentar de novo'), findsNWidgets(5));
+      expect(find.text(offlineUserMessage), findsOneWidget);
+      expect(find.text('Tentar de novo'), findsOneWidget);
     },
   );
 

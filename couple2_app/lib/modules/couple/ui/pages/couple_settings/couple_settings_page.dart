@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
+import '../../../../../app/session_provider.dart';
 import '../../../../../app/routing/app_back_button.dart';
 import '../../../../../core/core.dart';
 import '../../../../../app/routing/pop_or_go.dart';
@@ -94,6 +95,16 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
     }
   }
 
+  /// Cold open can fail on `GET /auth/me` before `/couple` runs. Retry both.
+  Future<void> _retryLoad() async {
+    final session = ref.read(sessionProvider);
+    final coupleId = session.asData?.value?.coupleId;
+    if (session.hasError || coupleId == null) {
+      await ref.read(sessionProvider.notifier).refresh();
+    }
+    ref.invalidate(coupleProvider);
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showAppDatePicker(
@@ -172,7 +183,7 @@ class _CoupleSettingsPageState extends ConsumerState<CoupleSettingsPage> {
         ),
         body: ErrorView(
           message: userFacingError(coupleAsync.error!),
-          onRetry: () => ref.invalidate(coupleProvider),
+          onRetry: _retryLoad,
         ),
       );
     }

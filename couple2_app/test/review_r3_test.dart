@@ -140,8 +140,8 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
-    expect(find.text(offlineUserMessage), findsNWidgets(5));
-    expect(find.text('Tentar de novo'), findsNWidgets(5));
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
     expect(find.text('Atualizar'), findsNothing);
     expect(find.text('💗 Pensando em você'), findsNothing);
   });

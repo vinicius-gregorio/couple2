@@ -417,17 +417,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(offlineUserMessage), findsNWidgets(5));
-    expect(find.text('Tentar de novo'), findsNWidgets(5));
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
     expect(find.byTooltip('Notificações'), findsOneWidget);
     expect(find.text('Como vocês estão'), findsNothing);
-    final daysError = find.byType(LoadErrorCard).first;
+    final daysError = find.byType(LoadErrorCard);
     expect(tester.getSize(daysError).height, lessThan(homeDaysCardHeight));
 
     wave = 1;
-    await tester.tap(
-      find.descendant(of: daysError, matching: find.text('Tentar de novo')),
-    );
+    await tester.tap(find.text('Tentar de novo'));
     await tester.pumpAndSettle();
 
     expect(find.text(offlineUserMessage), findsNothing);
@@ -580,9 +578,9 @@ void main() {
     expect(find.text('1020 dias juntos'), findsNothing);
     expect(find.text('Como vocês estão'), findsNothing);
     expect(find.textContaining('Japonês'), findsNothing);
-    expect(find.byType(LoadErrorCard), findsNWidgets(5));
-    expect(find.text(offlineUserMessage), findsNWidgets(5));
-    expect(find.text('Tentar de novo'), findsNWidgets(5));
+    expect(find.byType(LoadErrorCard), findsOneWidget);
+    expect(find.text(offlineUserMessage), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
 
     repos.offline = false;
     container

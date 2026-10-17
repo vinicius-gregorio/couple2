@@ -74,7 +74,10 @@ class _ListsPageState extends ConsumerState<ListsPage>
 
     return MutationScope(
       child: Scaffold(
-        appBar: AppBar(leading: AppBackButton(), title: AppText('Nossas listas')),
+        appBar: AppBar(
+          leading: AppBackButton(),
+          title: AppText('Nossas listas'),
+        ),
         floatingActionButton: AppFab(
           tooltip: 'Nova lista',
           onPressed: () => _showCreateListSheet(context, ref, partnerName),
@@ -215,6 +218,7 @@ class _ListCard extends ConsumerWidget {
     final done = list.items.where((i) => i.isCompleted).length;
     final total = list.items.length;
     final isPrivate = list.visibility == 'PRIVATE_FROM_PARTNER';
+    final cardLabel = '${list.name}, $label, $done de $total feitos';
 
     final scheme = Theme.of(context).colorScheme;
     final deleting = ref
@@ -225,77 +229,82 @@ class _ListCard extends ConsumerWidget {
     return StableSlot(
       height: listCardSlotHeight,
       child: Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: AppInkWell(
-              onTap: busy
-                  ? null
-                  : () async {
-                await context.push(
-                  ListsRoutes.listDetail.replaceFirst(':id', list.id),
-                );
-                if (!context.mounted) return;
-                await ref.read(listsViewModelProvider.notifier).refresh();
-              },
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(icon, color: scheme.primary),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          IgnorePointer(child: AppText(list.name)),
-                          IgnorePointer(
-                            child: AppText('$label · $done/$total feitos'),
-                          ),
-                          if (isPrivate)
-                            IgnorePointer(
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.lock_outline,
-                                    size: 16,
-                                    color: scheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const AppText('Só você vê'),
-                                ],
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: AppInkWell(
+                semanticLabel: cardLabel,
+                onTap: busy
+                    ? null
+                    : () async {
+                        await context.push(
+                          ListsRoutes.listDetail.replaceFirst(':id', list.id),
+                        );
+                        if (!context.mounted) return;
+                        await ref
+                            .read(listsViewModelProvider.notifier)
+                            .refresh();
+                      },
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: scheme.primary),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            key: Key('list-card-copy-${list.id}'),
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IgnorePointer(child: AppText(list.name)),
+                              IgnorePointer(
+                                child: AppText('$label · $done/$total feitos'),
                               ),
-                            ),
-                        ],
-                      ),
+                              if (isPrivate)
+                                IgnorePointer(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.lock_outline,
+                                        size: 16,
+                                        color: scheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const AppText('Só você vê'),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: scheme.primary),
+                      ],
                     ),
-                    Icon(Icons.chevron_right, color: scheme.primary),
-                  ],
+                  ),
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 8),
+              child: LoadingIconButton(
+                tooltip: 'Excluir lista',
+                loading: deleting,
+                icon: const Icon(Icons.delete_outline),
+                onPressed: busy
+                    ? null
+                    : () {
+                        _confirmDeleteList(context, ref, list);
+                      },
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 12, right: 8),
-            child: LoadingIconButton(
-              tooltip: 'Excluir lista',
-              loading: deleting,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: busy
-                  ? null
-                  : () {
-                      _confirmDeleteList(context, ref, list);
-                    },
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

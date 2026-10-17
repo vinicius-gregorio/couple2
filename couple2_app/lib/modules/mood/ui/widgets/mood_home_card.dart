@@ -230,6 +230,8 @@ class _MoodSide extends StatelessWidget {
     final mood = snapshot;
     final faded = mood?.stale ?? false;
     return AppInkWell(
+      semanticLabel:
+          '$title, ${mood == null ? empty : moodAgeLabel(mood.createdAt)}',
       onTap: onTap,
       child: Opacity(
         opacity: faded ? 0.45 : 1,

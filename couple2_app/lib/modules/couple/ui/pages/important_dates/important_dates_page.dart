@@ -66,7 +66,10 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     }
   }
 
-  Future<String?> _saveDraft(CoupleDate? existing, CoupleDateDraft draft) async {
+  Future<String?> _saveDraft(
+    CoupleDate? existing,
+    CoupleDateDraft draft,
+  ) async {
     try {
       final repo = ref.read(coupleRepositoryProvider);
       final CoupleDate saved;
@@ -146,90 +149,97 @@ class _ImportantDatesPageState extends ConsumerState<ImportantDatesPage>
     return MutationScope(
       onSuccess: _reloadDates,
       child: Scaffold(
-      appBar: AppBar(
-        leading: AppBackButton(enabled: !_rowLocked),
-        title: AppText('Datas importantes'),
-      ),
-      floatingActionButton: AppFab(
-        tooltip: 'Adicionar data',
-        onPressed: _rowLocked ? null : () => _openSheet(),
-        icon: const Icon(Icons.add),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
-        children: [
-          ActionErrorReporter(message: _actionError),
-          const AppText(
-            'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
-          ),
-          const SizedBox(height: 16),
-          if (!failedEmpty) ...[
+        appBar: AppBar(
+          leading: AppBackButton(enabled: !_rowLocked),
+          title: AppText('Datas importantes'),
+        ),
+        floatingActionButton: AppFab(
+          tooltip: 'Adicionar data',
+          onPressed: _rowLocked ? null : () => _openSheet(),
+          icon: const Icon(Icons.add),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, AppFab.clearance),
+          children: [
+            ActionErrorReporter(message: _actionError),
+            const AppText(
+              'Datas recorrentes do casal. Conquistas continuam na lista de marcos.',
+            ),
+            const SizedBox(height: 16),
+            if (!failedEmpty) ...[
+              AppText(
+                'Próximas datas',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (upcoming.isEmpty)
+                const AppText('Nada nos próximos 60 dias.')
+              else
+                ...upcoming.map((entry) {
+                  final title = nextDateLine(
+                    entry,
+                  ).replaceFirst('Próxima data: ', '');
+                  final when = formatDisplayDate(entry.date);
+                  final open = _rowLocked || entry.coupleDateId == null
+                      ? null
+                      : () {
+                          final match = dates.where(
+                            (date) => date.id == entry.coupleDateId,
+                          );
+                          if (match.isNotEmpty) _openSheet(match.first);
+                        };
+                  return MutationLock(
+                    locked: _rowLocked,
+                    child: Semantics(
+                      button: open != null,
+                      enabled: open != null,
+                      label: '$title, $when',
+                      onTap: open,
+                      child: ExcludeSemantics(
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: IgnorePointer(child: AppText(title)),
+                          subtitle: IgnorePointer(child: AppText(when)),
+                          onTap: open,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+            const SizedBox(height: 16),
             AppText(
-              'Próximas datas',
+              'Datas do casal',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            if (upcoming.isEmpty)
-              const AppText('Nada nos próximos 60 dias.')
-            else
-              ...upcoming.map(
-                (entry) => MutationLock(
+            if (datesAsync.isLoading && dates.isEmpty && loadError == null)
+              const SizedBox(height: 240, child: ListSkeleton(rows: 3))
+            else if (loadError != null)
+              ErrorView(
+                message: loadError,
+                compact: true,
+                onRetry: () => ref.read(coupleDatesProvider.notifier).reload(),
+              )
+            else if (dates.isEmpty)
+              const EmptyView(
+                message: 'Nenhuma data ainda. Toque em adicionar.',
+                compact: true,
+              )
+            else ...[
+              ...dates.map(
+                (date) => _DateRow(
+                  key: Key('date-row-${date.id}'),
+                  date: date,
+                  deleting: _deletingId == date.id,
                   locked: _rowLocked,
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: IgnorePointer(
-                      child: AppText(
-                        nextDateLine(entry).replaceFirst('Próxima data: ', ''),
-                      ),
-                    ),
-                    subtitle: IgnorePointer(
-                      child: AppText(formatDisplayDate(entry.date)),
-                    ),
-                    onTap: _rowLocked || entry.coupleDateId == null
-                        ? null
-                        : () {
-                            final match = dates.where(
-                              (date) => date.id == entry.coupleDateId,
-                            );
-                            if (match.isNotEmpty) _openSheet(match.first);
-                          },
-                  ),
+                  onOpen: () => _openSheet(date),
+                  onDelete: () => _delete(date),
                 ),
               ),
+            ],
           ],
-          const SizedBox(height: 16),
-          AppText(
-            'Datas do casal',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          if (datesAsync.isLoading && dates.isEmpty && loadError == null)
-            const SizedBox(height: 240, child: ListSkeleton(rows: 3))
-          else if (loadError != null)
-            ErrorView(
-              message: loadError,
-              compact: true,
-              onRetry: () => ref.read(coupleDatesProvider.notifier).reload(),
-            )
-          else if (dates.isEmpty)
-            const EmptyView(
-              message: 'Nenhuma data ainda. Toque em adicionar.',
-              compact: true,
-            )
-          else ...[
-            ...dates.map(
-              (date) => _DateRow(
-                key: Key('date-row-${date.id}'),
-                date: date,
-                deleting: _deletingId == date.id,
-                locked: _rowLocked,
-                onOpen: () => _openSheet(date),
-                onDelete: () => _delete(date),
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -261,45 +271,47 @@ class _DateRow extends StatelessWidget {
     return MutationLock(
       locked: busy,
       child: Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppInkWell(
-              onTap: busy ? null : onOpen,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppText(date.title),
-                    AppText(
-                      '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
-                    ),
-                  ],
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: AppInkWell(
+                semanticLabel:
+                    '${date.title}, ${formatDisplayDate(date.date)}, ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                onTap: busy ? null : onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(date.title),
+                      AppText(
+                        '${formatDisplayDate(date.date)} · ${date.recurrence == 'YEARLY' ? 'todo ano' : 'uma vez'}',
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          AppIconButton(
-            tooltip: 'Editar',
-            onPressed: busy ? null : onOpen,
-            icon: Icon(Icons.edit_outlined, color: iconColor),
-          ),
-          const SizedBox(width: 8),
-          LoadingIconButton(
-            tooltip: 'Excluir',
-            loading: deleting,
-            icon: const Icon(Icons.delete_outline),
-            onPressed: busy
-                ? null
-                : () {
-                    onDelete();
-                  },
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
+            AppIconButton(
+              tooltip: 'Editar',
+              onPressed: busy ? null : onOpen,
+              icon: Icon(Icons.edit_outlined, color: iconColor),
+            ),
+            const SizedBox(width: 8),
+            LoadingIconButton(
+              tooltip: 'Excluir',
+              loading: deleting,
+              icon: const Icon(Icons.delete_outline),
+              onPressed: busy
+                  ? null
+                  : () {
+                      onDelete();
+                    },
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }

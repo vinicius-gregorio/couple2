@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../theme/theme.dart';
+import 'app_sheet_scope.dart';
 
 /// One in-flight mutation for the screen under this scope.
 ///
@@ -166,10 +167,7 @@ class _MutationScopeState extends State<MutationScope> {
           widget.child,
           if (_controller.busy)
             const Positioned.fill(
-              child: ModalBarrier(
-                dismissible: false,
-                color: Color(0x00000000),
-              ),
+              child: ModalBarrier(dismissible: false, color: Color(0x00000000)),
             ),
         ],
       ),
@@ -238,8 +236,9 @@ class _ActionErrorReporterState extends State<ActionErrorReporter> {
   }
 
   void _schedule() {
+    if (AppSheetScope.isInSheet(context)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || AppSheetScope.isInSheet(context)) return;
       final message = widget.message;
       if (message == null || message.isEmpty) {
         if (_last != null) {
@@ -256,7 +255,18 @@ class _ActionErrorReporterState extends State<ActionErrorReporter> {
   }
 
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    if (!AppSheetScope.isInSheet(context)) return const SizedBox.shrink();
+    final message = widget.message;
+    if (message == null || message.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Text(
+        message,
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      ),
+    );
+  }
 }
 
 /// Reports disabled while a mutation is in flight.

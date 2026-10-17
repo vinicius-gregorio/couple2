@@ -46,6 +46,9 @@ class TodayQuestionCard extends ConsumerWidget {
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         child: AppInkWell(
+          semanticLabel: copy == null
+              ? 'Pergunta do dia'
+              : 'Pergunta do dia, ${copy.title}',
           onTap: () => context.push(DailyQuestionRoutes.today),
           child: IgnorePointer(
             child: Padding(

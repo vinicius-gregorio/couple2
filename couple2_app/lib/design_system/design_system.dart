@@ -8,6 +8,7 @@ export 'theme/text_theme.dart';
 export 'theme/theme.dart';
 export 'widgets/app_fab.dart';
 export 'widgets/app_sheet.dart';
+export 'widgets/app_sheet_scope.dart';
 export 'widgets/app_icon_button.dart';
 export 'widgets/app_ink_well.dart';
 export 'widgets/app_text.dart';

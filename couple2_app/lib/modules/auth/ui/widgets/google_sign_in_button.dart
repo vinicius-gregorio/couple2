@@ -32,44 +32,53 @@ class GoogleSignInButton extends StatelessWidget {
         ? scheme.onPrimary
         : scheme.onSurface.withValues(alpha: 0.38);
     final border = active
-        ? Color.alphaBlend(
-            scheme.scrim.withValues(alpha: 0.35),
-            scheme.primary,
-          )
+        ? Color.alphaBlend(scheme.scrim.withValues(alpha: 0.35), scheme.primary)
         : scheme.outline;
-    return Material(
-      color: background,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: border, width: 2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onPressed : null,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: minHeight),
-          child: SizedBox(
-            width: double.infinity,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: IgnorePointer(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _leading(foreground),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Entrar com Google',
-                      style: TextStyle(
-                        color: foreground,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: 'Entrar com Google',
+      onTap: enabled ? onPressed : null,
+      child: Material(
+        color: background,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: border, width: 2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: GestureDetector(
+          excludeFromSemantics: true,
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? onPressed : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: minHeight),
+            child: SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: ExcludeSemantics(
+                  child: IgnorePointer(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _leading(foreground),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Entrar com Google',
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -85,10 +94,7 @@ class GoogleSignInButton extends StatelessWidget {
         key: loadingIndicatorKey,
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: foreground,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: foreground),
       );
     }
     return SvgPicture(

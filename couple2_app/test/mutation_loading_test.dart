@@ -1047,14 +1047,16 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
 }
 
-/// The failure is a SnackBar. The page itself does not gain an error block.
+/// Page failures stay a floating SnackBar. A sheet shows the same message
+/// inline, above its send button, and does not cover the fields with a bar.
 void expectInlineError(
   WidgetTester tester,
   String message, {
   Matcher count = findsOneWidget,
 }) {
   expect(find.text(message), count);
-  expect(find.byType(SnackBar), findsWidgets);
+  final inSheet = find.byType(AppSheetScope).evaluate().isNotEmpty;
+  expect(find.byType(SnackBar), inSheet ? findsNothing : findsWidgets);
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {

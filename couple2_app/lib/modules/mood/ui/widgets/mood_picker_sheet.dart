@@ -166,19 +166,25 @@ class _EmojiChoice extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      enabled: onTap != null,
       label: level.label,
-      child: AppInkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: selected ? color.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? color.primary : color.outline),
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: AppInkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: selected ? color.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? color.primary : color.outline,
+              ),
+            ),
+            child: Text(level.emoji, style: const TextStyle(fontSize: 36)),
           ),
-          child: Text(level.emoji, style: const TextStyle(fontSize: 36)),
         ),
       ),
     );

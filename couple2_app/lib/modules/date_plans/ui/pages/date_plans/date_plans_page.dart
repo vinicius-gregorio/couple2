@@ -245,14 +245,22 @@ class _DateList extends StatelessWidget {
                   );
                 }
                 final plan = items[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(plan.title),
-                    subtitle: Text(
-                      '${datePlanWhen(plan.scheduledAt)} · horário do aparelho',
+                final when =
+                    '${datePlanWhen(plan.scheduledAt)} · horário do aparelho';
+                void open() => onOpen(plan.id);
+                return Semantics(
+                  button: true,
+                  label: '${plan.title}, $when, ${plan.status.label}',
+                  onTap: open,
+                  child: ExcludeSemantics(
+                    child: Card(
+                      child: ListTile(
+                        title: Text(plan.title),
+                        subtitle: Text(when),
+                        trailing: Chip(label: Text(plan.status.label)),
+                        onTap: open,
+                      ),
                     ),
-                    trailing: Chip(label: Text(plan.status.label)),
-                    onTap: () => onOpen(plan.id),
                   ),
                 );
               },

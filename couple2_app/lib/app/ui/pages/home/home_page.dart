@@ -41,155 +41,182 @@ class HomePage extends ConsumerWidget {
 
     return MutationScope(
       child: Scaffold(
-      appBar: AppBar(
-        centerTitle: false,
-        title: const Text(
-          'Início',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        leading: sessionAsync.when(
-          data: (session) => _AvatarButton(
-            pictureUrl: session?.picture,
-            onPressed: session == null
-                ? null
-                : () {
-                    final host = context;
-                    showAppSheet<void>(
-                      context: host,
-                      builder: (_) =>
-                          ProfileSheet(session: session, hostContext: host),
-                    );
-                  },
+        appBar: AppBar(
+          centerTitle: false,
+          title: const Text(
+            'Início',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          loading: () => const _AvatarButton(pictureUrl: null),
-          error: (_, __) => const _AvatarButton(pictureUrl: null),
-        ),
-        actions: [
-          if (showCoupleHome)
-            _FeedBell(
-              count: unread,
-              onPressed: () => context.push(FeedRoutes.feed),
+          leading: sessionAsync.when(
+            data: (session) => _AvatarButton(
+              pictureUrl: session?.picture,
+              onPressed: session == null
+                  ? null
+                  : () {
+                      final host = context;
+                      showAppSheet<void>(
+                        context: host,
+                        builder: (_) =>
+                            ProfileSheet(session: session, hostContext: host),
+                      );
+                    },
             ),
-          Builder(
-            builder: (context) {
-              return AppIconButton(
-                tooltip: 'Sair',
-                icon: const Icon(Icons.logout),
-                onPressed: MutationScope.busyOf(context)
-                    ? null
-                    : () async {
-                        final accepted = await confirmDestructive(
-                          context,
-                          title: 'Sair da conta?',
-                          message:
-                              'Você volta para a tela de entrada. Sem internet, a saída também acontece neste aparelho.',
-                          confirmLabel: 'Sair',
-                        );
-                        if (!accepted) return;
-                        await logout();
-                      },
-              );
-            },
+            loading: () => const _AvatarButton(pictureUrl: null),
+            error: (_, __) => const _AvatarButton(pictureUrl: null),
           ),
-        ],
-      ),
-      body: sessionFailed
-          ? ErrorView(
-              message: userFacingError(sessionAsync.error!),
-              onRetry: () => _retryHome(ref),
-            )
-          : sessionAsync.when(
-        data: (session) {
-          if (session == null) {
-            return const _BootBody();
-          }
-
-          if (sessionNeedsPairing(session)) {
-            return const _NeedsPairingBody();
-          }
-
-          return HomeFailureScope(
-            retryAll: () => _retryHome(ref),
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await _retryHome(ref);
-                try {
-                  await ref.read(coupleProvider.future);
-                } catch (_) {
-                  // The card shows the error. The indicator still completes.
-                }
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                children: [
-                  _HomeAvatar(picture: session.picture),
-                  const SizedBox(height: 16),
-                  _Welcome('Bem-vindo, ${session.name}!'),
-                  const SizedBox(height: 24),
-                  if (session.coupleId != null)
-                    coupleAsync.when(
-                      skipLoadingOnReload: true,
-                      data: (couple) {
-                        if (couple == null) {
-                          return LoadErrorCard(
-                            message: fallbackUserMessage,
-                            onRetry: () => _retryHome(ref),
-                          );
-                        }
-                        return _fixedCard(
-                          homeDaysCardHeight,
-                          DaysTogetherCard(
-                            couple: couple,
-                            onOpenSettings: () {
-                              context.push(CoupleRoutes.settings);
-                            },
-                            onOpenDates: () {
-                              context.push(CoupleRoutes.dates);
-                            },
-                          ),
-                        );
-                      },
-                      loading: () => _fixedCard(
-                        homeDaysCardHeight,
-                        const CardSkeleton(
-                          lines: 2,
-                          minHeight: homeDaysCardHeight,
-                        ),
-                      ),
-                      error: (error, _) => LoadErrorCard(
-                        message: userFacingError(error),
-                        onRetry: () => _retryHome(ref),
-                      ),
-                    ),
-                  if (session.coupleId != null) ...[
-                    const SizedBox(height: 16),
-                    const MoodHomeCard(),
-                    const SizedBox(height: 16),
-                    const NextDateCard(),
-                    const SizedBox(height: 16),
-                    const TodayQuestionCard(),
-                    const SizedBox(height: 16),
-                    FeedPreview(
-                      onOpen: () {
-                        context.push(FeedRoutes.feed);
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  const _ListsButton(),
-                ],
+          actions: [
+            if (showCoupleHome)
+              _FeedBell(
+                count: unread,
+                onPressed: () => context.push(FeedRoutes.feed),
               ),
+            Builder(
+              builder: (context) {
+                return AppIconButton(
+                  tooltip: 'Sair',
+                  icon: const Icon(Icons.logout),
+                  onPressed: MutationScope.busyOf(context)
+                      ? null
+                      : () async {
+                          final accepted = await confirmDestructive(
+                            context,
+                            title: 'Sair da conta?',
+                            message:
+                                'Você volta para a tela de entrada. Sem internet, a saída também acontece neste aparelho.',
+                            confirmLabel: 'Sair',
+                          );
+                          if (!accepted) return;
+                          await logout();
+                        },
+                );
+              },
             ),
-          );
-        },
-        loading: () => const _BootBody(),
-        error: (_, __) => const _BootBody(),
-      ),
+          ],
+        ),
+        body: sessionFailed
+            ? ErrorView(
+                message: userFacingError(sessionAsync.error!),
+                onRetry: () => _retryHome(ref),
+              )
+            : sessionAsync.when(
+                data: (session) {
+                  if (session == null) {
+                    return const _BootBody();
+                  }
+
+                  if (sessionNeedsPairing(session)) {
+                    return const _NeedsPairingBody();
+                  }
+
+                  if (session.coupleId != null) {
+                    final failure = _homeReadError(ref);
+                    if (failure != null) {
+                      return ErrorView(
+                        message: userFacingError(failure),
+                        onRetry: () => _retryHome(ref),
+                      );
+                    }
+                  }
+
+                  return HomeFailureScope(
+                    retryAll: () => _retryHome(ref),
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        await _retryHome(ref);
+                        try {
+                          await ref.read(coupleProvider.future);
+                        } catch (_) {
+                          // The card shows the error. The indicator still completes.
+                        }
+                      },
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        children: [
+                          _HomeAvatar(picture: session.picture),
+                          const SizedBox(height: 16),
+                          _Welcome('Bem-vindo, ${session.name}!'),
+                          const SizedBox(height: 24),
+                          if (session.coupleId != null)
+                            coupleAsync.when(
+                              skipLoadingOnReload: true,
+                              data: (couple) {
+                                if (couple == null) {
+                                  return LoadErrorCard(
+                                    message: fallbackUserMessage,
+                                    onRetry: () => _retryHome(ref),
+                                  );
+                                }
+                                return _fixedCard(
+                                  homeDaysCardHeight,
+                                  DaysTogetherCard(
+                                    couple: couple,
+                                    onOpenSettings: () {
+                                      context.push(CoupleRoutes.settings);
+                                    },
+                                    onOpenDates: () {
+                                      context.push(CoupleRoutes.dates);
+                                    },
+                                  ),
+                                );
+                              },
+                              loading: () => _fixedCard(
+                                homeDaysCardHeight,
+                                const CardSkeleton(
+                                  lines: 2,
+                                  minHeight: homeDaysCardHeight,
+                                ),
+                              ),
+                              error: (error, _) => LoadErrorCard(
+                                message: userFacingError(error),
+                                onRetry: () => _retryHome(ref),
+                              ),
+                            ),
+                          if (session.coupleId != null) ...[
+                            const SizedBox(height: 16),
+                            const MoodHomeCard(),
+                            const SizedBox(height: 16),
+                            const NextDateCard(),
+                            const SizedBox(height: 16),
+                            const TodayQuestionCard(),
+                            const SizedBox(height: 16),
+                            FeedPreview(
+                              onOpen: () {
+                                context.push(FeedRoutes.feed);
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          const _ListsButton(),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const _BootBody(),
+                error: (_, __) => const _BootBody(),
+              ),
       ),
     );
   }
+}
+
+/// One failure among the home cards replaces the whole page.
+///
+/// Every card provider is watched, so one retry refetches all of them.
+Object? _homeReadError(WidgetRef ref) {
+  final couple = ref.watch(coupleProvider);
+  final mood = ref.watch(currentMoodProvider);
+  final nextDate = ref.watch(nextDateProvider);
+  final today = ref.watch(todayQuestionProvider);
+  final feed = ref.watch(feedPreviewProvider);
+  if (couple.hasError) return couple.error;
+  if (mood.hasError) return mood.error;
+  if (nextDate.hasError) return nextDate.error;
+  if (today.hasError) return today.error;
+  if (feed.hasError) return feed.error;
+  return null;
 }
 
 Future<void> _retryHome(WidgetRef ref) async {
@@ -372,15 +399,19 @@ class _AvatarButton extends StatelessWidget {
           );
 
     final locked = MutationScope.busyOf(context);
+    final open = onPressed == null || locked ? null : onPressed;
     return Semantics(
       button: true,
-      enabled: onPressed != null && !locked,
+      enabled: open != null,
       label: 'Perfil',
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: AppInkWell(
-          onTap: onPressed == null || locked ? null : onPressed,
-          child: Tooltip(message: 'Perfil', child: avatar),
+      onTap: open,
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: AppInkWell(
+            onTap: open,
+            child: Tooltip(message: 'Perfil', child: avatar),
+          ),
         ),
       ),
     );

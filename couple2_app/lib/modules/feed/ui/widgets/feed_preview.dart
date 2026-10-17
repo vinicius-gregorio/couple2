@@ -107,18 +107,27 @@ class _FeedLines extends StatelessWidget {
     return Column(
       children: [
         for (final event in rows)
-          ListTile(
-            dense: true,
-            leading: Icon(
-              activityIcon(event.type),
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            title: IgnorePointer(
-              child: AppText(
-                '${feedActorLabel(actorId: event.actorId, currentUserId: sessionId, actorName: event.payload['actorName'] is String ? event.payload['actorName'] as String : null)} ${feedActionText(event.type, event.payload)}',
-              ),
-            ),
-            onTap: onOpen,
+          Builder(
+            builder: (context) {
+              final label =
+                  '${feedActorLabel(actorId: event.actorId, currentUserId: sessionId, actorName: event.payload['actorName'] is String ? event.payload['actorName'] as String : null)} ${feedActionText(event.type, event.payload)}';
+              return Semantics(
+                button: true,
+                label: label,
+                onTap: onOpen,
+                child: ExcludeSemantics(
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(
+                      activityIcon(event.type),
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: IgnorePointer(child: AppText(label)),
+                    onTap: onOpen,
+                  ),
+                ),
+              );
+            },
           ),
       ],
     );

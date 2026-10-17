@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'app_sheet_scope.dart';
 import 'mutation_scope.dart';
 
 /// Modal sheet with its own scaffold, so a mutation SnackBar is visible
@@ -59,7 +60,7 @@ Future<T?> showAppSheet<T>({
                           top: Radius.circular(28),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: Builder(builder: builder),
+                        child: AppSheetScope(child: Builder(builder: builder)),
                       ),
                     ),
                     if (enableDrag)

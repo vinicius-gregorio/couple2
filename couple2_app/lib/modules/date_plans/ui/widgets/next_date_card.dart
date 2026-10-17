@@ -43,6 +43,7 @@ class NextDateCard extends ConsumerWidget {
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 24),
             child: AppInkWell(
+              semanticLabel: nextDateHeadline(plan),
               onTap: () => context.push(DatePlanRoutes.detail(plan.id)),
               child: Padding(
                 padding: const EdgeInsets.all(20),

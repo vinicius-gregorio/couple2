@@ -148,19 +148,22 @@ class _ActivityTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: ListTile(
-        leading: Icon(
-          activityIcon(event.type),
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        title: IgnorePointer(child: AppText(label)),
-        subtitle: IgnorePointer(
-          child: AppText(
-            _shortTime(event.createdAt.toLocal()),
-            style: Theme.of(context).textTheme.bodySmall,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: ListTile(
+          leading: Icon(
+            activityIcon(event.type),
+            color: Theme.of(context).colorScheme.primary,
           ),
+          title: IgnorePointer(child: AppText(label)),
+          subtitle: IgnorePointer(
+            child: AppText(
+              _shortTime(event.createdAt.toLocal()),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          onTap: onTap,
         ),
-        onTap: onTap,
       ),
     );
   }
